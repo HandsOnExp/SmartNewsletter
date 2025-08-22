@@ -41,33 +41,114 @@ export default function SettingsPage() {
     if (user) {
       loadUserSettings();
     }
-  }, [user]);
+  }, [user]); // loadUserSettings is recreated on each render, which is fine for this use case
+
+  const getStorageKey = (userId: string) => `smart-newsletter-settings-${userId}`;
+
+  const saveToLocalStorage = (settings: UserSettings) => {
+    if (user && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(getStorageKey(user.id), JSON.stringify({
+          ...settings,
+          lastSaved: new Date().toISOString()
+        }));
+      } catch (error) {
+        console.error('Failed to save to localStorage:', error);
+      }
+    }
+  };
+
+  const loadFromLocalStorage = (): UserSettings | null => {
+    if (user && typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(getStorageKey(user.id));
+        return stored ? JSON.parse(stored) : null;
+      } catch (error) {
+        console.error('Failed to load from localStorage:', error);
+        return null;
+      }
+    }
+    return null;
+  };
 
   const loadUserSettings = async () => {
     try {
+      // First try to load from server
       const response = await fetch('/api/settings');
+      let settingsLoaded = false;
+
       if (response.ok) {
         const data = await response.json();
-        if (data.success && data.settings) {
-          const settings: UserSettings = data.settings;
-          setApiKeys(settings.apiKeys);
-          setPreferences(settings.preferences);
-          setCustomFeeds(settings.rssFeeds.custom || []);
-          
-          // Update feed enabled/disabled status
-          const updatedFeeds = RSS_FEEDS.map(feed => ({
-            ...feed,
-            enabled: !settings.rssFeeds.disabled.includes(feed.id)
-          }));
-          setFeeds(updatedFeeds);
+        if (data.success && data.data?.settings) {
+          const settings: UserSettings = data.data.settings;
+          applySettings(settings);
+          settingsLoaded = true;
+        }
+      }
+
+      // If server failed, try localStorage as fallback
+      if (!settingsLoaded) {
+        const localSettings = loadFromLocalStorage();
+        if (localSettings) {
+          console.log('Loading settings from localStorage');
+          applySettings(localSettings);
+          toast.info('Settings loaded from local storage');
+        } else {
+          // Apply defaults if nothing found
+          applyDefaultSettings();
         }
       }
     } catch (error) {
       console.error('Failed to load settings:', error);
-      toast.error('Failed to load settings');
+      
+      // Try localStorage as fallback
+      const localSettings = loadFromLocalStorage();
+      if (localSettings) {
+        applySettings(localSettings);
+        toast.warning('Settings loaded from backup (server unavailable)');
+      } else {
+        toast.error('Failed to load settings');
+        applyDefaultSettings();
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const applySettings = (settings: UserSettings) => {
+    setApiKeys(settings.apiKeys || { cohere: '', gemini: '' });
+    setPreferences(settings.preferences || {
+      autoGenerate: false,
+      generateTime: '09:00',
+      emailNotifications: true,
+      llmPreference: 'cohere'
+    });
+    setCustomFeeds(settings.rssFeeds?.custom || []);
+    
+    // Update feed enabled/disabled status
+    const updatedFeeds = RSS_FEEDS.map(feed => ({
+      ...feed,
+      enabled: settings.rssFeeds?.enabled?.includes(feed.id) || false
+    }));
+    setFeeds(updatedFeeds);
+  };
+
+  const applyDefaultSettings = () => {
+    setApiKeys({ cohere: '', gemini: '' });
+    setPreferences({
+      autoGenerate: false,
+      generateTime: '09:00',
+      emailNotifications: true,
+      llmPreference: 'cohere'
+    });
+    setCustomFeeds([]);
+    
+    // All feeds disabled by default
+    const updatedFeeds = RSS_FEEDS.map(feed => ({
+      ...feed,
+      enabled: false
+    }));
+    setFeeds(updatedFeeds);
   };
 
   const toggleFeed = (feedId: string, enabled: boolean) => {
@@ -120,19 +201,35 @@ export default function SettingsPage() {
         }
       };
 
-      const response = await fetch('/api/settings', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(settingsData),
-      });
+      // Always save to localStorage first (immediate backup)
+      const fullSettingsData = {
+        userId: user.id,
+        ...settingsData
+      };
+      saveToLocalStorage(fullSettingsData);
 
-      if (response.ok) {
-        toast.success('Settings saved successfully!');
-      } else {
-        toast.error('Failed to save settings');
+      // Try to save to server
+      try {
+        const response = await fetch('/api/settings', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(settingsData),
+        });
+
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          toast.success('Settings saved successfully!');
+        } else {
+          toast.warning('Settings saved locally (server sync failed)');
+        }
+      } catch (serverError) {
+        console.error('Server save failed:', serverError);
+        toast.warning('Settings saved locally (server unavailable)');
       }
+
     } catch (error) {
       console.error('Failed to save settings:', error);
       toast.error('Failed to save settings');

@@ -3,9 +3,47 @@ import { auth } from '@clerk/nextjs/server';
 import { connectDB, getUserSettings, updateUserSettings } from '@/lib/db';
 import { APIResponse, UserSettings } from '@/types';
 import { RSS_FEEDS } from '@/utils/rss-feeds';
+import fs from 'fs';
+import path from 'path';
 
 // Temporary in-memory storage (in production, use Redis or database)
 const tempSettings = new Map<string, UserSettings>();
+
+// File-based storage functions
+const getSettingsFilePath = () => {
+  const settingsDir = path.join(process.cwd(), '.temp-settings');
+  if (!fs.existsSync(settingsDir)) {
+    fs.mkdirSync(settingsDir, { recursive: true });
+  }
+  return path.join(settingsDir, 'user-settings.json');
+};
+
+const loadFileSettings = (): Map<string, UserSettings> => {
+  try {
+    const filePath = getSettingsFilePath();
+    if (fs.existsSync(filePath)) {
+      const data = fs.readFileSync(filePath, 'utf8');
+      const parsed = JSON.parse(data);
+      return new Map(Object.entries(parsed));
+    }
+  } catch (error) {
+    console.error('Error loading file settings:', error);
+  }
+  return new Map();
+};
+
+const saveFileSettings = (settings: Map<string, UserSettings>) => {
+  try {
+    const filePath = getSettingsFilePath();
+    const data = Object.fromEntries(settings.entries());
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  } catch (error) {
+    console.error('Error saving file settings:', error);
+  }
+};
+
+// Load existing settings from file on startup
+const fileSettings = loadFileSettings();
 
 export async function GET() {
   try {
@@ -25,13 +63,13 @@ export async function GET() {
       if (dbConnection) {
         settings = await getUserSettings(userId);
       }
-    } catch (dbError) {
+    } catch {
       console.log('Database not available, using temporary storage');
     }
 
-    // If no database settings, use temporary storage or defaults
+    // If no database settings, check file storage, then memory, then defaults
     if (!settings) {
-      settings = tempSettings.get(userId) || {
+      settings = fileSettings.get(userId) || tempSettings.get(userId) || {
         userId,
         apiKeys: {
           cohere: '',
@@ -120,17 +158,21 @@ export async function POST(request: Request) {
           data: { settings: dbSettings }
         });
       }
-    } catch (dbError) {
+    } catch {
       console.log('Database not available, saving to temporary storage');
     }
 
-    // Save to temporary storage
+    // Save to file storage (persistent) and memory storage (fast access)
+    fileSettings.set(userId, updatedSettings);
     tempSettings.set(userId, updatedSettings);
-    console.log('Settings saved to temporary storage for user:', userId);
+    
+    // Persist to file
+    saveFileSettings(fileSettings);
+    console.log('Settings saved to persistent file storage for user:', userId);
 
     return NextResponse.json<APIResponse>({
       success: true,
-      message: 'Settings saved successfully (temporary storage)',
+      message: 'Settings saved successfully (persistent storage)',
       data: { settings: updatedSettings }
     });
 

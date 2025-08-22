@@ -313,18 +313,42 @@ export async function generateNewsletterContent(
         continue;
       }
       
-      // Validate the exact number of topics
+      // Validate and auto-correct the number of topics
       const expectedTopics = options?.maxTopics || 7;
       const actualTopics = newsletterData.topics.length;
+      
       if (actualTopics !== expectedTopics) {
-        if (attempt === maxRetries) {
-          return { 
-            success: false, 
-            error: `AI consistently generated ${actualTopics} topics but user requested exactly ${expectedTopics} topics. Please try again or adjust your topic count.` 
-          };
+        console.log(`Generated ${actualTopics} topics, expected ${expectedTopics}`);
+        
+        if (actualTopics > expectedTopics) {
+          // Too many topics - trim to the requested count (keep the best ones)
+          console.log(`Auto-trimming from ${actualTopics} to ${expectedTopics} topics`);
+          
+          // Score topics by quality indicators and keep the best ones
+          const scoredTopics = newsletterData.topics.map((topic: NewsletterTopic, index: number) => ({
+            ...topic,
+            score: calculateTopicScore(topic, index)
+          }));
+          
+          // Sort by score (highest first) and take the top N
+          scoredTopics.sort((a: NewsletterTopic & { score: number }, b: NewsletterTopic & { score: number }) => b.score - a.score);
+          newsletterData.topics = scoredTopics.slice(0, expectedTopics).map((topicWithScore: NewsletterTopic & { score: number }) => {
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const { score, ...topicWithoutScore } = topicWithScore;
+            return topicWithoutScore;
+          });
+          
+          console.log(`Selected top ${expectedTopics} topics based on quality scoring`);
+        } else if (actualTopics < expectedTopics) {
+          // Too few topics - only retry if significantly under (more than 2 topics short)
+          const shortfall = expectedTopics - actualTopics;
+          if (shortfall > 2 && attempt < maxRetries) {
+            console.log(`Attempt ${attempt}: Generated only ${actualTopics} topics, expected ${expectedTopics}. Retrying...`);
+            continue;
+          } else {
+            console.log(`Generated ${actualTopics} topics (${shortfall} short), but proceeding since close to target`);
+          }
         }
-        console.log(`Attempt ${attempt}: Generated ${actualTopics} topics, expected ${expectedTopics}. Retrying...`);
-        continue;
       }
       
       // Generate images for topics if using Gemini
@@ -376,6 +400,45 @@ export async function generateNewsletterContent(
     success: false, 
     error: 'All generation attempts failed' 
   };
+}
+
+// Topic quality scoring for smart trimming
+function calculateTopicScore(topic: NewsletterTopic, index: number): number {
+  let score = 100; // Base score
+  
+  // Penalize later positions (AI usually puts best topics first)
+  score -= index * 5;
+  
+  // Reward longer, more detailed summaries
+  const summaryLength = topic.summary?.length || 0;
+  if (summaryLength > 200) score += 20;
+  else if (summaryLength > 100) score += 10;
+  else if (summaryLength < 50) score -= 20;
+  
+  // Reward certain high-value categories
+  const categoryBonus = {
+    'research': 15,
+    'product': 10,
+    'business': 8,
+    'policy': 5,
+    'security': 12,
+    'fun': 3
+  };
+  score += categoryBonus[topic.category as keyof typeof categoryBonus] || 0;
+  
+  // Reward topics with more specific headlines (avoid generic ones)
+  const headline = topic.headline?.toLowerCase() || '';
+  if (headline.includes('breakthrough') || headline.includes('major') || headline.includes('first')) {
+    score += 10;
+  }
+  if (headline.includes('announced') || headline.includes('released') || headline.includes('launched')) {
+    score += 8;
+  }
+  
+  // Penalize very generic headlines
+  if (headline.includes('new') && headline.length < 30) score -= 5;
+  
+  return Math.max(0, score); // Ensure non-negative
 }
 
 // Rate limiting helper

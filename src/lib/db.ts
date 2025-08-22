@@ -1,10 +1,10 @@
 import mongoose from 'mongoose';
 import { NewsletterTopic } from './ai-processors';
 
-const MONGODB_URI = process.env.MONGODB_URI!;
+const MONGODB_URI = process.env.MONGODB_URI;
 
 if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable');
+  console.warn('MONGODB_URI not found. Database features will be disabled.');
 }
 
 // Global mongoose instance for Next.js
@@ -15,6 +15,11 @@ if (!cached) {
 }
 
 export async function connectDB() {
+  if (!MONGODB_URI) {
+    console.warn('MongoDB not configured, skipping connection');
+    return null;
+  }
+
   if (cached.conn) {
     return cached.conn;
   }
@@ -33,7 +38,8 @@ export async function connectDB() {
     cached.conn = await cached.promise;
   } catch (e) {
     cached.promise = null;
-    throw e;
+    console.error('MongoDB connection failed:', e);
+    return null;
   }
 
   return cached.conn;

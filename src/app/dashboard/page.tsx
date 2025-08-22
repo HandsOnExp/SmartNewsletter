@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useUser, UserButton } from '@clerk/nextjs';
 import { motion } from 'framer-motion';
 import { Sparkles, Loader2, RefreshCcw, Settings, BarChart3, Clock } from 'lucide-react';
 import { toast } from 'sonner';
@@ -132,6 +132,28 @@ export default function Dashboard() {
       />
       
       <div className="relative z-10 container mx-auto px-4 py-8">
+        {/* Top Navigation */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex justify-between items-center mb-8"
+        >
+          <h2 className="text-2xl font-bold text-white">Dashboard</h2>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-300">
+              {user?.firstName || user?.emailAddresses[0]?.emailAddress}
+            </span>
+            <UserButton 
+              afterSignOutUrl="/"
+              appearance={{
+                elements: {
+                  avatarBox: "w-10 h-10"
+                }
+              }}
+            />
+          </div>
+        </motion.div>
+
         {/* Animated Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useUser } from '@clerk/nextjs';
+import { useUser, UserButton } from '@clerk/nextjs';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -30,6 +30,18 @@ export default function Home() {
       />
       
       <div className="relative z-10 container mx-auto px-4 py-16">
+        {/* Top Navigation */}
+        {user && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-between items-center mb-8"
+          >
+            <div></div>
+            <UserButton afterSignOutUrl="/" />
+          </motion.div>
+        )}
+
         {/* Hero Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}

@@ -3,12 +3,23 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { ParsedArticle } from './rss-parser';
 import { buildPrompt, buildGeminiImagePrompt } from '@/utils/prompts';
 
-// Initialize AI clients
-const cohere = new CohereClient({
-  token: process.env.COHERE_API_KEY!,
-});
+// Initialize AI clients with better error handling
+const cohereApiKey = process.env.COHERE_API_KEY;
+const geminiApiKey = process.env.GEMINI_API_KEY;
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+if (!cohereApiKey) {
+  console.warn('COHERE_API_KEY not found in environment variables');
+}
+
+if (!geminiApiKey) {
+  console.warn('GEMINI_API_KEY not found in environment variables');
+}
+
+const cohere = cohereApiKey ? new CohereClient({
+  token: cohereApiKey,
+}) : null;
+
+const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
 
 // Newsletter topic interface
 export interface NewsletterTopic {
@@ -37,6 +48,13 @@ export interface NewsletterData {
 // Cohere integration
 export async function analyzeWithCohere(articles: ParsedArticle[]): Promise<{ success: boolean; content?: string; error?: string }> {
   try {
+    if (!cohere) {
+      return {
+        success: false,
+        error: 'Cohere API key not configured. Please add COHERE_API_KEY to your .env.local file.'
+      };
+    }
+
     const prompt = buildPrompt(articles, 'cohere');
     
     const response = await cohere.chat({
@@ -62,6 +80,13 @@ export async function analyzeWithCohere(articles: ParsedArticle[]): Promise<{ su
 // Gemini integration
 export async function analyzeWithGemini(articles: ParsedArticle[]): Promise<{ success: boolean; content?: string; error?: string }> {
   try {
+    if (!genAI) {
+      return {
+        success: false,
+        error: 'Gemini API key not configured. Please add GEMINI_API_KEY to your .env.local file.'
+      };
+    }
+
     const model = genAI.getGenerativeModel({ 
       model: "gemini-2.0-flash-exp" // Free tier model
     });
@@ -98,6 +123,13 @@ export async function generateImage(prompt: string): Promise<{ success: boolean;
     }
     
     // For paid tier, use actual image generation
+    if (!genAI) {
+      return {
+        success: false,
+        error: 'Gemini API key not configured'
+      };
+    }
+    
     const model = genAI.getGenerativeModel({ 
       model: "gemini-2.0-flash-exp" 
     });

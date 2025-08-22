@@ -222,9 +222,8 @@ export async function updateUserSettings(userId: string, updates: Partial<{ apiK
 
 // Global type augmentation for mongoose caching
 declare global {
-  // eslint-disable-next-line no-var
   var mongoose: {
-    conn: typeof mongoose | null;
-    promise: Promise<typeof mongoose> | null;
+    conn: unknown;
+    promise: unknown;
   };
 }

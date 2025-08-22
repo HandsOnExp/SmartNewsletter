@@ -5,7 +5,8 @@
       "Bash(gh:*)",
       "Bash(mkdir:*)",
       "Bash(npx shadcn@latest add:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(npm run dev:*)"
     ],
     "deny": [],
     "ask": []

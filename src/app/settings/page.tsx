@@ -1,0 +1,469 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useUser } from '@clerk/nextjs';
+import { motion } from 'framer-motion';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Switch } from '@/components/ui/switch';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
+import { Rss, Settings, Key, Bell, Save, Plus, Trash2, ArrowLeft } from 'lucide-react';
+import { RSS_FEEDS, type RSSFeed } from '@/utils/rss-feeds';
+import { UserSettings, CustomRSSFeed } from '@/types';
+
+export default function SettingsPage() {
+  const { user } = useUser();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  
+  const [feeds, setFeeds] = useState<RSSFeed[]>(RSS_FEEDS);
+  const [customFeeds, setCustomFeeds] = useState<CustomRSSFeed[]>([]);
+  const [newFeedUrl, setNewFeedUrl] = useState('');
+  const [newFeedName, setNewFeedName] = useState('');
+  
+  const [apiKeys, setApiKeys] = useState({
+    cohere: '',
+    gemini: ''
+  });
+  
+  const [preferences, setPreferences] = useState({
+    autoGenerate: false,
+    generateTime: '09:00',
+    emailNotifications: true,
+    llmPreference: 'cohere' as 'cohere' | 'gemini' | 'auto'
+  });
+
+  useEffect(() => {
+    if (user) {
+      loadUserSettings();
+    }
+  }, [user]);
+
+  const loadUserSettings = async () => {
+    try {
+      const response = await fetch('/api/settings');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.settings) {
+          const settings: UserSettings = data.settings;
+          setApiKeys(settings.apiKeys);
+          setPreferences(settings.preferences);
+          setCustomFeeds(settings.rssFeeds.custom || []);
+          
+          // Update feed enabled/disabled status
+          const updatedFeeds = RSS_FEEDS.map(feed => ({
+            ...feed,
+            enabled: !settings.rssFeeds.disabled.includes(feed.id)
+          }));
+          setFeeds(updatedFeeds);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+      toast.error('Failed to load settings');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleFeed = (feedId: string, enabled: boolean) => {
+    setFeeds(prev => prev.map(feed => 
+      feed.id === feedId ? { ...feed, enabled } : feed
+    ));
+  };
+
+  const addCustomFeed = () => {
+    if (!newFeedUrl || !newFeedName) {
+      toast.error('Please enter both feed name and URL');
+      return;
+    }
+
+    const newFeed: CustomRSSFeed = {
+      id: `custom-${Date.now()}`,
+      name: newFeedName,
+      url: newFeedUrl,
+      category: 'custom',
+      enabled: true
+    };
+
+    setCustomFeeds(prev => [...prev, newFeed]);
+    setNewFeedName('');
+    setNewFeedUrl('');
+    toast.success('Custom feed added successfully');
+  };
+
+  const removeCustomFeed = (feedId: string) => {
+    setCustomFeeds(prev => prev.filter(feed => feed.id !== feedId));
+    toast.success('Custom feed removed');
+  };
+
+  const toggleCustomFeed = (feedId: string, enabled: boolean) => {
+    setCustomFeeds(prev => prev.map(feed => 
+      feed.id === feedId ? { ...feed, enabled } : feed
+    ));
+  };
+
+  const saveSettings = async () => {
+    setSaving(true);
+    try {
+      const settingsData = {
+        apiKeys,
+        preferences,
+        rssFeeds: {
+          enabled: feeds.filter(f => f.enabled).map(f => f.id),
+          disabled: feeds.filter(f => !f.enabled).map(f => f.id),
+          custom: customFeeds
+        }
+      };
+
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(settingsData),
+      });
+
+      if (response.ok) {
+        toast.success('Settings saved successfully!');
+      } else {
+        toast.error('Failed to save settings');
+      }
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      toast.error('Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex items-center justify-center">
+        <div className="text-center text-white">
+          <h1 className="text-4xl font-bold mb-4">Access Denied</h1>
+          <p className="text-xl">Please sign in to access settings</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex items-center justify-center">
+        <div className="text-center text-white">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-xl">Loading settings...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900">
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <Button
+            onClick={() => window.location.href = '/dashboard'}
+            variant="outline"
+            className="mb-4 bg-gray-900/50 backdrop-blur-xl border-gray-700 text-white hover:bg-gray-800/50"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Dashboard
+          </Button>
+          
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+            Settings
+          </h1>
+          <p className="text-gray-300 mt-2">Configure your AI newsletter preferences</p>
+        </motion.div>
+
+        <Tabs defaultValue="feeds" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-4 bg-gray-800/50">
+            <TabsTrigger value="feeds" className="data-[state=active]:bg-purple-600">RSS Feeds</TabsTrigger>
+            <TabsTrigger value="api" className="data-[state=active]:bg-purple-600">API Keys</TabsTrigger>
+            <TabsTrigger value="preferences" className="data-[state=active]:bg-purple-600">Preferences</TabsTrigger>
+            <TabsTrigger value="notifications" className="data-[state=active]:bg-purple-600">Notifications</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="feeds">
+            <div className="space-y-6">
+              {/* Default RSS Feeds */}
+              <Card className="bg-gray-900/90 backdrop-blur-xl border-gray-800">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-white">
+                    <Rss className="mr-2 h-5 w-5" />
+                    RSS Feed Management
+                  </CardTitle>
+                  <CardDescription className="text-gray-400">
+                    Enable or disable RSS feeds for newsletter generation
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {feeds.map((feed) => (
+                    <div key={feed.id} className="flex items-center justify-between p-4 border border-gray-700 rounded-lg bg-gray-800/50">
+                      <div>
+                        <h3 className="font-semibold text-white">{feed.name}</h3>
+                        <p className="text-sm text-gray-400 capitalize">{feed.category}</p>
+                        <p className="text-xs text-gray-500 mt-1">{feed.url}</p>
+                      </div>
+                      <Switch 
+                        checked={feed.enabled}
+                        onCheckedChange={(checked) => toggleFeed(feed.id, checked)}
+                      />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              {/* Custom RSS Feeds */}
+              <Card className="bg-gray-900/90 backdrop-blur-xl border-gray-800">
+                <CardHeader>
+                  <CardTitle className="text-white">Custom RSS Feeds</CardTitle>
+                  <CardDescription className="text-gray-400">
+                    Add your own RSS feeds
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Add new feed form */}
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Feed name"
+                      value={newFeedName}
+                      onChange={(e) => setNewFeedName(e.target.value)}
+                      className="bg-gray-800 border-gray-600 text-white"
+                    />
+                    <Input
+                      placeholder="RSS feed URL"
+                      value={newFeedUrl}
+                      onChange={(e) => setNewFeedUrl(e.target.value)}
+                      className="bg-gray-800 border-gray-600 text-white flex-1"
+                    />
+                    <Button onClick={addCustomFeed} className="bg-purple-600 hover:bg-purple-700">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  {/* Custom feeds list */}
+                  {customFeeds.map((feed) => (
+                    <div key={feed.id} className="flex items-center justify-between p-4 border border-gray-700 rounded-lg bg-gray-800/50">
+                      <div>
+                        <h3 className="font-semibold text-white">{feed.name}</h3>
+                        <p className="text-xs text-gray-500 mt-1">{feed.url}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch 
+                          checked={feed.enabled}
+                          onCheckedChange={(checked) => toggleCustomFeed(feed.id, checked)}
+                        />
+                        <Button
+                          onClick={() => removeCustomFeed(feed.id)}
+                          variant="outline"
+                          size="sm"
+                          className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="api">
+            <Card className="bg-gray-900/90 backdrop-blur-xl border-gray-800">
+              <CardHeader>
+                <CardTitle className="flex items-center text-white">
+                  <Key className="mr-2 h-5 w-5" />
+                  API Configuration
+                </CardTitle>
+                <CardDescription className="text-gray-400">
+                  Configure your AI provider API keys
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="cohere-key" className="text-white">Cohere API Key (Free Tier)</Label>
+                  <Input
+                    id="cohere-key"
+                    type="password"
+                    placeholder="Enter your Cohere API key"
+                    value={apiKeys.cohere}
+                    onChange={(e) => setApiKeys({...apiKeys, cohere: e.target.value})}
+                    className="bg-gray-800 border-gray-600 text-white"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Get your free key at cohere.com • 1000 calls/month
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="gemini-key" className="text-white">Google Gemini API Key</Label>
+                  <Input
+                    id="gemini-key"
+                    type="password"
+                    placeholder="Enter your Gemini API key"
+                    value={apiKeys.gemini}
+                    onChange={(e) => setApiKeys({...apiKeys, gemini: e.target.value})}
+                    className="bg-gray-800 border-gray-600 text-white"
+                  />
+                  <p className="text-xs text-gray-500">
+                    Get your key at makersuite.google.com • 15 requests/min free
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="preferences">
+            <Card className="bg-gray-900/90 backdrop-blur-xl border-gray-800">
+              <CardHeader>
+                <CardTitle className="flex items-center text-white">
+                  <Settings className="mr-2 h-5 w-5" />
+                  Generation Preferences
+                </CardTitle>
+                <CardDescription className="text-gray-400">
+                  Customize how newsletters are generated
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-white">Auto-Generate Daily</Label>
+                    <p className="text-sm text-gray-400">
+                      Automatically generate newsletter at scheduled time
+                    </p>
+                  </div>
+                  <Switch 
+                    checked={preferences.autoGenerate}
+                    onCheckedChange={(checked) => 
+                      setPreferences({...preferences, autoGenerate: checked})
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-white">Generation Time</Label>
+                  <Input
+                    type="time"
+                    value={preferences.generateTime}
+                    onChange={(e) => 
+                      setPreferences({...preferences, generateTime: e.target.value})
+                    }
+                    disabled={!preferences.autoGenerate}
+                    className="bg-gray-800 border-gray-600 text-white"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-white">Default LLM Provider</Label>
+                  <Select 
+                    value={preferences.llmPreference}
+                    onValueChange={(value: 'cohere' | 'gemini' | 'auto') => 
+                      setPreferences({...preferences, llmPreference: value})
+                    }
+                  >
+                    <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cohere">Cohere (Fast, Free)</SelectItem>
+                      <SelectItem value="gemini">Gemini (With Images)</SelectItem>
+                      <SelectItem value="auto">Auto-select based on limits</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="notifications">
+            <Card className="bg-gray-900/90 backdrop-blur-xl border-gray-800">
+              <CardHeader>
+                <CardTitle className="flex items-center text-white">
+                  <Bell className="mr-2 h-5 w-5" />
+                  Notification Settings
+                </CardTitle>
+                <CardDescription className="text-gray-400">
+                  Configure how you receive updates
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-white">Email Notifications</Label>
+                    <p className="text-sm text-gray-400">
+                      Receive email when newsletter is ready
+                    </p>
+                  </div>
+                  <Switch 
+                    checked={preferences.emailNotifications}
+                    onCheckedChange={(checked) => 
+                      setPreferences({...preferences, emailNotifications: checked})
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-white">Generation Failures</Label>
+                    <p className="text-sm text-gray-400">
+                      Alert when generation fails
+                    </p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-white">Weekly Summary</Label>
+                    <p className="text-sm text-gray-400">
+                      Weekly stats and insights
+                    </p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Save Button */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-8 flex justify-center"
+        >
+          <Button
+            onClick={saveSettings}
+            disabled={saving}
+            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-3 text-lg"
+          >
+            {saving ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-5 w-5" />
+                Save All Settings
+              </>
+            )}
+          </Button>
+        </motion.div>
+      </div>
+    </div>
+  );
+}

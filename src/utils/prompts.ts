@@ -136,7 +136,12 @@ export function buildPrompt(
     
     ${formatPrompt}
     
-    Important: Select the ${maxTopics} most significant and interesting developments. Prioritize quality over quantity:
+    CRITICAL REQUIREMENT: You MUST generate exactly ${maxTopics} topics in the "topics" array. 
+    - If you generate ${maxTopics - 1} or fewer topics, the response will be rejected
+    - If you generate ${maxTopics + 1} or more topics, the response will be rejected
+    - Count your topics carefully: the "topics" array must contain exactly ${maxTopics} objects
+    
+    Select the ${maxTopics} most significant and interesting developments. Prioritize quality over quantity:
     1. Major model releases or updates
     2. Breakthrough research findings
     3. Significant business/funding news
@@ -145,7 +150,7 @@ export function buildPrompt(
     6. Surprising or entertaining AI behaviors
     7. Tools that developers/users can try today
     
-    Note: Generate exactly ${maxTopics} topics - no more, no less.
+    FINAL CHECK: Before responding, count the topics in your JSON. There must be exactly ${maxTopics} topics.
   `;
 }
 

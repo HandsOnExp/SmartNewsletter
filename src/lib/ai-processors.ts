@@ -215,123 +215,165 @@ export async function generateNewsletterContent(
   options?: { maxTopics?: number; language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese' }
 ): Promise<{ success: boolean; data?: NewsletterData; error?: string }> {
   const startTime = Date.now();
+  const maxRetries = 3;
   
-  try {
-    let response;
-    
-    if (provider === 'gemini') {
-      response = await analyzeWithGemini(articles, options);
-    } else {
-      response = await analyzeWithCohere(articles, options);
-    }
-    
-    if (!response.success) {
-      return { success: false, error: response.error };
-    }
-    
-    // Parse the response
-    let newsletterData;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      // Clean the response to extract JSON
-      let cleanedContent = response.content!;
+      console.log(`Newsletter generation attempt ${attempt}/${maxRetries}`);
       
-      console.log('Raw AI response:', cleanedContent.substring(0, 200) + '...');
+      let response;
       
-      // Remove markdown code blocks
-      cleanedContent = cleanedContent
-        .replace(/```json\n?/gi, '')
-        .replace(/```\n?/gi, '')
-        .trim();
-      
-      // Remove any text before the first {
-      const firstBrace = cleanedContent.indexOf('{');
-      if (firstBrace > 0) {
-        cleanedContent = cleanedContent.substring(firstBrace);
+      if (provider === 'gemini') {
+        response = await analyzeWithGemini(articles, options);
+      } else {
+        response = await analyzeWithCohere(articles, options);
       }
       
-      // Remove any text after the last }
-      const lastBrace = cleanedContent.lastIndexOf('}');
-      if (lastBrace !== -1 && lastBrace < cleanedContent.length - 1) {
-        cleanedContent = cleanedContent.substring(0, lastBrace + 1);
-      }
-      
-      // If response starts with markdown headers or other text, try to extract JSON
-      if (!cleanedContent.startsWith('{')) {
-        // Look for JSON-like content between braces
-        const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          cleanedContent = jsonMatch[0];
-        } else {
-          console.error('No JSON found in response:', cleanedContent.substring(0, 300));
-          return { 
-            success: false, 
-            error: `AI returned non-JSON content. Response started with: "${cleanedContent.substring(0, 100)}...". Please try again or switch to Gemini.` 
-          };
+      if (!response.success) {
+        if (attempt === maxRetries) {
+          return { success: false, error: response.error };
         }
+        console.log(`Attempt ${attempt} failed, retrying...`);
+        continue;
       }
       
-      // Additional cleaning for common AI response issues
-      cleanedContent = cleanedContent
-        .replace(/\n\s*\/\/.*$/gm, '') // Remove comment lines
-        .replace(/,\s*}/g, '}') // Remove trailing commas
-        .replace(/,\s*]/g, ']'); // Remove trailing commas in arrays
-      
-      console.log('Cleaned content for parsing:', cleanedContent.substring(0, 200) + '...');
-      
-      newsletterData = JSON.parse(cleanedContent);
-    } catch (parseError) {
-      console.error('JSON parsing error:', parseError);
-      console.error('Full response content:', response.content);
-      return { 
-        success: false, 
-        error: `Failed to parse AI response as JSON. Error: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}. Please try again or switch to Gemini.` 
-      };
-    }
-    
-    // Validate the structure
-    if (!newsletterData.topics || !Array.isArray(newsletterData.topics)) {
-      return { success: false, error: 'Invalid newsletter structure returned by AI' };
-    }
-    
-    // Generate images for topics if using Gemini
-    if (provider === 'gemini') {
-      for (const topic of newsletterData.topics) {
-        if (topic.imagePrompt) {
-          const imageResult = await generateImage(topic.imagePrompt);
-          if (imageResult.success) {
-            topic.imageUrl = imageResult.imageUrl;
+      // Parse the response
+      let newsletterData;
+      try {
+        // Clean the response to extract JSON
+        let cleanedContent = response.content!;
+        
+        console.log('Raw AI response:', cleanedContent.substring(0, 200) + '...');
+        
+        // Remove markdown code blocks
+        cleanedContent = cleanedContent
+          .replace(/```json\n?/gi, '')
+          .replace(/```\n?/gi, '')
+          .trim();
+        
+        // Remove any text before the first {
+        const firstBrace = cleanedContent.indexOf('{');
+        if (firstBrace > 0) {
+          cleanedContent = cleanedContent.substring(firstBrace);
+        }
+        
+        // Remove any text after the last }
+        const lastBrace = cleanedContent.lastIndexOf('}');
+        if (lastBrace !== -1 && lastBrace < cleanedContent.length - 1) {
+          cleanedContent = cleanedContent.substring(0, lastBrace + 1);
+        }
+        
+        // If response starts with markdown headers or other text, try to extract JSON
+        if (!cleanedContent.startsWith('{')) {
+          // Look for JSON-like content between braces
+          const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            cleanedContent = jsonMatch[0];
+          } else {
+            if (attempt === maxRetries) {
+              return { 
+                success: false, 
+                error: `AI returned non-JSON content. Response started with: "${cleanedContent.substring(0, 100)}...". Please try again or switch to Gemini.` 
+              };
+            }
+            console.log(`Attempt ${attempt}: No JSON found in response, retrying...`);
+            continue;
           }
         }
-      }
-    } else {
-      // Add placeholder images for Cohere
-      newsletterData.topics.forEach((topic: NewsletterTopic) => {
-        if (!topic.imageUrl) {
-          const encodedHeadline = encodeURIComponent(topic.headline.slice(0, 30));
-          topic.imageUrl = `https://source.unsplash.com/800x400/?artificial-intelligence,technology,${encodedHeadline}`;
+        
+        // Additional cleaning for common AI response issues
+        cleanedContent = cleanedContent
+          .replace(/\n\s*\/\/.*$/gm, '') // Remove comment lines
+          .replace(/,\s*}/g, '}') // Remove trailing commas
+          .replace(/,\s*]/g, ']'); // Remove trailing commas in arrays
+        
+        console.log('Cleaned content for parsing:', cleanedContent.substring(0, 200) + '...');
+        
+        newsletterData = JSON.parse(cleanedContent);
+      } catch (parseError) {
+        console.error(`Attempt ${attempt} JSON parsing error:`, parseError);
+        if (attempt === maxRetries) {
+          return { 
+            success: false, 
+            error: `Failed to parse AI response as JSON after ${maxRetries} attempts. Error: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}. Please try again or switch to Gemini.` 
+          };
         }
-      });
-    }
-    
-    // Add stats
-    const finalData: NewsletterData = {
-      ...newsletterData,
-      stats: {
-        sourcesAnalyzed: articles.length,
-        generationTime: Date.now() - startTime,
-        llmUsed: provider
+        console.log(`Attempt ${attempt} failed due to parsing error, retrying...`);
+        continue;
       }
-    };
-    
-    return { success: true, data: finalData };
-    
-  } catch (error) {
-    console.error('Newsletter generation error:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error during generation' 
-    };
+      
+      // Validate the structure
+      if (!newsletterData.topics || !Array.isArray(newsletterData.topics)) {
+        if (attempt === maxRetries) {
+          return { success: false, error: 'Invalid newsletter structure returned by AI after multiple attempts' };
+        }
+        console.log(`Attempt ${attempt}: Invalid newsletter structure, retrying...`);
+        continue;
+      }
+      
+      // Validate the exact number of topics
+      const expectedTopics = options?.maxTopics || 7;
+      const actualTopics = newsletterData.topics.length;
+      if (actualTopics !== expectedTopics) {
+        if (attempt === maxRetries) {
+          return { 
+            success: false, 
+            error: `AI consistently generated ${actualTopics} topics but user requested exactly ${expectedTopics} topics. Please try again or adjust your topic count.` 
+          };
+        }
+        console.log(`Attempt ${attempt}: Generated ${actualTopics} topics, expected ${expectedTopics}. Retrying...`);
+        continue;
+      }
+      
+      // Generate images for topics if using Gemini
+      if (provider === 'gemini') {
+        for (const topic of newsletterData.topics) {
+          if (topic.imagePrompt) {
+            const imageResult = await generateImage(topic.imagePrompt);
+            if (imageResult.success) {
+              topic.imageUrl = imageResult.imageUrl;
+            }
+          }
+        }
+      } else {
+        // Add placeholder images for Cohere
+        newsletterData.topics.forEach((topic: NewsletterTopic) => {
+          if (!topic.imageUrl) {
+            const encodedHeadline = encodeURIComponent(topic.headline.slice(0, 30));
+            topic.imageUrl = `https://source.unsplash.com/800x400/?artificial-intelligence,technology,${encodedHeadline}`;
+          }
+        });
+      }
+      
+      // Add stats
+      const finalData: NewsletterData = {
+        ...newsletterData,
+        stats: {
+          sourcesAnalyzed: articles.length,
+          generationTime: Date.now() - startTime,
+          llmUsed: provider
+        }
+      };
+      
+      return { success: true, data: finalData };
+      
+    } catch (parseError) {
+      console.error(`Attempt ${attempt} parsing error:`, parseError);
+      if (attempt === maxRetries) {
+        return { 
+          success: false, 
+          error: parseError instanceof Error ? parseError.message : 'Unknown parsing error' 
+        };
+      }
+      console.log(`Attempt ${attempt} failed due to parsing error, retrying...`);
+      continue;
+    }
   }
+  
+  return { 
+    success: false, 
+    error: 'All generation attempts failed' 
+  };
 }
 
 // Rate limiting helper

@@ -16,7 +16,11 @@ export async function GET() {
     }
 
     // Try to connect to database, but continue if it fails
-    let userNewsletters: unknown[] = [];
+    let userNewsletters: {
+      stats?: { generationTime: number };
+      title: string;
+      createdAt: Date;
+    }[] = [];
     let databaseAvailable = false;
 
     try {

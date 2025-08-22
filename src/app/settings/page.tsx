@@ -203,7 +203,7 @@ export default function SettingsPage() {
 
       // Always save to localStorage first (immediate backup)
       const fullSettingsData = {
-        userId: user.id,
+        userId: user?.id || '',
         ...settingsData
       };
       saveToLocalStorage(fullSettingsData);

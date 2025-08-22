@@ -4,7 +4,7 @@ import { useUser, UserButton } from '@clerk/nextjs';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Sparkles, Zap, ArrowRight, Bot, Newspaper } from 'lucide-react';
+import { Zap, ArrowRight, Bot, Newspaper } from 'lucide-react';
 
 export default function Home() {
   const { user } = useUser();
@@ -56,7 +56,7 @@ export default function Home() {
             Never miss important AI developments again.
           </p>
           
-          {user ? (
+          {user && (
             <Button 
               onClick={() => window.location.href = '/dashboard'}
               className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-4 text-lg font-semibold"
@@ -64,23 +64,6 @@ export default function Home() {
               Go to Dashboard
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
-          ) : (
-            <div className="flex gap-4 justify-center">
-              <Button 
-                onClick={() => window.location.href = '/sign-up'}
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-4 text-lg font-semibold"
-              >
-                Get Started Free
-                <Sparkles className="ml-2 h-5 w-5" />
-              </Button>
-              <Button 
-                onClick={() => window.location.href = '/sign-in'}
-                variant="outline"
-                className="border-gray-600 text-gray-300 hover:text-white px-8 py-4 text-lg"
-              >
-                Sign In
-              </Button>
-            </div>
           )}
         </motion.div>
 
@@ -185,31 +168,6 @@ export default function Home() {
           ))}
         </motion.div>
 
-        {/* CTA Section */}
-        {!user && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.0 }}
-            className="text-center mt-16"
-          >
-            <Card className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 backdrop-blur-xl border-purple-500/50 max-w-2xl mx-auto">
-              <CardContent className="p-8">
-                <h3 className="text-2xl font-bold text-white mb-4">Ready to Get Started?</h3>
-                <p className="text-gray-300 mb-6">
-                  Join the future of newsletter creation. Generate your first AI-powered newsletter in minutes.
-                </p>
-                <Button 
-                  onClick={() => window.location.href = '/sign-up'}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-3 text-lg font-semibold"
-                >
-                  Start Free Trial
-                  <Sparkles className="ml-2 h-5 w-5" />
-                </Button>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
       </div>
     </div>
   );

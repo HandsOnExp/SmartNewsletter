@@ -10,7 +10,7 @@ export const NEWSLETTER_PROMPTS = {
     - Write in plain English, avoiding jargon unless necessary
     - Add humor and personality where appropriate
     - Highlight "wow moments" and "aha insights"
-    - Each summary should be substantial but digestible (4-6 sentences) and answer: What happened? Why does it matter? What are the key details? How does this impact readers?
+    - CRITICAL: Each summary MUST be 4-6 full, substantial sentences (minimum 80 words). Never write short 1-2 sentence summaries. Answer: What happened? Why does it matter? What are the key details? How does this impact readers?
     
     Tone: Professional yet conversational, like explaining to a smart friend over coffee.`,
     
@@ -22,11 +22,11 @@ export const NEWSLETTER_PROMPTS = {
       "topics": [
         {
           "headline": "Attention-grabbing headline (max 10 words)",
-          "summary": "4-6 substantial sentences that provide comprehensive coverage. Include: what happened, why it's significant, key technical details, and real-world implications. Each sentence should be information-rich and meaningful.",
+          "summary": "MUST be exactly 4-6 full sentences. Provide comprehensive coverage including: what happened, why it's significant, key technical details, and real-world implications. Do NOT use short sentences. Each sentence should be substantial and information-rich. Minimum 80 words total.",
           "keyTakeaway": "One sentence 'bottom line' insight",
           "imagePrompt": "Detailed prompt for image generation",
           "sourceUrl": "Original article URL",
-          "category": "research|product|business|policy|fun"
+          "category": "research|product|business|policy|security|fun"
         }
       ],
       "conclusion": "Witty sign-off message"
@@ -49,7 +49,7 @@ export const NEWSLETTER_PROMPTS = {
     5. Include specific names, numbers, and dates
     6. Write detailed, comprehensive summaries that thoroughly explain the news
     7. Provide context, background, and industry implications
-    8. Make each summary substantial yet concise (4-6 information-rich sentences)
+    8. CRITICAL: Make each summary exactly 4-6 full sentences (minimum 80 words). Never write brief 1-2 sentence summaries.
     
     Remember: Every topic should make readers think "I need to know about this!"`,
     
@@ -61,11 +61,11 @@ export const NEWSLETTER_PROMPTS = {
       "topics": [
         {
           "headline": "Attention-grabbing headline (max 10 words)",
-          "summary": "4-6 substantial sentences that provide comprehensive coverage. Include: what happened, why it's significant, key technical details, and real-world implications. Each sentence should be information-rich and meaningful.",
+          "summary": "MUST be exactly 4-6 full sentences. Provide comprehensive coverage including: what happened, why it's significant, key technical details, and real-world implications. Do NOT use short sentences. Each sentence should be substantial and information-rich. Minimum 80 words total.",
           "keyTakeaway": "One sentence 'bottom line' insight",
           "imagePrompt": "Detailed prompt for image generation",
           "sourceUrl": "Original article URL",
-          "category": "research|product|business|policy|fun"
+          "category": "research|product|business|policy|security|fun"
         }
       ],
       "conclusion": "Witty sign-off message"

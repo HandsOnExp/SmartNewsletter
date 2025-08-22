@@ -287,11 +287,36 @@ export async function generateNewsletterContent(
         cleanedContent = cleanedContent
           .replace(/\n\s*\/\/.*$/gm, '') // Remove comment lines
           .replace(/,\s*}/g, '}') // Remove trailing commas
-          .replace(/,\s*]/g, ']'); // Remove trailing commas in arrays
+          .replace(/,\s*]/g, ']') // Remove trailing commas in arrays
+          .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters that can break JSON
+          .replace(/\r\n/g, '\n') // Normalize line endings
+          .replace(/\n/g, '\\n') // Escape newlines in strings
+          .replace(/\t/g, '\\t'); // Escape tabs
+        
+        // Additional validation for Hebrew and RTL text
+        if (options?.language && ['hebrew', 'arabic'].includes(options.language)) {
+          // Extra cleaning for RTL languages
+          cleanedContent = cleanedContent
+            .replace(/[\u200E\u200F\u202A\u202B\u202C\u202D\u202E]/g, '') // Remove RTL/LTR marks
+            .replace(/\u00A0/g, ' '); // Replace non-breaking spaces
+        }
         
         console.log('Cleaned content for parsing:', cleanedContent.substring(0, 200) + '...');
         
-        newsletterData = JSON.parse(cleanedContent);
+        // Use enhanced JSON validation with language-specific repair
+        const validationResult = validateAndRepairJSON(cleanedContent, options?.language);
+        
+        if (validationResult.success) {
+          newsletterData = validationResult.data as { 
+            topics: NewsletterTopic[];
+            newsletterTitle: string;
+            newsletterDate: string;
+            introduction?: string;
+            conclusion?: string;
+          };
+        } else {
+          throw new Error(validationResult.error || 'JSON validation failed');
+        }
       } catch (parseError) {
         console.error(`Attempt ${attempt} JSON parsing error:`, parseError);
         if (attempt === maxRetries) {
@@ -400,6 +425,48 @@ export async function generateNewsletterContent(
     success: false, 
     error: 'All generation attempts failed' 
   };
+}
+
+// JSON validation and repair for non-Latin languages
+function validateAndRepairJSON(jsonString: string, language?: string): { success: boolean; data?: unknown; error?: string } {
+  try {
+    const parsed = JSON.parse(jsonString);
+    return { success: true, data: parsed };
+  } catch (parseError) {
+    console.log('JSON validation failed, attempting repair...');
+    
+    let repairedJson = jsonString;
+    
+    // Common repairs for Hebrew and RTL languages
+    if (language === 'hebrew' || language === 'arabic') {
+      // Fix unescaped quotes in Hebrew text
+      repairedJson = repairedJson
+        .replace(/([א-ת])"([א-ת])/g, '$1\\"$2') // Escape quotes between Hebrew letters
+        .replace(/"([^"]*[א-ת][^"]*)"([^":,}\]\n]*)"([^"]*?)"/g, '"$1\\"$2\\"$3"') // Fix nested quotes
+        .replace(/:\s*([א-ת][^,}\]]*[א-ת])\s*([,}\]])/g, ': "$1"$2') // Add missing quotes
+        .replace(/[\u200E\u200F\u202A\u202B\u202C\u202D\u202E]/g, '') // Remove RTL marks
+        .replace(/\u00A0/g, ' '); // Replace non-breaking spaces
+    }
+    
+    // General JSON repairs
+    repairedJson = repairedJson
+      .replace(/,(\s*[}\]])/g, '$1') // Remove trailing commas
+      .replace(/\n/g, '\\n') // Escape newlines
+      .replace(/\t/g, '\\t') // Escape tabs
+      .replace(/\r/g, '\\r') // Escape carriage returns
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, ''); // Remove control characters
+    
+    try {
+      const parsed = JSON.parse(repairedJson);
+      console.log('JSON repair successful');
+      return { success: true, data: parsed };
+    } catch (repairError) {
+      return { 
+        success: false, 
+        error: `JSON repair failed: ${repairError instanceof Error ? repairError.message : 'Unknown error'}` 
+      };
+    }
+  }
 }
 
 // Topic quality scoring for smart trimming

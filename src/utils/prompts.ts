@@ -180,7 +180,10 @@ function getLanguageInstructions(language: string): string {
     - Use proper Hebrew grammar and syntax
     - Write from right-to-left as appropriate
     - Use Hebrew tech terminology where available, with English terms in parentheses when needed
-    - Ensure cultural relevance for Hebrew-speaking audiences`,
+    - Ensure cultural relevance for Hebrew-speaking audiences
+    - CRITICAL: Ensure all Hebrew text is properly escaped in JSON strings
+    - Do NOT use unescaped quotes (") within Hebrew text
+    - Use single quotes (') within Hebrew text if needed, or escape double quotes as \"`,
     
     spanish: `
     

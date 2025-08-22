@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useUser, UserButton } from '@clerk/nextjs';
 import { motion } from 'framer-motion';
-import { Sparkles, Loader2, RefreshCcw, Settings, Clock } from 'lucide-react';
+import { Sparkles, Loader2, RefreshCcw, Settings, Clock, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 // UI Components (we'll create these)
@@ -84,6 +84,37 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Failed to fetch recent newsletters:', error);
       setRecentNewsletters([]);
+    }
+  };
+
+  const deleteNewsletter = async (newsletterId: string) => {
+    if (!confirm('Are you sure you want to delete this newsletter? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/newsletters/${newsletterId}`, {
+        method: 'DELETE',
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        toast.success('Newsletter deleted successfully');
+        // Refresh the newsletters list
+        fetchRecentNewsletters();
+        fetchDashboardStats(); // Update stats
+        
+        // If the deleted newsletter was currently being viewed, close it
+        if (newsletter && (newsletter as any)._id === newsletterId) {
+          setNewsletter(null);
+        }
+      } else {
+        toast.error(result.error || 'Failed to delete newsletter');
+      }
+    } catch (error) {
+      console.error('Delete newsletter error:', error);
+      toast.error('Failed to delete newsletter. Please try again.');
     }
   };
 
@@ -379,14 +410,25 @@ export default function Dashboard() {
                             {newsletter.llmUsed === 'gemini' ? 'Gemini' : 'Cohere'}
                           </span>
                         </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          className="text-xs bg-purple-500/20 border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white transition-colors"
-                          onClick={() => setNewsletter(newsletter)}
-                        >
-                          View
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="text-xs bg-purple-500/20 border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white transition-colors"
+                            onClick={() => setNewsletter(newsletter)}
+                          >
+                            View
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="text-xs bg-red-500/20 border-red-500 text-red-400 hover:bg-red-500 hover:text-white transition-colors"
+                            onClick={() => deleteNewsletter((newsletter as any)._id)}
+                            title="Delete newsletter"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
                     </motion.div>
                   ))}

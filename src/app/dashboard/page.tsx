@@ -49,11 +49,20 @@ export default function Dashboard() {
     try {
       const response = await fetch('/api/dashboard/stats');
       if (response.ok) {
-        const data = await response.json();
-        setStats(data);
+        const result = await response.json();
+        if (result.success && result.data) {
+          setStats(result.data);
+        } else {
+          console.warn('Dashboard stats API returned no data');
+          setStats(null);
+        }
+      } else {
+        console.warn('Dashboard stats API request failed:', response.status);
+        setStats(null);
       }
     } catch (error) {
       console.error('Failed to fetch dashboard stats:', error);
+      setStats(null);
     }
   };
 
@@ -172,7 +181,7 @@ export default function Dashboard() {
         </motion.div>
 
         {/* Stats Cards */}
-        {stats && <StatsCards stats={stats} />}
+        <StatsCards stats={stats} />
 
         {/* Action Bar */}
         <motion.div

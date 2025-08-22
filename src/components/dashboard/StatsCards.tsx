@@ -6,33 +6,43 @@ import { Card, CardContent } from '@/components/ui/card';
 import { DashboardStats } from '@/types';
 
 interface StatsCardsProps {
-  stats: DashboardStats;
+  stats: DashboardStats | null;
 }
 
 export function StatsCards({ stats }: StatsCardsProps) {
+  // Provide default values if stats is null/undefined
+  const safeStats = stats || {
+    totalArticlesToday: 0,
+    newslettersGenerated: 0,
+    lastUpdateTime: 'Loading...',
+    averageGenerationTime: '0s',
+    topSources: [],
+    recentActivity: []
+  };
+
   const statCards = [
     { 
       icon: TrendingUp, 
       label: 'Articles Today', 
-      value: stats.totalArticlesToday.toString(), 
+      value: safeStats.totalArticlesToday?.toString() || '0', 
       color: 'from-blue-500 to-cyan-500' 
     },
     { 
       icon: Sparkles, 
       label: 'Newsletters Generated', 
-      value: stats.newslettersGenerated.toString(), 
+      value: safeStats.newslettersGenerated?.toString() || '0', 
       color: 'from-purple-500 to-pink-500' 
     },
     { 
       icon: Clock, 
       label: 'Last Update', 
-      value: stats.lastUpdateTime, 
+      value: safeStats.lastUpdateTime || 'Never', 
       color: 'from-green-500 to-teal-500' 
     },
     { 
       icon: Zap, 
       label: 'Avg Generation Time', 
-      value: stats.averageGenerationTime, 
+      value: safeStats.averageGenerationTime || '0s', 
       color: 'from-orange-500 to-red-500' 
     }
   ];

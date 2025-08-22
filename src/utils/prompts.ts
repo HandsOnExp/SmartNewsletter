@@ -123,6 +123,8 @@ export function buildPrompt(
     
     Today's date: ${currentDate}
     
+    🎯 TARGET: ${maxTopics} TOPICS (NOT 13, NOT 7, EXACTLY ${maxTopics})
+    
     Analyze these recent AI developments and create a newsletter with EXACTLY ${maxTopics} topics.
     
     Articles to analyze:
@@ -136,12 +138,27 @@ export function buildPrompt(
     
     ${formatPrompt}
     
-    CRITICAL REQUIREMENT: You MUST generate exactly ${maxTopics} topics in the "topics" array. 
-    - If you generate ${maxTopics - 1} or fewer topics, the response will be rejected
-    - If you generate ${maxTopics + 1} or more topics, the response will be rejected
-    - Count your topics carefully: the "topics" array must contain exactly ${maxTopics} objects
+    ⚠️ THE "topics" ARRAY MUST CONTAIN EXACTLY ${maxTopics} OBJECTS ⚠️
     
-    Select the ${maxTopics} most significant and interesting developments. Prioritize quality over quantity:
+    ⚠️ CRITICAL REQUIREMENT ⚠️ 
+    THE TOPICS ARRAY MUST CONTAIN EXACTLY ${maxTopics} OBJECTS - NO MORE, NO LESS
+    
+    🚫 DO NOT GENERATE 13 TOPICS (unless specifically requested)
+    ✅ GENERATE EXACTLY ${maxTopics} TOPICS
+    
+    TOPIC COUNT VALIDATION:
+    - Required: ${maxTopics} topics
+    - Not allowed: ${maxTopics - 2}, ${maxTopics - 1}, ${maxTopics + 1}, ${maxTopics + 2}, or any other number
+    - Your response will be automatically rejected if the topic count is wrong
+    
+    STEP-BY-STEP INSTRUCTIONS:
+    1. Read the requirement: Generate ${maxTopics} topics
+    2. Select the ${maxTopics} most important AI developments
+    3. Create exactly ${maxTopics} topic objects in the JSON array
+    4. Count your topics: 1, 2, 3... up to ${maxTopics}
+    5. Verify the count matches ${maxTopics} before responding
+    
+    Priority order for topic selection:
     1. Major model releases or updates
     2. Breakthrough research findings
     3. Significant business/funding news
@@ -150,7 +167,7 @@ export function buildPrompt(
     6. Surprising or entertaining AI behaviors
     7. Tools that developers/users can try today
     
-    FINAL CHECK: Before responding, count the topics in your JSON. There must be exactly ${maxTopics} topics.
+    🔍 MANDATORY FINAL CHECK: Count your topics array length. It must equal ${maxTopics}.
   `;
 }
 

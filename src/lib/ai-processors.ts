@@ -68,8 +68,10 @@ export async function analyzeWithCohere(
       const response = await cohere.chat({
         model: 'command-r', // Free tier model
         message: prompt,
-        temperature: attempt === 1 ? 0.3 : 0.1, // Lower temperature on retry for more structured output
+        temperature: attempt === 1 ? 0.2 : 0.05, // Much lower temperature to force compliance
         maxTokens: 3000, // Increased for longer responses
+        presencePenalty: attempt > 1 ? 0.5 : 0, // Add presence penalty on retry to vary output
+        frequencyPenalty: attempt > 1 ? 0.3 : 0, // Add frequency penalty to break patterns
       });
       
       // Quick validation to see if response looks like JSON

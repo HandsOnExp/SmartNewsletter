@@ -80,12 +80,21 @@ export async function analyzeWithCohere(articles: ParsedArticle[]): Promise<{ su
 // Gemini integration
 export async function analyzeWithGemini(articles: ParsedArticle[]): Promise<{ success: boolean; content?: string; error?: string }> {
   try {
+    if (!geminiApiKey) {
+      return {
+        success: false,
+        error: 'Gemini API key not found in environment variables. Please add GEMINI_API_KEY to your .env.local file.'
+      };
+    }
+    
     if (!genAI) {
       return {
         success: false,
-        error: 'Gemini API key not configured. Please add GEMINI_API_KEY to your .env.local file.'
+        error: 'Gemini API client initialization failed. Please check your API key.'
       };
     }
+    
+    console.log('Using Gemini API key:', geminiApiKey.substring(0, 10) + '...');
 
     const model = genAI.getGenerativeModel({ 
       model: "gemini-2.0-flash-exp" // Free tier model
@@ -101,7 +110,16 @@ export async function analyzeWithGemini(articles: ParsedArticle[]): Promise<{ su
       content: response.text()
     };
   } catch (error) {
-    console.error('Gemini API error:', error);
+    console.error('Gemini API error details:', error);
+    
+    // Check for specific API key errors
+    if (error instanceof Error && error.message.includes('API key not valid')) {
+      return { 
+        success: false, 
+        error: 'Invalid Gemini API key. Please get a new key from https://makersuite.google.com/app/apikey' 
+      };
+    }
+    
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown Gemini error' 
@@ -180,15 +198,31 @@ export async function generateNewsletterContent(
     let newsletterData;
     try {
       // Clean the response to extract JSON
-      const cleanedContent = response.content!
+      let cleanedContent = response.content!;
+      
+      // Remove markdown code blocks
+      cleanedContent = cleanedContent
         .replace(/```json\n?/g, '')
         .replace(/```\n?/g, '')
         .trim();
       
+      // If response starts with markdown headers, try to extract JSON from it
+      if (cleanedContent.startsWith('#') || cleanedContent.includes('##')) {
+        // Look for JSON-like content between braces
+        const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          cleanedContent = jsonMatch[0];
+        } else {
+          console.error('No JSON found in markdown response:', cleanedContent.substring(0, 200));
+          return { success: false, error: 'AI returned markdown instead of JSON. Please try again or use Cohere.' };
+        }
+      }
+      
       newsletterData = JSON.parse(cleanedContent);
     } catch (parseError) {
       console.error('JSON parsing error:', parseError);
-      return { success: false, error: 'Failed to parse AI response as JSON' };
+      console.error('Response content:', response.content?.substring(0, 500));
+      return { success: false, error: 'Failed to parse AI response as JSON. Please try again or use Cohere.' };
     }
     
     // Validate the structure

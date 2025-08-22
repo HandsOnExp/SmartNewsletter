@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useUser, UserButton } from '@clerk/nextjs';
 import { motion } from 'framer-motion';
-import { Sparkles, Loader2, RefreshCcw, Settings, BarChart3, Clock } from 'lucide-react';
+import { Sparkles, Loader2, RefreshCcw, Settings, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 
 // UI Components (we'll create these)
@@ -22,6 +22,7 @@ export default function Dashboard() {
   const [selectedLLM, setSelectedLLM] = useState<'cohere' | 'gemini'>('cohere');
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [refreshingFeeds, setRefreshingFeeds] = useState(false);
+  const [recentNewsletters, setRecentNewsletters] = useState<any[]>([]);
 
   // Create stunning gradient animations
   const gradientAnimation = {
@@ -42,6 +43,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (user) {
       fetchDashboardStats();
+      fetchRecentNewsletters();
     }
   }, [user]);
 
@@ -63,6 +65,25 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Failed to fetch dashboard stats:', error);
       setStats(null);
+    }
+  };
+
+  const fetchRecentNewsletters = async () => {
+    try {
+      const response = await fetch('/api/newsletters');
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          setRecentNewsletters(result.data);
+        } else {
+          setRecentNewsletters([]);
+        }
+      } else {
+        setRecentNewsletters([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch recent newsletters:', error);
+      setRecentNewsletters([]);
     }
   };
 
@@ -91,6 +112,7 @@ export default function Dashboard() {
         setNewsletter(data.newsletter);
         toast.success(`Newsletter generated successfully! (${data.stats?.generationTime})`);
         fetchDashboardStats(); // Refresh stats
+        fetchRecentNewsletters(); // Refresh recent newsletters
       } else {
         toast.error(data.error || 'Failed to generate newsletter');
       }
@@ -211,15 +233,6 @@ export default function Dashboard() {
             <Settings className="mr-2 h-4 w-4" />
             Settings
           </Button>
-          
-          <Button
-            onClick={() => window.location.href = '/analytics'}
-            variant="outline"
-            className="bg-gray-900/50 backdrop-blur-xl border-gray-700 text-white hover:bg-gray-800/50"
-          >
-            <BarChart3 className="mr-2 h-4 w-4" />
-            Analytics
-          </Button>
         </motion.div>
 
         {/* Main Generation Panel */}
@@ -243,7 +256,7 @@ export default function Dashboard() {
                   value="gemini" 
                   className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-teal-500"
                 >
-                  Gemini (With Images)
+                  Gemini
                 </TabsTrigger>
               </TabsList>
               
@@ -328,9 +341,53 @@ export default function Dashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-8 text-gray-400">
-                <p>No newsletters generated yet. Create your first one above!</p>
-              </div>
+              {recentNewsletters.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <p>No newsletters generated yet. Create your first one above!</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {recentNewsletters.map((newsletter, index) => (
+                    <motion.div
+                      key={newsletter._id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="p-4 bg-gray-800 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="text-lg font-semibold text-white truncate">{newsletter.title}</h3>
+                        <span className="text-sm text-gray-400 ml-4 whitespace-nowrap">
+                          {new Date(newsletter.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-gray-300 text-sm mb-3 line-clamp-2">{newsletter.introduction}</p>
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center space-x-4">
+                          <span className="text-xs text-gray-400">
+                            {newsletter.topics?.length || 0} topics
+                          </span>
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            newsletter.llmUsed === 'gemini' 
+                              ? 'bg-green-500/20 text-green-400' 
+                              : 'bg-blue-500/20 text-blue-400'
+                          }`}>
+                            {newsletter.llmUsed === 'gemini' ? 'Gemini' : 'Cohere'}
+                          </span>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="text-xs border-gray-600 text-gray-300 hover:bg-gray-700"
+                          onClick={() => setNewsletter(newsletter)}
+                        >
+                          View
+                        </Button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </motion.div>

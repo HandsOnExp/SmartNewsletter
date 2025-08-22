@@ -50,6 +50,26 @@ export const NEWSLETTER_PROMPTS = {
     
     Remember: Every topic should make readers think "I need to know about this!"`,
     
+    formatting: `CRITICAL: You MUST respond with ONLY valid JSON in this exact format:
+    {
+      "newsletterTitle": "Catchy title with emoji (e.g., 'AI Weekly: The Future is Now 🚀')",
+      "newsletterDate": "Current date in friendly format",
+      "introduction": "Brief 2-3 sentence opener that hooks the reader",
+      "topics": [
+        {
+          "headline": "Attention-grabbing headline (max 10 words)",
+          "summary": "5-10 sentences explaining the development, its significance, and implications",
+          "keyTakeaway": "One sentence 'bottom line' insight",
+          "imagePrompt": "Detailed prompt for image generation",
+          "sourceUrl": "Original article URL",
+          "category": "research|product|business|policy|fun"
+        }
+      ],
+      "conclusion": "Witty sign-off message"
+    }
+    
+    DO NOT include any markdown, headers, or text outside the JSON object.`,
+    
     imageGeneration: `Create a modern, tech-focused illustration that:
     - Uses purple, blue, and pink gradients
     - Includes abstract geometric shapes
@@ -68,7 +88,7 @@ export function buildPrompt(articles: ParsedArticle[], provider: 'cohere' | 'gem
     .slice(0, 30);
   
   const basePrompt = NEWSLETTER_PROMPTS[provider].analysis;
-  const formatPrompt = provider === 'cohere' ? NEWSLETTER_PROMPTS.cohere.formatting : '';
+  const formatPrompt = NEWSLETTER_PROMPTS[provider].formatting;
   
   const currentDate = new Date().toLocaleDateString('en-US', {
     weekday: 'long',

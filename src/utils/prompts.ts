@@ -10,7 +10,7 @@ export const NEWSLETTER_PROMPTS = {
     - Write in plain English, avoiding jargon unless necessary
     - Add humor and personality where appropriate
     - Highlight "wow moments" and "aha insights"
-    - Each summary should answer: What happened? Why does it matter? What's next?
+    - Each summary should be comprehensive and answer: What happened? Why does it matter? What's next? Who's involved? What are the technical details? How does this impact the industry?
     
     Tone: Professional yet conversational, like explaining to a smart friend over coffee.`,
     
@@ -22,7 +22,7 @@ export const NEWSLETTER_PROMPTS = {
       "topics": [
         {
           "headline": "Attention-grabbing headline (max 10 words)",
-          "summary": "5-10 sentences explaining the development, its significance, and implications",
+          "summary": "8-12 detailed sentences that thoroughly explain the development, its significance, technical details, implications, and real-world impact. Include context, background information, and why this matters to readers.",
           "keyTakeaway": "One sentence 'bottom line' insight",
           "imagePrompt": "Detailed prompt for image generation",
           "sourceUrl": "Original article URL",
@@ -47,6 +47,9 @@ export const NEWSLETTER_PROMPTS = {
     3. Connect developments to real-world impact
     4. Maintain optimistic but realistic tone
     5. Include specific names, numbers, and dates
+    6. Write detailed, comprehensive summaries that thoroughly explain the news
+    7. Provide context, background, and industry implications
+    8. Make each summary substantial and informative (8-12 sentences minimum)
     
     Remember: Every topic should make readers think "I need to know about this!"`,
     
@@ -58,7 +61,7 @@ export const NEWSLETTER_PROMPTS = {
       "topics": [
         {
           "headline": "Attention-grabbing headline (max 10 words)",
-          "summary": "5-10 sentences explaining the development, its significance, and implications",
+          "summary": "8-12 detailed sentences that thoroughly explain the development, its significance, technical details, implications, and real-world impact. Include context, background information, and why this matters to readers.",
           "keyTakeaway": "One sentence 'bottom line' insight",
           "imagePrompt": "Detailed prompt for image generation",
           "sourceUrl": "Original article URL",

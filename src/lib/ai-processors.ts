@@ -439,13 +439,29 @@ function validateAndRepairJSON(jsonString: string, language?: string): { success
     
     // Common repairs for Hebrew and RTL languages
     if (language === 'hebrew' || language === 'arabic') {
-      // Fix unescaped quotes in Hebrew text
+      // More aggressive Hebrew text cleaning
       repairedJson = repairedJson
-        .replace(/([א-ת])"([א-ת])/g, '$1\\"$2') // Escape quotes between Hebrew letters
-        .replace(/"([^"]*[א-ת][^"]*)"([^":,}\]\n]*)"([^"]*?)"/g, '"$1\\"$2\\"$3"') // Fix nested quotes
-        .replace(/:\s*([א-ת][^,}\]]*[א-ת])\s*([,}\]])/g, ': "$1"$2') // Add missing quotes
-        .replace(/[\u200E\u200F\u202A\u202B\u202C\u202D\u202E]/g, '') // Remove RTL marks
-        .replace(/\u00A0/g, ' '); // Replace non-breaking spaces
+        // Remove all RTL/LTR marks and formatting characters
+        .replace(/[\u200E\u200F\u202A\u202B\u202C\u202D\u202E\u2066\u2067\u2068\u2069]/g, '')
+        // Replace non-breaking and special spaces
+        .replace(/[\u00A0\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]/g, ' ')
+        // Fix Hebrew punctuation that might break JSON
+        .replace(/[\u05BE\u05C0\u05C3\u05C6\u05F3\u05F4]/g, '') // Hebrew punctuation marks
+        // Escape problematic Hebrew characters in strings
+        .replace(/"([^"]*[א-ת\u0590-\u05FF][^"]*?)"/g, (match, content) => {
+          // Clean the content inside quotes
+          const cleaned = content
+            .replace(/\\/g, '\\\\') // Escape backslashes
+            .replace(/"/g, '\\"') // Escape quotes
+            .replace(/\n/g, '\\n') // Escape newlines
+            .replace(/\r/g, '\\r') // Escape carriage returns
+            .replace(/\t/g, '\\t'); // Escape tabs
+          return `"${cleaned}"`;
+        })
+        // Fix unquoted Hebrew text (common AI mistake)
+        .replace(/:\s*([א-ת][^\s,}\]]*(?:\s+[א-ת][^\s,}\]]*)*)\s*([,}\]])/g, ': "$1"$2')
+        // Fix Hebrew text that spans multiple lines
+        .replace(/:\s*"([^"]*[א-ת][^"]*)\n([^"]*[א-ת][^"]*?)"\s*([,}\]])/g, ': "$1 $2"$3');
     }
     
     // General JSON repairs
@@ -461,11 +477,96 @@ function validateAndRepairJSON(jsonString: string, language?: string): { success
       console.log('JSON repair successful');
       return { success: true, data: parsed };
     } catch (repairError) {
+      console.log('Standard repair failed, attempting structural reconstruction...');
+      
+      // Last resort: try to extract and reconstruct the JSON structure
+      if (language === 'hebrew') {
+        try {
+          const reconstructed = reconstructHebrewJSON(repairedJson);
+          if (reconstructed) {
+            console.log('Hebrew JSON reconstruction successful');
+            return { success: true, data: reconstructed };
+          }
+        } catch (reconstructError) {
+          console.log('JSON reconstruction failed:', reconstructError);
+        }
+      }
+      
       return { 
         success: false, 
         error: `JSON repair failed: ${repairError instanceof Error ? repairError.message : 'Unknown error'}` 
       };
     }
+  }
+}
+
+// Hebrew JSON reconstruction - extract and rebuild structure
+function reconstructHebrewJSON(brokenJson: string): unknown | null {
+  try {
+    console.log('Attempting Hebrew JSON reconstruction...');
+    
+    // Extract key components using regex patterns
+    const titleMatch = brokenJson.match(/"newsletterTitle"\s*:\s*"([^"]*(?:[א-ת][^"]*)*)"/);
+    const dateMatch = brokenJson.match(/"newsletterDate"\s*:\s*"([^"]*(?:[א-ת][^"]*)*)"/);
+    const introMatch = brokenJson.match(/"introduction"\s*:\s*"([^"]*(?:[א-ת][^"]*)*)"/);
+    const conclusionMatch = brokenJson.match(/"conclusion"\s*:\s*"([^"]*(?:[א-ת][^"]*)*)"/);
+    
+    // Extract topics array - this is more complex
+    const topicsMatch = brokenJson.match(/"topics"\s*:\s*\[([\s\S]*?)\]/);
+    const topics = [];
+    
+    if (topicsMatch) {
+      // Split topics by }, { pattern but be careful with Hebrew content
+      const topicsContent = topicsMatch[1];
+      const topicBlocks = topicsContent.split(/},\s*{/);
+      
+      for (let i = 0; i < topicBlocks.length; i++) {
+        let block = topicBlocks[i].trim();
+        if (i === 0) block = block.replace(/^{/, '');
+        if (i === topicBlocks.length - 1) block = block.replace(/}$/, '');
+        if (i > 0) block = '{' + block;
+        if (i < topicBlocks.length - 1) block = block + '}';
+        
+        try {
+          // Extract individual topic fields
+          const headlineMatch = block.match(/"headline"\s*:\s*"([^"]*)"/);
+          const summaryMatch = block.match(/"summary"\s*:\s*"([^"]*(?:[א-ת][^"]*)*)"/);
+          const takeawayMatch = block.match(/"keyTakeaway"\s*:\s*"([^"]*(?:[א-ת][^"]*)*)"/);
+          const imageMatch = block.match(/"imagePrompt"\s*:\s*"([^"]*)"/);
+          const urlMatch = block.match(/"sourceUrl"\s*:\s*"([^"]*)"/);
+          const categoryMatch = block.match(/"category"\s*:\s*"([^"]*)"/);
+          
+          if (headlineMatch && summaryMatch) {
+            topics.push({
+              headline: headlineMatch[1] || '',
+              summary: summaryMatch[1] || '',
+              keyTakeaway: takeawayMatch?.[1] || '',
+              imagePrompt: imageMatch?.[1] || 'AI technology illustration',
+              sourceUrl: urlMatch?.[1] || '',
+              category: categoryMatch?.[1] || 'research'
+            });
+          }
+        } catch (topicError) {
+          console.log(`Failed to parse topic ${i}:`, topicError);
+        }
+      }
+    }
+    
+    // Reconstruct the JSON object
+    const reconstructed = {
+      newsletterTitle: titleMatch?.[1] || 'AI Newsletter in Hebrew',
+      newsletterDate: dateMatch?.[1] || new Date().toLocaleDateString('he-IL'),
+      introduction: introMatch?.[1] || 'חדשות AI השבוע',
+      topics: topics,
+      conclusion: conclusionMatch?.[1] || 'זהו לשבוע זה!'
+    };
+    
+    console.log(`Reconstructed newsletter with ${topics.length} topics`);
+    return reconstructed;
+    
+  } catch (error) {
+    console.log('Reconstruction failed:', error);
+    return null;
   }
 }
 

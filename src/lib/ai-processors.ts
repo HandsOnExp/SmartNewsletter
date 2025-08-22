@@ -50,34 +50,62 @@ export async function analyzeWithCohere(
   articles: ParsedArticle[],
   options?: { maxTopics?: number; language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese' }
 ): Promise<{ success: boolean; content?: string; error?: string }> {
-  try {
-    if (!cohere) {
-      return {
-        success: false,
-        error: 'Cohere API key not configured. Please add COHERE_API_KEY to your .env.local file.'
-      };
-    }
+  const maxRetries = 2;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      if (!cohere) {
+        return {
+          success: false,
+          error: 'Cohere API key not configured. Please add COHERE_API_KEY to your .env.local file.'
+        };
+      }
 
-    const prompt = buildPrompt(articles, 'cohere', options);
-    
-    const response = await cohere.chat({
-      model: 'command-r', // Free tier model
-      message: prompt,
-      temperature: 0.7,
-      maxTokens: 2500,
-    });
-    
-    return {
-      success: true,
-      content: response.text
-    };
-  } catch (error) {
-    console.error('Cohere API error:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown Cohere error' 
-    };
+      const prompt = buildPrompt(articles, 'cohere', options);
+      
+      console.log(`Cohere attempt ${attempt}/${maxRetries}`);
+      
+      const response = await cohere.chat({
+        model: 'command-r', // Free tier model
+        message: prompt,
+        temperature: attempt === 1 ? 0.3 : 0.1, // Lower temperature on retry for more structured output
+        maxTokens: 3000, // Increased for longer responses
+      });
+      
+      // Quick validation to see if response looks like JSON
+      const content = response.text.trim();
+      if (!content.includes('{') || !content.includes('}')) {
+        if (attempt < maxRetries) {
+          console.log(`Attempt ${attempt} returned non-JSON content, retrying...`);
+          continue;
+        }
+        return {
+          success: false,
+          error: 'Cohere returned non-JSON response after multiple attempts. Please try Gemini instead.'
+        };
+      }
+      
+      return {
+        success: true,
+        content: response.text
+      };
+    } catch (error) {
+      console.error(`Cohere API error on attempt ${attempt}:`, error);
+      if (attempt === maxRetries) {
+        return { 
+          success: false, 
+          error: error instanceof Error ? error.message : 'Unknown Cohere error' 
+        };
+      }
+      // Wait a bit before retrying
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
   }
+  
+  return { 
+    success: false, 
+    error: 'All Cohere attempts failed' 
+  };
 }
 
 // Gemini integration
@@ -207,29 +235,57 @@ export async function generateNewsletterContent(
       // Clean the response to extract JSON
       let cleanedContent = response.content!;
       
+      console.log('Raw AI response:', cleanedContent.substring(0, 200) + '...');
+      
       // Remove markdown code blocks
       cleanedContent = cleanedContent
-        .replace(/```json\n?/g, '')
-        .replace(/```\n?/g, '')
+        .replace(/```json\n?/gi, '')
+        .replace(/```\n?/gi, '')
         .trim();
       
-      // If response starts with markdown headers, try to extract JSON from it
-      if (cleanedContent.startsWith('#') || cleanedContent.includes('##')) {
+      // Remove any text before the first {
+      const firstBrace = cleanedContent.indexOf('{');
+      if (firstBrace > 0) {
+        cleanedContent = cleanedContent.substring(firstBrace);
+      }
+      
+      // Remove any text after the last }
+      const lastBrace = cleanedContent.lastIndexOf('}');
+      if (lastBrace !== -1 && lastBrace < cleanedContent.length - 1) {
+        cleanedContent = cleanedContent.substring(0, lastBrace + 1);
+      }
+      
+      // If response starts with markdown headers or other text, try to extract JSON
+      if (!cleanedContent.startsWith('{')) {
         // Look for JSON-like content between braces
         const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           cleanedContent = jsonMatch[0];
         } else {
-          console.error('No JSON found in markdown response:', cleanedContent.substring(0, 200));
-          return { success: false, error: 'AI returned markdown instead of JSON. Please try again or use Cohere.' };
+          console.error('No JSON found in response:', cleanedContent.substring(0, 300));
+          return { 
+            success: false, 
+            error: `AI returned non-JSON content. Response started with: "${cleanedContent.substring(0, 100)}...". Please try again or switch to Gemini.` 
+          };
         }
       }
+      
+      // Additional cleaning for common AI response issues
+      cleanedContent = cleanedContent
+        .replace(/\n\s*\/\/.*$/gm, '') // Remove comment lines
+        .replace(/,\s*}/g, '}') // Remove trailing commas
+        .replace(/,\s*]/g, ']'); // Remove trailing commas in arrays
+      
+      console.log('Cleaned content for parsing:', cleanedContent.substring(0, 200) + '...');
       
       newsletterData = JSON.parse(cleanedContent);
     } catch (parseError) {
       console.error('JSON parsing error:', parseError);
-      console.error('Response content:', response.content?.substring(0, 500));
-      return { success: false, error: 'Failed to parse AI response as JSON. Please try again or use Cohere.' };
+      console.error('Full response content:', response.content);
+      return { 
+        success: false, 
+        error: `Failed to parse AI response as JSON. Error: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}. Please try again or switch to Gemini.` 
+      };
     }
     
     // Validate the structure

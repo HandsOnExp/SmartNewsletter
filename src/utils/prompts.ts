@@ -14,7 +14,9 @@ export const NEWSLETTER_PROMPTS = {
     
     Tone: Professional yet conversational, like explaining to a smart friend over coffee.`,
     
-    formatting: `Structure your response as valid JSON with this exact format:
+    formatting: `CRITICAL: You MUST respond with ONLY valid JSON in this exact format. Do NOT include any text before or after the JSON object. Do NOT use markdown code blocks.
+
+    JSON FORMAT (no extra text):
     {
       "newsletterTitle": "Catchy title with emoji (e.g., 'AI Weekly: Robots Learn to Dance 🤖💃')",
       "newsletterDate": "Current date in friendly format",
@@ -30,7 +32,9 @@ export const NEWSLETTER_PROMPTS = {
         }
       ],
       "conclusion": "Witty sign-off message"
-    }`
+    }
+    
+    DO NOT include any markdown, explanations, or text outside the JSON object.`
   },
   
   gemini: {

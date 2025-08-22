@@ -143,6 +143,7 @@ export interface NewsletterPreviewProps {
   };
   onSave?: () => void;
   onPublish?: () => void;
+  onClose?: () => void;
 }
 
 export interface RSSFeedManagerProps {

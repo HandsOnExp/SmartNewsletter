@@ -320,16 +320,20 @@ export default function Dashboard() {
             animate={{ opacity: 1, y: 0 }}
             className="mt-8"
           >
-            <NewsletterPreview data={newsletter} />
+            <NewsletterPreview 
+              data={newsletter} 
+              onClose={() => setNewsletter(null)} 
+            />
           </motion.div>
         )}
 
-        {/* Recent Newsletters */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-8"
-        >
+        {/* Recent Newsletters - only show when no newsletter is being previewed */}
+        {!newsletter && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-8"
+          >
           <Card className="bg-gray-900/90 backdrop-blur-xl border-gray-800">
             <CardHeader>
               <CardTitle className="text-2xl text-white flex items-center">
@@ -378,7 +382,7 @@ export default function Dashboard() {
                         <Button 
                           variant="outline" 
                           size="sm"
-                          className="text-xs border-gray-600 text-gray-300 hover:bg-gray-700"
+                          className="text-xs bg-purple-500/20 border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white transition-colors"
                           onClick={() => setNewsletter(newsletter)}
                         >
                           View
@@ -391,6 +395,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </motion.div>
+        )}
       </div>
     </div>
   );

@@ -3,11 +3,11 @@
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Copy, Download, Send, Sparkles, ExternalLink } from 'lucide-react';
+import { Copy, Download, Send, Sparkles, ExternalLink, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { NewsletterPreviewProps } from '@/types';
 
-export function NewsletterPreview({ data, onSave, onPublish }: NewsletterPreviewProps) {
+export function NewsletterPreview({ data, onSave, onPublish, onClose }: NewsletterPreviewProps) {
   const copyToClipboard = () => {
     const htmlContent = generateHTML(data);
     navigator.clipboard.writeText(htmlContent);
@@ -182,24 +182,54 @@ export function NewsletterPreview({ data, onSave, onPublish }: NewsletterPreview
             Newsletter Preview
           </CardTitle>
           <div className="flex gap-2">
-            <Button onClick={copyToClipboard} variant="outline" size="sm" className="border-gray-600 text-gray-300 hover:text-white">
+            <Button 
+              onClick={copyToClipboard} 
+              variant="outline" 
+              size="sm" 
+              className="bg-blue-500/20 border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white transition-colors"
+            >
               <Copy className="mr-2 h-4 w-4" />
               Copy HTML
             </Button>
-            <Button onClick={downloadHTML} variant="outline" size="sm" className="border-gray-600 text-gray-300 hover:text-white">
+            <Button 
+              onClick={downloadHTML} 
+              variant="outline" 
+              size="sm" 
+              className="bg-green-500/20 border-green-500 text-green-400 hover:bg-green-500 hover:text-white transition-colors"
+            >
               <Download className="mr-2 h-4 w-4" />
               Download
             </Button>
             {onSave && (
-              <Button onClick={onSave} variant="outline" size="sm" className="border-gray-600 text-gray-300 hover:text-white">
+              <Button 
+                onClick={onSave} 
+                variant="outline" 
+                size="sm" 
+                className="bg-yellow-500/20 border-yellow-500 text-yellow-400 hover:bg-yellow-500 hover:text-white transition-colors"
+              >
                 <Send className="mr-2 h-4 w-4" />
                 Save Draft
               </Button>
             )}
             {onPublish && (
-              <Button onClick={onPublish} size="sm" className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700">
+              <Button 
+                onClick={onPublish} 
+                size="sm" 
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+              >
                 <Send className="mr-2 h-4 w-4" />
                 Publish
+              </Button>
+            )}
+            {onClose && (
+              <Button 
+                onClick={onClose} 
+                variant="outline" 
+                size="sm" 
+                className="bg-red-500/20 border-red-500 text-red-400 hover:bg-red-500 hover:text-white transition-colors"
+                title="Close Preview"
+              >
+                <X className="h-4 w-4" />
               </Button>
             )}
           </div>

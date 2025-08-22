@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Rss, Settings, Key, Bell, Save, Plus, Trash2, ArrowLeft } from 'lucide-react';
+import { Rss, Settings, Key, Bell, Save, Plus, Trash2, ArrowLeft, ExternalLink, Edit, X } from 'lucide-react';
 import { RSS_FEEDS, type RSSFeed } from '@/utils/rss-feeds';
 import { UserSettings, CustomRSSFeed } from '@/types';
 
@@ -36,6 +36,23 @@ export default function SettingsPage() {
     emailNotifications: true,
     llmPreference: 'cohere' as 'cohere' | 'gemini' | 'auto'
   });
+
+  // API Key management functions
+  const openAPIKeyDashboard = (provider: 'cohere' | 'gemini') => {
+    const urls = {
+      cohere: 'https://dashboard.cohere.com/api-keys',
+      gemini: 'https://makersuite.google.com/app/apikey'
+    };
+    window.open(urls[provider], '_blank');
+  };
+
+  const clearAPIKey = (provider: 'cohere' | 'gemini') => {
+    setApiKeys(prev => ({
+      ...prev,
+      [provider]: ''
+    }));
+    toast.success(`${provider.charAt(0).toUpperCase() + provider.slice(1)} API key cleared`);
+  };
 
   useEffect(() => {
     if (user) {
@@ -391,7 +408,30 @@ export default function SettingsPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="cohere-key" className="text-white">Cohere API Key (Free Tier)</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="cohere-key" className="text-white">Cohere API Key (Free Tier)</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => openAPIKeyDashboard('cohere')}
+                        variant="outline"
+                        size="sm"
+                        className="bg-blue-500/20 border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white transition-colors"
+                      >
+                        <ExternalLink className="h-4 w-4 mr-1" />
+                        Get Key
+                      </Button>
+                      {apiKeys.cohere && (
+                        <Button
+                          onClick={() => clearAPIKey('cohere')}
+                          variant="outline"
+                          size="sm"
+                          className="bg-red-500/20 border-red-500 text-red-400 hover:bg-red-500 hover:text-white transition-colors"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                   <Input
                     id="cohere-key"
                     type="password"
@@ -401,12 +441,35 @@ export default function SettingsPage() {
                     className="bg-gray-800 border-gray-600 text-white"
                   />
                   <p className="text-xs text-gray-500">
-                    Get your free key at cohere.com • 1000 calls/month
+                    Get your free key at dashboard.cohere.com • 1000 calls/month
                   </p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="gemini-key" className="text-white">Google Gemini API Key</Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="gemini-key" className="text-white">Google Gemini API Key</Label>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => openAPIKeyDashboard('gemini')}
+                        variant="outline"
+                        size="sm"
+                        className="bg-green-500/20 border-green-500 text-green-400 hover:bg-green-500 hover:text-white transition-colors"
+                      >
+                        <ExternalLink className="h-4 w-4 mr-1" />
+                        Get Key
+                      </Button>
+                      {apiKeys.gemini && (
+                        <Button
+                          onClick={() => clearAPIKey('gemini')}
+                          variant="outline"
+                          size="sm"
+                          className="bg-red-500/20 border-red-500 text-red-400 hover:bg-red-500 hover:text-white transition-colors"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                   <Input
                     id="gemini-key"
                     type="password"
@@ -476,7 +539,7 @@ export default function SettingsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="cohere">Cohere (Fast, Free)</SelectItem>
-                      <SelectItem value="gemini">Gemini (With Images)</SelectItem>
+                      <SelectItem value="gemini">Gemini</SelectItem>
                       <SelectItem value="auto">Auto-select based on limits</SelectItem>
                     </SelectContent>
                   </Select>

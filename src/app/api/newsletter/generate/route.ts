@@ -3,7 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import { fetchAllFeeds, deduplicateArticles, sortArticlesByDate } from '@/lib/rss-parser';
 import { generateNewsletterContent, checkRateLimit } from '@/lib/ai-processors';
 import { RSS_FEEDS } from '@/utils/rss-feeds';
-import { createNewsletter, connectDB } from '@/lib/db';
+import { createNewsletter, connectDB, getUserSettings } from '@/lib/db';
 import { APIResponse, NewsletterGenerationResponse } from '@/types';
 
 export async function POST(request: Request) {
@@ -17,7 +17,13 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { llmProvider = 'cohere' } = body;
+    const { llmProvider: requestedProvider } = body;
+
+    // Fetch user settings for preferences
+    const userSettings = await getUserSettings(userId);
+    const llmProvider = requestedProvider || userSettings?.preferences?.llmPreference || 'cohere';
+    const maxArticles = userSettings?.preferences?.maxArticles || 20;
+    const language = userSettings?.preferences?.language || 'english';
 
     // Check rate limits
     const rateCheck = checkRateLimit();
@@ -52,13 +58,16 @@ export async function POST(request: Request) {
 
     // Step 3: Deduplicate and sort articles
     const uniqueArticles = deduplicateArticles(allArticles);
-    const sortedArticles = sortArticlesByDate(uniqueArticles).slice(0, 50); // Take top 50 most recent
+    const sortedArticles = sortArticlesByDate(uniqueArticles).slice(0, Math.min(maxArticles, 50)); // Use user preference, max 50
 
-    console.log(`Processing ${sortedArticles.length} unique articles`);
+    console.log(`Processing ${sortedArticles.length} unique articles for ${language} newsletter`);
 
     // Step 4: Generate newsletter content
-    console.log(`Generating newsletter with ${llmProvider}...`);
-    const generationResult = await generateNewsletterContent(sortedArticles, llmProvider);
+    console.log(`Generating newsletter with ${llmProvider} in ${language}...`);
+    const generationResult = await generateNewsletterContent(sortedArticles, llmProvider, {
+      maxArticles,
+      language
+    });
 
     if (!generationResult.success || !generationResult.data) {
       console.error('Newsletter generation failed:', generationResult.error);

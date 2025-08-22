@@ -46,7 +46,10 @@ export interface NewsletterData {
 }
 
 // Cohere integration
-export async function analyzeWithCohere(articles: ParsedArticle[]): Promise<{ success: boolean; content?: string; error?: string }> {
+export async function analyzeWithCohere(
+  articles: ParsedArticle[],
+  options?: { maxArticles?: number; language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese' }
+): Promise<{ success: boolean; content?: string; error?: string }> {
   try {
     if (!cohere) {
       return {
@@ -55,7 +58,7 @@ export async function analyzeWithCohere(articles: ParsedArticle[]): Promise<{ su
       };
     }
 
-    const prompt = buildPrompt(articles, 'cohere');
+    const prompt = buildPrompt(articles, 'cohere', options);
     
     const response = await cohere.chat({
       model: 'command-r', // Free tier model
@@ -78,7 +81,10 @@ export async function analyzeWithCohere(articles: ParsedArticle[]): Promise<{ su
 }
 
 // Gemini integration
-export async function analyzeWithGemini(articles: ParsedArticle[]): Promise<{ success: boolean; content?: string; error?: string }> {
+export async function analyzeWithGemini(
+  articles: ParsedArticle[],
+  options?: { maxArticles?: number; language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese' }
+): Promise<{ success: boolean; content?: string; error?: string }> {
   try {
     if (!geminiApiKey) {
       return {
@@ -100,7 +106,7 @@ export async function analyzeWithGemini(articles: ParsedArticle[]): Promise<{ su
       model: "gemini-2.0-flash-exp" // Free tier model
     });
     
-    const prompt = buildPrompt(articles, 'gemini');
+    const prompt = buildPrompt(articles, 'gemini', options);
     
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -177,7 +183,8 @@ export async function generateImage(prompt: string): Promise<{ success: boolean;
 // Main newsletter generation function
 export async function generateNewsletterContent(
   articles: ParsedArticle[], 
-  provider: 'cohere' | 'gemini' = 'cohere'
+  provider: 'cohere' | 'gemini' = 'cohere',
+  options?: { maxArticles?: number; language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese' }
 ): Promise<{ success: boolean; data?: NewsletterData; error?: string }> {
   const startTime = Date.now();
   
@@ -185,9 +192,9 @@ export async function generateNewsletterContent(
     let response;
     
     if (provider === 'gemini') {
-      response = await analyzeWithGemini(articles);
+      response = await analyzeWithGemini(articles, options);
     } else {
-      response = await analyzeWithCohere(articles);
+      response = await analyzeWithCohere(articles, options);
     }
     
     if (!response.success) {

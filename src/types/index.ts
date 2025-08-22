@@ -59,6 +59,8 @@ export interface UserSettings {
     generateTime: string;
     emailNotifications: boolean;
     llmPreference: 'cohere' | 'gemini' | 'auto';
+    maxArticles: number;
+    language: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
   };
   rssFeeds: {
     enabled: string[];
@@ -171,6 +173,8 @@ export interface SettingsForm {
     generateTime: string;
     emailNotifications: boolean;
     llmPreference: 'cohere' | 'gemini' | 'auto';
+    maxArticles: number;
+    language: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
   };
 }
 

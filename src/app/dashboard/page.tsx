@@ -14,6 +14,7 @@ import { NewsletterPreview } from '@/components/newsletter/NewsletterPreview';
 import { StatsCards } from '@/components/dashboard/StatsCards';
 
 import { NewsletterGenerationResponse, DashboardStats } from '@/types';
+import { NewsletterTopic } from '@/lib/ai-processors';
 
 export default function Dashboard() {
   const { user } = useUser();
@@ -22,7 +23,16 @@ export default function Dashboard() {
   const [selectedLLM, setSelectedLLM] = useState<'cohere' | 'gemini'>('cohere');
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [refreshingFeeds, setRefreshingFeeds] = useState(false);
-  const [recentNewsletters, setRecentNewsletters] = useState<any[]>([]);
+  const [recentNewsletters, setRecentNewsletters] = useState<{
+    _id: string;
+    title: string;
+    date: Date;
+    llmUsed: string;
+    status: string;
+    introduction?: string;
+    topics?: NewsletterTopic[];
+    conclusion?: string;
+  }[]>([]);
 
   // Create stunning gradient animations
   const gradientAnimation = {
@@ -106,9 +116,8 @@ export default function Dashboard() {
         fetchDashboardStats(); // Update stats
         
         // If the deleted newsletter was currently being viewed, close it
-        if (newsletter && (newsletter as any)._id === newsletterId) {
-          setNewsletter(null);
-        }
+        // Note: Newsletter preview doesn't store _id, so this check is not needed
+        setNewsletter(null);
       } else {
         toast.error(result.error || 'Failed to delete newsletter');
       }
@@ -393,7 +402,7 @@ export default function Dashboard() {
                       <div className="flex justify-between items-start mb-2">
                         <h3 className="text-lg font-semibold text-white truncate">{newsletter.title}</h3>
                         <span className="text-sm text-gray-400 ml-4 whitespace-nowrap">
-                          {new Date(newsletter.createdAt).toLocaleDateString()}
+                          {new Date(newsletter.date).toLocaleDateString()}
                         </span>
                       </div>
                       <p className="text-gray-300 text-sm mb-3 line-clamp-2">{newsletter.introduction}</p>
@@ -415,7 +424,17 @@ export default function Dashboard() {
                             variant="outline" 
                             size="sm"
                             className="text-xs bg-purple-500/20 border-purple-500 text-purple-400 hover:bg-purple-500 hover:text-white transition-colors"
-                            onClick={() => setNewsletter(newsletter)}
+                            onClick={() => {
+                              // Transform to the expected format for the preview
+                              const previewData = {
+                                newsletterTitle: newsletter.title,
+                                newsletterDate: new Date(newsletter.date).toLocaleDateString(),
+                                introduction: newsletter.introduction,
+                                topics: newsletter.topics || [],
+                                conclusion: newsletter.conclusion
+                              };
+                              setNewsletter(previewData);
+                            }}
                           >
                             View
                           </Button>
@@ -423,7 +442,7 @@ export default function Dashboard() {
                             variant="outline" 
                             size="sm"
                             className="text-xs bg-red-500/20 border-red-500 text-red-400 hover:bg-red-500 hover:text-white transition-colors"
-                            onClick={() => deleteNewsletter((newsletter as any)._id)}
+                            onClick={() => deleteNewsletter(newsletter._id)}
                             title="Delete newsletter"
                           >
                             <Trash2 className="h-3 w-3" />

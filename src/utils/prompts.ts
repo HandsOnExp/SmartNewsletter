@@ -84,11 +84,21 @@ export const NEWSLETTER_PROMPTS = {
   }
 };
 
-export function buildPrompt(articles: ParsedArticle[], provider: 'cohere' | 'gemini') {
-  // Sort articles by date and take the most recent 30
+export function buildPrompt(
+  articles: ParsedArticle[], 
+  provider: 'cohere' | 'gemini',
+  options?: {
+    maxArticles?: number;
+    language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
+  }
+) {
+  const maxArticles = options?.maxArticles || 20;
+  const language = options?.language || 'english';
+  
+  // Sort articles by date and take the most recent articles
   const sortedArticles = articles
     .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
-    .slice(0, 30);
+    .slice(0, maxArticles);
   
   const basePrompt = NEWSLETTER_PROMPTS[provider].analysis;
   const formatPrompt = NEWSLETTER_PROMPTS[provider].formatting;
@@ -99,9 +109,13 @@ export function buildPrompt(articles: ParsedArticle[], provider: 'cohere' | 'gem
     month: 'long',
     day: 'numeric'
   });
+
+  // Language-specific instructions
+  const languageInstructions = getLanguageInstructions(language);
   
   return `
     ${basePrompt}
+    ${languageInstructions}
     
     Today's date: ${currentDate}
     
@@ -127,6 +141,61 @@ export function buildPrompt(articles: ParsedArticle[], provider: 'cohere' | 'gem
     6. Surprising or entertaining AI behaviors
     7. Tools that developers/users can try today
   `;
+}
+
+function getLanguageInstructions(language: string): string {
+  const instructions = {
+    english: '',
+    hebrew: `
+    
+    LANGUAGE REQUIREMENT: Write the entire newsletter in Hebrew.
+    - Use proper Hebrew grammar and syntax
+    - Write from right-to-left as appropriate
+    - Use Hebrew tech terminology where available, with English terms in parentheses when needed
+    - Ensure cultural relevance for Hebrew-speaking audiences`,
+    
+    spanish: `
+    
+    LANGUAGE REQUIREMENT: Write the entire newsletter in Spanish.
+    - Use proper Spanish grammar and syntax
+    - Use appropriate Spanish tech terminology
+    - Ensure cultural relevance for Spanish-speaking audiences
+    - Use formal but approachable tone`,
+    
+    french: `
+    
+    LANGUAGE REQUIREMENT: Write the entire newsletter in French.
+    - Use proper French grammar and syntax
+    - Use appropriate French tech terminology
+    - Ensure cultural relevance for French-speaking audiences
+    - Maintain elegant and professional French writing style`,
+    
+    german: `
+    
+    LANGUAGE REQUIREMENT: Write the entire newsletter in German.
+    - Use proper German grammar and syntax
+    - Use appropriate German tech terminology
+    - Ensure cultural relevance for German-speaking audiences
+    - Use compound words appropriately for tech concepts`,
+    
+    italian: `
+    
+    LANGUAGE REQUIREMENT: Write the entire newsletter in Italian.
+    - Use proper Italian grammar and syntax
+    - Use appropriate Italian tech terminology
+    - Ensure cultural relevance for Italian-speaking audiences
+    - Maintain elegant Italian writing style`,
+    
+    portuguese: `
+    
+    LANGUAGE REQUIREMENT: Write the entire newsletter in Portuguese.
+    - Use proper Portuguese grammar and syntax
+    - Use appropriate Portuguese tech terminology
+    - Ensure cultural relevance for Portuguese-speaking audiences
+    - Use Brazilian Portuguese conventions`
+  };
+  
+  return instructions[language as keyof typeof instructions] || '';
 }
 
 export function buildGeminiImagePrompt(topic: string): string {

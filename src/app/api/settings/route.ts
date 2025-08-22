@@ -79,7 +79,9 @@ export async function GET() {
           autoGenerate: false,
           generateTime: '09:00',
           emailNotifications: true,
-          llmPreference: 'cohere' as const
+          llmPreference: 'cohere' as const,
+          maxArticles: 20,
+          language: 'english' as const
         },
         rssFeeds: {
           enabled: [],
@@ -132,7 +134,9 @@ export async function POST(request: Request) {
         autoGenerate: preferences?.autoGenerate || false,
         generateTime: preferences?.generateTime || '09:00',
         emailNotifications: preferences?.emailNotifications !== false, // Default to true
-        llmPreference: preferences?.llmPreference || 'cohere'
+        llmPreference: preferences?.llmPreference || 'cohere',
+        maxArticles: preferences?.maxArticles || 20,
+        language: preferences?.language || 'english'
       },
       rssFeeds: {
         enabled: rssFeeds?.enabled || [],

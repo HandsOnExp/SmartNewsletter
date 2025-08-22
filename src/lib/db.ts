@@ -133,6 +133,12 @@ const UserSettingsSchema = new mongoose.Schema({
       type: String, 
       enum: ['cohere', 'gemini', 'auto'],
       default: 'cohere'
+    },
+    maxArticles: { type: Number, default: 20 },
+    language: { 
+      type: String, 
+      enum: ['english', 'hebrew', 'spanish', 'french', 'german', 'italian', 'portuguese'],
+      default: 'english'
     }
   },
   rssFeeds: {

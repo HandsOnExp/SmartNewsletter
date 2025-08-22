@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Rss, Settings, Key, Bell, Save, Plus, Trash2, ArrowLeft, ExternalLink, Edit, X } from 'lucide-react';
+import { Rss, Settings, Key, Bell, Save, Plus, Trash2, ArrowLeft, ExternalLink, X } from 'lucide-react';
 import { RSS_FEEDS, type RSSFeed } from '@/utils/rss-feeds';
 import { UserSettings, CustomRSSFeed } from '@/types';
 
@@ -34,7 +34,9 @@ export default function SettingsPage() {
     autoGenerate: false,
     generateTime: '09:00',
     emailNotifications: true,
-    llmPreference: 'cohere' as 'cohere' | 'gemini' | 'auto'
+    llmPreference: 'cohere' as 'cohere' | 'gemini' | 'auto',
+    maxArticles: 20,
+    language: 'english' as 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese'
   });
 
   // API Key management functions
@@ -138,7 +140,9 @@ export default function SettingsPage() {
       autoGenerate: false,
       generateTime: '09:00',
       emailNotifications: true,
-      llmPreference: 'cohere'
+      llmPreference: 'cohere',
+      maxArticles: 20,
+      language: 'english'
     });
     setCustomFeeds(settings.rssFeeds?.custom || []);
     
@@ -156,7 +160,9 @@ export default function SettingsPage() {
       autoGenerate: false,
       generateTime: '09:00',
       emailNotifications: true,
-      llmPreference: 'cohere'
+      llmPreference: 'cohere',
+      maxArticles: 20,
+      language: 'english'
     });
     setCustomFeeds([]);
     
@@ -543,6 +549,104 @@ export default function SettingsPage() {
                       <SelectItem value="auto">Auto-select based on limits</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Newsletter Preferences Card */}
+            <Card className="bg-gray-900/90 backdrop-blur-xl border-gray-800">
+              <CardHeader>
+                <CardTitle className="flex items-center text-white">
+                  <Settings className="mr-2 h-5 w-5" />
+                  Newsletter Preferences
+                </CardTitle>
+                <CardDescription className="text-gray-400">
+                  Configure newsletter generation settings
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-white">Default Max Articles</Label>
+                    <span className="text-purple-400 font-semibold text-lg">
+                      {preferences.maxArticles}
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="range"
+                      min="1"
+                      max="20"
+                      value={preferences.maxArticles}
+                      onChange={(e) => setPreferences({...preferences, maxArticles: parseInt(e.target.value)})}
+                      className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                      style={{
+                        background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${((preferences.maxArticles - 1) / 19) * 100}%, #374151 ${((preferences.maxArticles - 1) / 19) * 100}%, #374151 100%)`
+                      }}
+                    />
+                    <style jsx>{`
+                      input[type="range"]::-webkit-slider-thumb {
+                        appearance: none;
+                        height: 20px;
+                        width: 20px;
+                        border-radius: 50%;
+                        background: #8b5cf6;
+                        border: 2px solid #ffffff;
+                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                        cursor: pointer;
+                      }
+                      input[type="range"]::-moz-range-thumb {
+                        height: 20px;
+                        width: 20px;
+                        border-radius: 50%;
+                        background: #8b5cf6;
+                        border: 2px solid #ffffff;
+                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                        cursor: pointer;
+                        border: none;
+                      }
+                      input[type="range"]:focus::-webkit-slider-thumb {
+                        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.3);
+                      }
+                      input[type="range"]:focus::-moz-range-thumb {
+                        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.3);
+                      }
+                    `}</style>
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-400">
+                    <span>1</span>
+                    <span>10</span>
+                    <span>20</span>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Maximum number of articles to analyze for newsletter generation
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-white">Language</Label>
+                  <Select 
+                    value={preferences.language}
+                    onValueChange={(value: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese') => 
+                      setPreferences({...preferences, language: value})
+                    }
+                  >
+                    <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="english">English</SelectItem>
+                      <SelectItem value="spanish">Español (Spanish)</SelectItem>
+                      <SelectItem value="french">Français (French)</SelectItem>
+                      <SelectItem value="german">Deutsch (German)</SelectItem>
+                      <SelectItem value="italian">Italiano (Italian)</SelectItem>
+                      <SelectItem value="portuguese">Português (Portuguese)</SelectItem>
+                      <SelectItem value="hebrew">עברית (Hebrew)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500">
+                    Language for newsletter generation and content
+                  </p>
                 </div>
               </CardContent>
             </Card>

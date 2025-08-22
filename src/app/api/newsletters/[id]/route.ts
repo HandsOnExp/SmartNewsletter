@@ -5,7 +5,7 @@ import { APIResponse } from '@/types';
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -25,7 +25,7 @@ export async function DELETE(
       }, { status: 503 });
     }
 
-    const { id } = params;
+    const { id } = await params;
 
     // Find and delete the newsletter (ensure it belongs to the user)
     const newsletter = await Newsletter.findOneAndDelete({ 

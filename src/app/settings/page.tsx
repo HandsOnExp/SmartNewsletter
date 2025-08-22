@@ -35,7 +35,7 @@ export default function SettingsPage() {
     generateTime: '09:00',
     emailNotifications: true,
     llmPreference: 'cohere' as 'cohere' | 'gemini' | 'auto',
-    maxArticles: 20,
+    maxArticles: 7,
     language: 'english' as 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese'
   });
 
@@ -141,7 +141,7 @@ export default function SettingsPage() {
       generateTime: '09:00',
       emailNotifications: true,
       llmPreference: 'cohere',
-      maxArticles: 20,
+      maxArticles: 7,
       language: 'english'
     });
     setCustomFeeds(settings.rssFeeds?.custom || []);
@@ -161,7 +161,7 @@ export default function SettingsPage() {
       generateTime: '09:00',
       emailNotifications: true,
       llmPreference: 'cohere',
-      maxArticles: 20,
+      maxArticles: 7,
       language: 'english'
     });
     setCustomFeeds([]);
@@ -567,7 +567,7 @@ export default function SettingsPage() {
               <CardContent className="space-y-6">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <Label className="text-white">Default Max Articles</Label>
+                    <Label className="text-white">Newsletter Topics</Label>
                     <span className="text-purple-400 font-semibold text-lg">
                       {preferences.maxArticles}
                     </span>
@@ -619,7 +619,7 @@ export default function SettingsPage() {
                     <span>20</span>
                   </div>
                   <p className="text-xs text-gray-500">
-                    Maximum number of articles to analyze for newsletter generation
+                    Number of topics to include in each generated newsletter
                   </p>
                 </div>
 

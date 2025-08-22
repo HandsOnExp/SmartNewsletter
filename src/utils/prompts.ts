@@ -88,17 +88,17 @@ export function buildPrompt(
   articles: ParsedArticle[], 
   provider: 'cohere' | 'gemini',
   options?: {
-    maxArticles?: number;
+    maxTopics?: number;
     language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
   }
 ) {
-  const maxArticles = options?.maxArticles || 20;
+  const maxTopics = options?.maxTopics || 7;
   const language = options?.language || 'english';
   
-  // Sort articles by date and take the most recent articles
+  // Sort articles by date and take the most recent articles (use more articles for analysis)
   const sortedArticles = articles
     .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
-    .slice(0, maxArticles);
+    .slice(0, Math.min(articles.length, 100)); // Analyze up to 100 articles to find the best topics
   
   const basePrompt = NEWSLETTER_PROMPTS[provider].analysis;
   const formatPrompt = NEWSLETTER_PROMPTS[provider].formatting;
@@ -119,7 +119,7 @@ export function buildPrompt(
     
     Today's date: ${currentDate}
     
-    Analyze these recent AI developments and create a newsletter with EXACTLY 7 topics.
+    Analyze these recent AI developments and create a newsletter with EXACTLY ${maxTopics} topics.
     
     Articles to analyze:
     ${JSON.stringify(sortedArticles.map(a => ({
@@ -132,7 +132,7 @@ export function buildPrompt(
     
     ${formatPrompt}
     
-    Important: Select the most significant and interesting developments. Prioritize:
+    Important: Select the ${maxTopics} most significant and interesting developments. Prioritize quality over quantity:
     1. Major model releases or updates
     2. Breakthrough research findings
     3. Significant business/funding news
@@ -140,6 +140,8 @@ export function buildPrompt(
     5. Policy or safety developments
     6. Surprising or entertaining AI behaviors
     7. Tools that developers/users can try today
+    
+    Note: Generate exactly ${maxTopics} topics - no more, no less.
   `;
 }
 

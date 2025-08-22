@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     // Fetch user settings for preferences
     const userSettings = await getUserSettings(userId);
     const llmProvider = requestedProvider || userSettings?.preferences?.llmPreference || 'cohere';
-    const maxArticles = userSettings?.preferences?.maxArticles || 20;
+    const maxTopics = userSettings?.preferences?.maxArticles || 7; // maxArticles now controls number of topics
     const language = userSettings?.preferences?.language || 'english';
 
     // Check rate limits
@@ -56,16 +56,16 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Step 3: Deduplicate and sort articles
+    // Step 3: Deduplicate and sort articles (analyze more articles to get better topic selection)
     const uniqueArticles = deduplicateArticles(allArticles);
-    const sortedArticles = sortArticlesByDate(uniqueArticles).slice(0, Math.min(maxArticles, 50)); // Use user preference, max 50
+    const sortedArticles = sortArticlesByDate(uniqueArticles); // Use all available articles for analysis
 
-    console.log(`Processing ${sortedArticles.length} unique articles for ${language} newsletter`);
+    console.log(`Processing ${sortedArticles.length} unique articles to generate ${maxTopics} topics in ${language}`);
 
     // Step 4: Generate newsletter content
-    console.log(`Generating newsletter with ${llmProvider} in ${language}...`);
+    console.log(`Generating ${maxTopics} newsletter topics with ${llmProvider} in ${language}...`);
     const generationResult = await generateNewsletterContent(sortedArticles, llmProvider, {
-      maxArticles,
+      maxTopics,
       language
     });
 

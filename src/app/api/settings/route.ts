@@ -80,7 +80,7 @@ export async function GET() {
           generateTime: '09:00',
           emailNotifications: true,
           llmPreference: 'cohere' as const,
-          maxArticles: 20,
+          maxArticles: 7,
           language: 'english' as const
         },
         rssFeeds: {
@@ -135,7 +135,7 @@ export async function POST(request: Request) {
         generateTime: preferences?.generateTime || '09:00',
         emailNotifications: preferences?.emailNotifications !== false, // Default to true
         llmPreference: preferences?.llmPreference || 'cohere',
-        maxArticles: preferences?.maxArticles || 20,
+        maxArticles: preferences?.maxArticles || 7,
         language: preferences?.language || 'english'
       },
       rssFeeds: {

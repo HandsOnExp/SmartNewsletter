@@ -134,7 +134,7 @@ const UserSettingsSchema = new mongoose.Schema({
       enum: ['cohere', 'gemini', 'auto'],
       default: 'cohere'
     },
-    maxArticles: { type: Number, default: 20 },
+    maxArticles: { type: Number, default: 7 },
     language: { 
       type: String, 
       enum: ['english', 'hebrew', 'spanish', 'french', 'german', 'italian', 'portuguese'],

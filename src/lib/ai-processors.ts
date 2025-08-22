@@ -48,7 +48,7 @@ export interface NewsletterData {
 // Cohere integration
 export async function analyzeWithCohere(
   articles: ParsedArticle[],
-  options?: { maxArticles?: number; language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese' }
+  options?: { maxTopics?: number; language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese' }
 ): Promise<{ success: boolean; content?: string; error?: string }> {
   try {
     if (!cohere) {
@@ -83,7 +83,7 @@ export async function analyzeWithCohere(
 // Gemini integration
 export async function analyzeWithGemini(
   articles: ParsedArticle[],
-  options?: { maxArticles?: number; language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese' }
+  options?: { maxTopics?: number; language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese' }
 ): Promise<{ success: boolean; content?: string; error?: string }> {
   try {
     if (!geminiApiKey) {
@@ -184,7 +184,7 @@ export async function generateImage(prompt: string): Promise<{ success: boolean;
 export async function generateNewsletterContent(
   articles: ParsedArticle[], 
   provider: 'cohere' | 'gemini' = 'cohere',
-  options?: { maxArticles?: number; language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese' }
+  options?: { maxTopics?: number; language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese' }
 ): Promise<{ success: boolean; data?: NewsletterData; error?: string }> {
   const startTime = Date.now();
   

@@ -4,7 +4,7 @@ import { fetchAllFeeds, deduplicateArticles, sortArticlesByDate } from '@/lib/rs
 import { generateNewsletterContent, checkRateLimit } from '@/lib/ai-processors';
 import { RSS_FEEDS } from '@/config/rss-feeds';
 import { createNewsletter, connectDB, getUserSettings } from '@/lib/db';
-import { APIResponse, NewsletterGenerationResponse } from '@/types';
+import { APIResponse, NewsletterGenerationResponse, CustomRSSFeed } from '@/types';
 
 export async function POST(request: Request) {
   try {
@@ -37,9 +37,26 @@ export async function POST(request: Request) {
     const startTime = Date.now();
     console.log(`Starting newsletter generation for user ${userId} with ${llmProvider}`);
 
-    // Step 1: Fetch all RSS feeds
-    console.log('Fetching RSS feeds...');
-    const feedResults = await fetchAllFeeds(RSS_FEEDS);
+    // Step 1: Get enabled RSS feeds based on user settings
+    const enabledFeedIds = userSettings?.rssFeeds?.enabled || [];
+    const customFeeds = userSettings?.rssFeeds?.custom || [];
+    
+    // Start with enabled feeds from user settings
+    let enabledFeeds = RSS_FEEDS.filter(feed => enabledFeedIds.includes(feed.id));
+    
+    // Add enabled custom feeds
+    enabledFeeds = [...enabledFeeds, ...customFeeds.filter((feed: CustomRSSFeed) => feed.enabled)];
+    
+    // If no feeds are explicitly enabled (new user or no settings), fall back to using saved preferences
+    // or default behavior based on RSS_FEEDS default enabled status
+    if (enabledFeeds.length === 0) {
+      console.log('No feeds explicitly enabled, using default RSS_FEEDS');
+      enabledFeeds = RSS_FEEDS.filter(feed => feed.enabled);
+    }
+
+    console.log(`Fetching RSS feeds... (${enabledFeeds.length} enabled feeds)`);
+    console.log('Enabled feeds:', enabledFeeds.map(f => f.name));
+    const feedResults = await fetchAllFeeds(enabledFeeds);
     
     // Step 2: Aggregate and process articles
     const allArticles = feedResults

@@ -197,9 +197,10 @@ export default function SettingsPage() {
     setCustomFeeds(settings.rssFeeds?.custom || []);
     
     // Update feed enabled/disabled status
+    const enabledIds = settings.rssFeeds?.enabled || [];
     const updatedFeeds = RSS_FEEDS.map(feed => ({
       ...feed,
-      enabled: settings.rssFeeds?.enabled?.includes(feed.id) || false
+      enabled: enabledIds.includes(feed.id)
     }));
     setFeeds(updatedFeeds);
   };
@@ -387,8 +388,8 @@ export default function SettingsPage() {
                         <p className="text-xs text-gray-500 mt-1">{feed.url}</p>
                       </div>
                       <Switch 
-                        checked={feed.enabled}
-                        onCheckedChange={(checked) => toggleFeed(feed.id, checked)}
+                        checked={!feed.enabled}
+                        onCheckedChange={(checked) => toggleFeed(feed.id, !checked)}
                       />
                     </div>
                   ))}
@@ -432,8 +433,8 @@ export default function SettingsPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Switch 
-                          checked={feed.enabled}
-                          onCheckedChange={(checked) => toggleCustomFeed(feed.id, checked)}
+                          checked={!feed.enabled}
+                          onCheckedChange={(checked) => toggleCustomFeed(feed.id, !checked)}
                         />
                         <Button
                           onClick={() => removeCustomFeed(feed.id)}

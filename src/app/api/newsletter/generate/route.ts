@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     }
 
     console.log(`Fetching RSS feeds... (${enabledFeeds.length} enabled feeds)`);
-    console.log('Enabled feeds:', enabledFeeds.map(f => f.name));
+    console.log('Final enabled feeds:', enabledFeeds.map(f => f.name));
     const feedResults = await fetchAllFeeds(enabledFeeds);
     
     // Step 2: Aggregate and process articles

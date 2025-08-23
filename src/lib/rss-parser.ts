@@ -131,15 +131,59 @@ export function filterArticlesByTimePeriod(articles: ParsedArticle[], timePeriod
   const cutoffTime = new Date(now.getTime() - (timePeriodOption.hours * 60 * 60 * 1000));
 
   const filteredArticles = articles.filter(article => {
-    if (!article.pubDate) return false; // Skip articles without dates
+    if (!article.pubDate) {
+      console.log('Article without pubDate:', article.title);
+      return false; // Skip articles without dates
+    }
     
     const articleDate = new Date(article.pubDate);
     const isValid = !isNaN(articleDate.getTime());
     const isRecent = isValid && articleDate >= cutoffTime;
     
+    if (!isValid) {
+      console.log('Invalid date format:', article.pubDate, 'for article:', article.title);
+      return false;
+    }
+    
+    if (!isRecent) {
+      const hoursAgo = (now.getTime() - articleDate.getTime()) / (1000 * 60 * 60);
+      console.log(`Article too old: "${article.title}" published ${hoursAgo.toFixed(1)} hours ago (${article.pubDate})`);
+    }
+    
     return isRecent;
   });
 
-  console.log(`Filtered articles: ${articles.length} -> ${filteredArticles.length} (time period: ${timePeriodOption.label})`);
+  console.log(`Time filtering: ${articles.length} -> ${filteredArticles.length} (cutoff: ${cutoffTime.toISOString()}, period: ${timePeriodOption.label})`);
+  
+  // Fallback: if no articles match the time filter, use the most recent articles
+  if (filteredArticles.length === 0 && articles.length > 0) {
+    console.warn(`No articles found within ${timePeriodOption.label}. Using most recent 20 articles as fallback.`);
+    
+    // Sort by date and take the 20 most recent articles
+    const sortedByDate = articles
+      .filter(article => article.pubDate && !isNaN(new Date(article.pubDate).getTime()))
+      .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
+      .slice(0, 20);
+    
+    console.log(`Fallback articles: ${sortedByDate.length} most recent articles`);
+    if (sortedByDate.length > 0) {
+      console.log('Sample fallback articles:');
+      sortedByDate.slice(0, 3).forEach(article => {
+        const hoursAgo = (now.getTime() - new Date(article.pubDate).getTime()) / (1000 * 60 * 60);
+        console.log(`  - "${article.title}" (${hoursAgo.toFixed(1)} hours ago)`);
+      });
+    }
+    
+    return sortedByDate;
+  }
+  
+  // Show sample of recent articles if any
+  if (filteredArticles.length > 0) {
+    console.log('Sample recent articles:');
+    filteredArticles.slice(0, 3).forEach(article => {
+      console.log(`  - "${article.title}" (${article.pubDate})`);
+    });
+  }
+  
   return filteredArticles;
 }

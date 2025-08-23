@@ -1,5 +1,5 @@
 import Parser from 'rss-parser';
-import { RSS_FEEDS, type RSSFeed } from '@/utils/rss-feeds';
+import { RSS_FEEDS, type RSSFeed } from '@/config/rss-feeds';
 
 const parser = new Parser({
   timeout: 10000,

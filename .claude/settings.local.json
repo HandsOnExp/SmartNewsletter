@@ -7,7 +7,12 @@
       "Bash(npx shadcn@latest add:*)",
       "Bash(git add:*)",
       "Bash(npm run dev:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(mv:*)",
+      "Bash(tree:*)",
+      "Bash(dir:*)",
+      "Bash(rmdir:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

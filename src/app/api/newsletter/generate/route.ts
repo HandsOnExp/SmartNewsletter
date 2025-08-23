@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { fetchAllFeeds, deduplicateArticles, sortArticlesByDate } from '@/lib/rss-parser';
 import { generateNewsletterContent, checkRateLimit } from '@/lib/ai-processors';
-import { RSS_FEEDS } from '@/utils/rss-feeds';
+import { RSS_FEEDS } from '@/config/rss-feeds';
 import { createNewsletter, connectDB, getUserSettings } from '@/lib/db';
 import { APIResponse, NewsletterGenerationResponse } from '@/types';
 

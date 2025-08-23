@@ -1,7 +1,7 @@
 import { CohereClient } from 'cohere-ai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { ParsedArticle } from './rss-parser';
-import { buildPrompt, buildGeminiImagePrompt } from '@/utils/prompts';
+import { buildPrompt, buildGeminiImagePrompt } from '@/config/prompts';
 
 // Initialize AI clients with better error handling
 const cohereApiKey = process.env.COHERE_API_KEY;
@@ -87,10 +87,22 @@ export async function analyzeWithCohere(
         };
       }
       
-      return {
-        success: true,
-        content: response.text
-      };
+      // Use shared processing function
+      const processResult = processAIResponse(response.text, options?.language, maxRetries, attempt);
+      if (processResult.success) {
+        return {
+          success: true,
+          content: processResult.content
+        };
+      } else if (attempt < maxRetries && processResult.error === 'No JSON found in response') {
+        console.log(`Attempt ${attempt}: ${processResult.error}, retrying...`);
+        continue;
+      } else {
+        return {
+          success: false,
+          error: processResult.error
+        };
+      }
     } catch (error) {
       console.error(`Cohere API error on attempt ${attempt}:`, error);
       if (attempt === maxRetries) {
@@ -140,11 +152,21 @@ export async function analyzeWithGemini(
     
     const result = await model.generateContent(prompt);
     const response = await result.response;
+    const rawContent = response.text();
     
-    return {
-      success: true,
-      content: response.text()
-    };
+    // Use shared processing function for consistent Hebrew support
+    const processResult = processAIResponse(rawContent, options?.language);
+    if (processResult.success) {
+      return {
+        success: true,
+        content: processResult.content
+      };
+    } else {
+      return {
+        success: false,
+        error: processResult.error
+      };
+    }
   } catch (error) {
     console.error('Gemini API error details:', error);
     
@@ -239,90 +261,22 @@ export async function generateNewsletterContent(
         continue;
       }
       
-      // Parse the response
+      // Parse the response - now handled by shared processing function
       let newsletterData;
       try {
-        // Clean the response to extract JSON
-        let cleanedContent = response.content!;
-        
-        console.log('Raw AI response:', cleanedContent.substring(0, 200) + '...');
-        
-        // Remove markdown code blocks
-        cleanedContent = cleanedContent
-          .replace(/```json\n?/gi, '')
-          .replace(/```\n?/gi, '')
-          .trim();
-        
-        // Remove any text before the first {
-        const firstBrace = cleanedContent.indexOf('{');
-        if (firstBrace > 0) {
-          cleanedContent = cleanedContent.substring(firstBrace);
-        }
-        
-        // Remove any text after the last }
-        const lastBrace = cleanedContent.lastIndexOf('}');
-        if (lastBrace !== -1 && lastBrace < cleanedContent.length - 1) {
-          cleanedContent = cleanedContent.substring(0, lastBrace + 1);
-        }
-        
-        // If response starts with markdown headers or other text, try to extract JSON
-        if (!cleanedContent.startsWith('{')) {
-          // Look for JSON-like content between braces
-          const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            cleanedContent = jsonMatch[0];
-          } else {
-            if (attempt === maxRetries) {
-              return { 
-                success: false, 
-                error: `AI returned non-JSON content. Response started with: "${cleanedContent.substring(0, 100)}...". Please try again or switch to Gemini.` 
-              };
-            }
-            console.log(`Attempt ${attempt}: No JSON found in response, retrying...`);
-            continue;
-          }
-        }
-        
-        // Additional cleaning for common AI response issues
-        cleanedContent = cleanedContent
-          .replace(/\n\s*\/\/.*$/gm, '') // Remove comment lines
-          .replace(/,\s*}/g, '}') // Remove trailing commas
-          .replace(/,\s*]/g, ']') // Remove trailing commas in arrays
-          .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters that can break JSON
-          .replace(/\r\n/g, '\n') // Normalize line endings
-          .replace(/\n/g, '\\n') // Escape newlines in strings
-          .replace(/\t/g, '\\t'); // Escape tabs
-        
-        // Additional validation for Hebrew and RTL text
-        if (options?.language && ['hebrew', 'arabic'].includes(options.language)) {
-          // Extra cleaning for RTL languages
-          cleanedContent = cleanedContent
-            .replace(/[\u200E\u200F\u202A\u202B\u202C\u202D\u202E]/g, '') // Remove RTL/LTR marks
-            .replace(/\u00A0/g, ' '); // Replace non-breaking spaces
-        }
-        
-        console.log('Cleaned content for parsing:', cleanedContent.substring(0, 200) + '...');
-        
-        // Use enhanced JSON validation with language-specific repair
-        const validationResult = validateAndRepairJSON(cleanedContent, options?.language);
-        
-        if (validationResult.success) {
-          newsletterData = validationResult.data as { 
-            topics: NewsletterTopic[];
-            newsletterTitle: string;
-            newsletterDate: string;
-            introduction?: string;
-            conclusion?: string;
-          };
-        } else {
-          throw new Error(validationResult.error || 'JSON validation failed');
-        }
+        newsletterData = JSON.parse(response.content!) as { 
+          topics: NewsletterTopic[];
+          newsletterTitle: string;
+          newsletterDate: string;
+          introduction?: string;
+          conclusion?: string;
+        };
       } catch (parseError) {
         console.error(`Attempt ${attempt} JSON parsing error:`, parseError);
         if (attempt === maxRetries) {
           return { 
             success: false, 
-            error: `Failed to parse AI response as JSON after ${maxRetries} attempts. Error: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}. Please try again or switch to Gemini.` 
+            error: `Failed to parse AI response as JSON after ${maxRetries} attempts. Error: ${parseError instanceof Error ? parseError.message : 'Unknown parse error'}. Please try again.` 
           };
         }
         console.log(`Attempt ${attempt} failed due to parsing error, retrying...`);
@@ -427,12 +381,97 @@ export async function generateNewsletterContent(
   };
 }
 
+// Shared response processing for both providers
+function processAIResponse(
+  rawContent: string, 
+  language?: string, 
+  maxRetries: number = 3,
+  attempt: number = 1
+): { success: boolean; content?: string; error?: string } {
+  try {
+    // Clean the response to extract JSON
+    let cleanedContent = rawContent;
+    
+    console.log('Raw AI response:', cleanedContent.substring(0, 200) + '...');
+    
+    // Remove markdown code blocks
+    cleanedContent = cleanedContent
+      .replace(/```json\n?/gi, '')
+      .replace(/```\n?/gi, '')
+      .trim();
+    
+    // Remove any text before the first {
+    const firstBrace = cleanedContent.indexOf('{');
+    if (firstBrace > 0) {
+      cleanedContent = cleanedContent.substring(firstBrace);
+    }
+    
+    // Remove any text after the last }
+    const lastBrace = cleanedContent.lastIndexOf('}');
+    if (lastBrace !== -1 && lastBrace < cleanedContent.length - 1) {
+      cleanedContent = cleanedContent.substring(0, lastBrace + 1);
+    }
+    
+    // If response starts with markdown headers or other text, try to extract JSON
+    if (!cleanedContent.startsWith('{')) {
+      // Look for JSON-like content between braces
+      const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanedContent = jsonMatch[0];
+      } else {
+        if (attempt === maxRetries) {
+          return { 
+            success: false, 
+            error: `AI returned non-JSON content. Response started with: "${cleanedContent.substring(0, 100)}...". Please try again or switch providers.` 
+          };
+        }
+        console.log(`Attempt ${attempt}: No JSON found in response, retrying...`);
+        return { success: false, error: 'No JSON found in response' };
+      }
+    }
+    
+    // Additional cleaning for common AI response issues
+    cleanedContent = cleanedContent
+      .replace(/\n\s*\/\/.*$/gm, '') // Remove comment lines
+      .replace(/,\s*}/g, '}') // Remove trailing commas
+      .replace(/,\s*]/g, ']') // Remove trailing commas in arrays
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters that can break JSON
+      .replace(/\r\n/g, '\n') // Normalize line endings
+      .replace(/\n/g, '\\n') // Escape newlines in strings
+      .replace(/\t/g, '\\t'); // Escape tabs
+    
+    // Additional validation for Hebrew and RTL text
+    if (language && ['hebrew', 'arabic'].includes(language)) {
+      // Extra cleaning for RTL languages
+      cleanedContent = cleanedContent
+        .replace(/[\u200E\u200F\u202A\u202B\u202C\u202D\u202E]/g, '') // Remove RTL/LTR marks
+        .replace(/\u00A0/g, ' '); // Replace non-breaking spaces
+    }
+    
+    console.log('Cleaned content for parsing:', cleanedContent.substring(0, 200) + '...');
+    
+    // Use enhanced JSON validation with language-specific repair
+    const validationResult = validateAndRepairJSON(cleanedContent, language);
+    
+    if (validationResult.success) {
+      return { success: true, content: JSON.stringify(validationResult.data) };
+    } else {
+      return { success: false, error: validationResult.error };
+    }
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : 'Unknown processing error' 
+    };
+  }
+}
+
 // JSON validation and repair for non-Latin languages
 function validateAndRepairJSON(jsonString: string, language?: string): { success: boolean; data?: unknown; error?: string } {
   try {
     const parsed = JSON.parse(jsonString);
     return { success: true, data: parsed };
-  } catch (parseError) {
+  } catch (error) {
     console.log('JSON validation failed, attempting repair...');
     
     let repairedJson = jsonString;

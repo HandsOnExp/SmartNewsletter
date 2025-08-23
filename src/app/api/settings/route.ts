@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { connectDB, getUserSettings, updateUserSettings } from '@/lib/db';
 import { APIResponse, UserSettings } from '@/types';
-import { RSS_FEEDS } from '@/utils/rss-feeds';
+import { RSS_FEEDS } from '@/config/rss-feeds';
 import fs from 'fs';
 import path from 'path';
 

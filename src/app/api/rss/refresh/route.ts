@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { fetchAllFeeds } from '@/lib/rss-parser';
-import { RSS_FEEDS } from '@/utils/rss-feeds';
+import { RSS_FEEDS } from '@/config/rss-feeds';
 import { APIResponse } from '@/types';
 
 export async function POST() {

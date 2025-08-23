@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Rss, Settings, Key, Bell, Save, Plus, Trash2, ArrowLeft, ExternalLink, X } from 'lucide-react';
+import { Rss, Settings, Key, Bell, Save, Plus, Trash2, ArrowLeft, ExternalLink, X, CheckCircle } from 'lucide-react';
 import { RSS_FEEDS, type RSSFeed } from '@/config/rss-feeds';
 import { UserSettings, CustomRSSFeed } from '@/types';
 
@@ -19,6 +19,7 @@ export default function SettingsPage() {
   const { user } = useUser();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testingKey, setTestingKey] = useState<{ provider: string; testing: boolean }>({ provider: '', testing: false });
   
   const [feeds, setFeeds] = useState<RSSFeed[]>(RSS_FEEDS);
   const [customFeeds, setCustomFeeds] = useState<CustomRSSFeed[]>([]);
@@ -54,6 +55,44 @@ export default function SettingsPage() {
       [provider]: ''
     }));
     toast.success(`${provider.charAt(0).toUpperCase() + provider.slice(1)} API key cleared`);
+  };
+
+  const testAPIKey = async (provider: 'cohere' | 'gemini') => {
+    const apiKey = apiKeys[provider];
+    if (!apiKey) {
+      toast.error(`Please enter ${provider} API key first`);
+      return;
+    }
+
+    setTestingKey({ provider, testing: true });
+    
+    try {
+      const response = await fetch('/api/test-key', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ provider, apiKey }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success(`${provider.charAt(0).toUpperCase() + provider.slice(1)} API key is working!`, {
+          description: data.message
+        });
+      } else {
+        toast.error(`${provider.charAt(0).toUpperCase() + provider.slice(1)} API key test failed`, {
+          description: data.error
+        });
+      }
+    } catch (error) {
+      toast.error('Failed to test API key', {
+        description: 'Network error or server unavailable'
+      });
+    } finally {
+      setTestingKey({ provider: '', testing: false });
+    }
   };
 
   useEffect(() => {
@@ -428,6 +467,22 @@ export default function SettingsPage() {
                       </Button>
                       {apiKeys.cohere && (
                         <Button
+                          onClick={() => testAPIKey('cohere')}
+                          variant="outline"
+                          size="sm"
+                          disabled={testingKey.testing && testingKey.provider === 'cohere'}
+                          className="bg-green-500/20 border-green-500 text-green-400 hover:bg-green-500 hover:text-white transition-colors disabled:opacity-50"
+                        >
+                          {testingKey.testing && testingKey.provider === 'cohere' ? (
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-transparent border-t-current mr-1" />
+                          ) : (
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                          )}
+                          Test Key
+                        </Button>
+                      )}
+                      {apiKeys.cohere && (
+                        <Button
                           onClick={() => clearAPIKey('cohere')}
                           variant="outline"
                           size="sm"
@@ -459,11 +514,27 @@ export default function SettingsPage() {
                         onClick={() => openAPIKeyDashboard('gemini')}
                         variant="outline"
                         size="sm"
-                        className="bg-green-500/20 border-green-500 text-green-400 hover:bg-green-500 hover:text-white transition-colors"
+                        className="bg-blue-500/20 border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white transition-colors"
                       >
                         <ExternalLink className="h-4 w-4 mr-1" />
                         Get Key
                       </Button>
+                      {apiKeys.gemini && (
+                        <Button
+                          onClick={() => testAPIKey('gemini')}
+                          variant="outline"
+                          size="sm"
+                          disabled={testingKey.testing && testingKey.provider === 'gemini'}
+                          className="bg-green-500/20 border-green-500 text-green-400 hover:bg-green-500 hover:text-white transition-colors disabled:opacity-50"
+                        >
+                          {testingKey.testing && testingKey.provider === 'gemini' ? (
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-transparent border-t-current mr-1" />
+                          ) : (
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                          )}
+                          Test Key
+                        </Button>
+                      )}
                       {apiKeys.gemini && (
                         <Button
                           onClick={() => clearAPIKey('gemini')}

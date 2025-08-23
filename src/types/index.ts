@@ -47,6 +47,16 @@ export interface Newsletter {
   updatedAt: Date;
 }
 
+// Time period options for article filtering
+export type TimePeriod = '1hour' | '6hours' | '12hours' | '24hours' | '3days' | '1week' | '1month';
+
+export interface TimePeriodOption {
+  value: TimePeriod;
+  label: string;
+  description: string;
+  hours: number; // Duration in hours for filtering
+}
+
 // User Settings Types
 export interface UserSettings {
   userId: string;
@@ -61,6 +71,7 @@ export interface UserSettings {
     llmPreference: 'cohere' | 'gemini' | 'auto';
     maxArticles: number;
     language: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
+    timePeriod: TimePeriod;
   };
   rssFeeds: {
     enabled: string[];

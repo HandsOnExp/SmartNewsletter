@@ -6,6 +6,7 @@ import {
   createContentHash,
   LazyContent
 } from '@/utils/cache-optimization';
+import { TimePeriod, TimePeriodOption } from '@/types';
 
 const parser = new Parser({
   timeout: 10000,
@@ -13,6 +14,17 @@ const parser = new Parser({
     'User-Agent': 'AI Newsletter Bot 1.0',
   },
 });
+
+// Time period options with their corresponding durations in hours
+export const TIME_PERIOD_OPTIONS: TimePeriodOption[] = [
+  { value: '1hour', label: 'Last Hour', description: 'Very recent articles', hours: 1 },
+  { value: '6hours', label: 'Last 6 Hours', description: 'Latest updates', hours: 6 },
+  { value: '12hours', label: 'Last 12 Hours', description: 'Half-day updates', hours: 12 },
+  { value: '24hours', label: 'Last 24 Hours', description: 'Daily digest', hours: 24 },
+  { value: '3days', label: 'Last 3 Days', description: 'Recent stories', hours: 72 },
+  { value: '1week', label: 'Last Week', description: 'Weekly summary', hours: 168 },
+  { value: '1month', label: 'Last Month', description: 'Monthly overview', hours: 720 }
+];
 
 export interface ParsedArticle {
   title: string;
@@ -106,4 +118,28 @@ export function sortArticlesByDate(articles: ParsedArticle[]): ParsedArticle[] {
     const dateB = new Date(b.pubDate).getTime();
     return dateB - dateA; // Most recent first
   });
+}
+
+export function filterArticlesByTimePeriod(articles: ParsedArticle[], timePeriod: TimePeriod): ParsedArticle[] {
+  const timePeriodOption = TIME_PERIOD_OPTIONS.find(option => option.value === timePeriod);
+  if (!timePeriodOption) {
+    console.warn(`Unknown time period: ${timePeriod}, returning all articles`);
+    return articles;
+  }
+
+  const now = new Date();
+  const cutoffTime = new Date(now.getTime() - (timePeriodOption.hours * 60 * 60 * 1000));
+
+  const filteredArticles = articles.filter(article => {
+    if (!article.pubDate) return false; // Skip articles without dates
+    
+    const articleDate = new Date(article.pubDate);
+    const isValid = !isNaN(articleDate.getTime());
+    const isRecent = isValid && articleDate >= cutoffTime;
+    
+    return isRecent;
+  });
+
+  console.log(`Filtered articles: ${articles.length} -> ${filteredArticles.length} (time period: ${timePeriodOption.label})`);
+  return filteredArticles;
 }

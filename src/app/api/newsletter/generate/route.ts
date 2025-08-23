@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { fetchAllFeeds, deduplicateArticles, sortArticlesByDate } from '@/lib/rss-parser';
+import { fetchAllFeeds, deduplicateArticles, sortArticlesByDate, filterArticlesByTimePeriod } from '@/lib/rss-parser';
 import { generateNewsletterContent, checkRateLimit } from '@/lib/ai-processors';
 import { RSS_FEEDS } from '@/config/rss-feeds';
 import { createNewsletter, connectDB, getUserSettings } from '@/lib/db';
@@ -73,11 +73,13 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Step 3: Deduplicate and sort articles (analyze more articles to get better topic selection)
+    // Step 3: Deduplicate and filter articles by time period
     const uniqueArticles = deduplicateArticles(allArticles);
-    const sortedArticles = sortArticlesByDate(uniqueArticles); // Use all available articles for analysis
+    const timePeriod = userSettings?.preferences?.timePeriod || '24hours';
+    const filteredArticles = filterArticlesByTimePeriod(uniqueArticles, timePeriod);
+    const sortedArticles = sortArticlesByDate(filteredArticles);
 
-    console.log(`Processing ${sortedArticles.length} unique articles to generate ${maxTopics} topics in ${language}`);
+    console.log(`Processing ${sortedArticles.length} unique articles (filtered by ${timePeriod}) to generate ${maxTopics} topics in ${language}`);
 
     // Step 4: Generate newsletter content
     console.log(`Generating ${maxTopics} newsletter topics with ${llmProvider} in ${language}...`);

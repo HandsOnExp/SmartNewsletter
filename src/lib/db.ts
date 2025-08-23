@@ -140,6 +140,11 @@ const UserSettingsSchema = new mongoose.Schema({
       type: String, 
       enum: ['english', 'hebrew', 'spanish', 'french', 'german', 'italian', 'portuguese'],
       default: 'english'
+    },
+    timePeriod: {
+      type: String,
+      enum: ['1hour', '6hours', '12hours', '24hours', '3days', '1week', '1month'],
+      default: '24hours'
     }
   },
   rssFeeds: {

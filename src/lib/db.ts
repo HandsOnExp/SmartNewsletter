@@ -73,7 +73,7 @@ const NewsletterSchema = new mongoose.Schema({
     sourceUrl: { type: String },
     category: { 
       type: String, 
-      enum: ['research', 'product', 'business', 'policy', 'security', 'fun'],
+      enum: ['research', 'product', 'business', 'policy', 'security', 'fun', 'health', 'technology', 'science', 'innovation', 'ai', 'machine-learning'],
       default: 'research'
     }
   }],

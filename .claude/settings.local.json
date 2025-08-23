@@ -14,7 +14,8 @@
       "Bash(rmdir:*)",
       "Bash(grep:*)",
       "Bash(git push:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(npm i:*)"
     ],
     "deny": [],
     "ask": []

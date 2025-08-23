@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { NewsletterTopic } from './ai-processors';
+import { encryptApiKeys, decryptApiKeys } from './crypto';
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -220,16 +221,55 @@ export async function getUserSettings(userId: string) {
     settings = await UserSettings.create({ userId });
   }
   
+  // Decrypt API keys before returning (handle both encrypted and unencrypted for backward compatibility)
+  if (settings && settings.apiKeys) {
+    try {
+      const decryptedKeys = decryptApiKeys(settings.apiKeys);
+      settings = settings.toObject();
+      settings.apiKeys = decryptedKeys;
+    } catch (error) {
+      console.error('Failed to decrypt API keys for user:', userId, error);
+      // If decryption fails, assume keys are already unencrypted (backward compatibility)
+    }
+  }
+  
   return settings;
 }
 
 export async function updateUserSettings(userId: string, updates: Partial<{ apiKeys: { cohere: string; gemini: string }; preferences: { autoGenerate: boolean; generateTime: string; emailNotifications: boolean; llmPreference: 'cohere' | 'gemini' | 'auto' }; rssFeeds: { enabled: string[]; disabled: string[]; custom: unknown[] } }>) {
   await connectDB();
-  return await UserSettings.findOneAndUpdate(
+  
+  // Encrypt API keys before storing
+  if (updates.apiKeys) {
+    try {
+      const encryptedKeys = encryptApiKeys(updates.apiKeys);
+      updates = { ...updates, apiKeys: encryptedKeys };
+    } catch (error) {
+      console.error('Failed to encrypt API keys for user:', userId, error);
+      throw new Error('Failed to encrypt API keys');
+    }
+  }
+  
+  const result = await UserSettings.findOneAndUpdate(
     { userId },
     { $set: updates },
     { new: true, upsert: true }
   );
+  
+  // Decrypt API keys in the returned result
+  if (result && result.apiKeys) {
+    try {
+      const decryptedKeys = decryptApiKeys(result.apiKeys);
+      const resultObj = result.toObject();
+      resultObj.apiKeys = decryptedKeys;
+      return resultObj;
+    } catch (error) {
+      console.error('Failed to decrypt API keys in result for user:', userId, error);
+      return result;
+    }
+  }
+  
+  return result;
 }
 
 // Global type augmentation for mongoose caching

@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from 'sonner';
 import { Rss, Settings, Key, Bell, Save, Plus, Trash2, ArrowLeft, ExternalLink, X, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { RSS_FEEDS, type RSSFeed } from '@/config/rss-feeds';
-import { UserSettings, CustomRSSFeed } from '@/types';
+import { UserSettings, CustomRSSFeed, TimePeriod } from '@/types';
+import { TIME_PERIOD_OPTIONS } from '@/lib/rss-parser';
 
 export default function SettingsPage() {
   const { user, isLoaded } = useUser();
@@ -41,7 +42,8 @@ export default function SettingsPage() {
     emailNotifications: true,
     llmPreference: 'cohere' as 'cohere' | 'gemini' | 'auto',
     maxArticles: 7,
-    language: 'english' as 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese'
+    language: 'english' as 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese',
+    timePeriod: '24hours' as TimePeriod
   });
 
   // API Key management functions
@@ -192,7 +194,8 @@ export default function SettingsPage() {
       emailNotifications: true,
       llmPreference: 'cohere',
       maxArticles: 7,
-      language: 'english'
+      language: 'english',
+      timePeriod: '24hours'
     });
     setCustomFeeds(settings.rssFeeds?.custom || []);
     
@@ -213,7 +216,8 @@ export default function SettingsPage() {
       emailNotifications: true,
       llmPreference: 'cohere',
       maxArticles: 7,
-      language: 'english'
+      language: 'english',
+      timePeriod: '24hours'
     });
     setCustomFeeds([]);
     
@@ -775,6 +779,38 @@ export default function SettingsPage() {
                   </Select>
                   <p className="text-xs text-gray-500">
                     Language for newsletter generation and content
+                  </p>
+                </div>
+
+                {/* Time Period Selection */}
+                <div className="space-y-2">
+                  <Label className="text-white">Article Time Period</Label>
+                  <Select 
+                    value={preferences.timePeriod}
+                    onValueChange={(value: TimePeriod) => 
+                      setPreferences({...preferences, timePeriod: value})
+                    }
+                  >
+                    <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-600">
+                      {TIME_PERIOD_OPTIONS.map((option) => (
+                        <SelectItem 
+                          key={option.value} 
+                          value={option.value}
+                          className="text-white hover:bg-gray-700 focus:bg-gray-700"
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-medium">{option.label}</span>
+                            <span className="text-xs text-gray-400">{option.description}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-gray-500">
+                    Choose how far back to fetch articles from RSS feeds
                   </p>
                 </div>
               </CardContent>

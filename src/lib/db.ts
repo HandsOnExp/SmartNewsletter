@@ -73,7 +73,7 @@ const NewsletterSchema = new mongoose.Schema({
     sourceUrl: { type: String },
     category: { 
       type: String, 
-      enum: ['research', 'product', 'business', 'policy', 'security', 'fun'],
+      enum: ['research', 'product', 'business', 'policy', 'security', 'fun', 'health', 'technology', 'science', 'innovation', 'ai', 'machine-learning'],
       default: 'research'
     }
   }],
@@ -140,6 +140,11 @@ const UserSettingsSchema = new mongoose.Schema({
       type: String, 
       enum: ['english', 'hebrew', 'spanish', 'french', 'german', 'italian', 'portuguese'],
       default: 'english'
+    },
+    timePeriod: {
+      type: String,
+      enum: ['1hour', '6hours', '12hours', '24hours', '3days', '1week', '1month'],
+      default: '24hours'
     }
   },
   rssFeeds: {

@@ -150,6 +150,15 @@ export default function Dashboard() {
 
       if (data.success && data.newsletter) {
         setNewsletter(data.newsletter);
+        
+        // Check if fallback was used and show notification
+        if (data.fallbackNotification?.usedFallback && data.fallbackNotification?.message) {
+          toast.warning(data.fallbackNotification.message, {
+            duration: 8000, // Show for 8 seconds
+            position: 'top-center',
+          });
+        }
+        
         toast.success(`Newsletter generated successfully! (${data.stats?.generationTime})`);
         fetchDashboardStats(); // Refresh stats
         fetchRecentNewsletters(); // Refresh recent newsletters

@@ -218,9 +218,6 @@ export async function getUserSettings(userId: string) {
   if (!settings) {
     // Create default settings for new user
     settings = await UserSettings.create({ userId });
-    console.log('Created default settings for user:', userId);
-  } else {
-    console.log('Found existing settings in DB:', JSON.stringify(settings, null, 2));
   }
   
   return settings;
@@ -228,17 +225,11 @@ export async function getUserSettings(userId: string) {
 
 export async function updateUserSettings(userId: string, updates: Partial<{ apiKeys: { cohere: string; gemini: string }; preferences: { autoGenerate: boolean; generateTime: string; emailNotifications: boolean; llmPreference: 'cohere' | 'gemini' | 'auto' }; rssFeeds: { enabled: string[]; disabled: string[]; custom: unknown[] } }>) {
   await connectDB();
-  console.log('Updating user settings for:', userId);
-  console.log('Updates being saved:', JSON.stringify(updates, null, 2));
-  
-  const result = await UserSettings.findOneAndUpdate(
+  return await UserSettings.findOneAndUpdate(
     { userId },
     { $set: updates },
     { new: true, upsert: true }
   );
-  
-  console.log('Settings after update:', JSON.stringify(result, null, 2));
-  return result;
 }
 
 // Global type augmentation for mongoose caching

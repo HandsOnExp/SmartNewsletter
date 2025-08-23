@@ -21,7 +21,6 @@ export async function POST(request: Request) {
 
     // Fetch user settings for preferences
     const userSettings = await getUserSettings(userId);
-    console.log('User settings:', JSON.stringify(userSettings, null, 2));
     const llmProvider = requestedProvider || userSettings?.preferences?.llmPreference || 'cohere';
     const maxTopics = userSettings?.preferences?.maxArticles || 7; // maxArticles now controls number of topics
     const language = userSettings?.preferences?.language || 'english';
@@ -42,12 +41,8 @@ export async function POST(request: Request) {
     const enabledFeedIds = userSettings?.rssFeeds?.enabled || [];
     const customFeeds = userSettings?.rssFeeds?.custom || [];
     
-    console.log('Enabled feed IDs from settings:', enabledFeedIds);
-    console.log('Custom feeds from settings:', customFeeds);
-    
     // Start with enabled feeds from user settings
     let enabledFeeds = RSS_FEEDS.filter(feed => enabledFeedIds.includes(feed.id));
-    console.log('Filtered enabled feeds from RSS_FEEDS:', enabledFeeds.map(f => `${f.name} (${f.id})`));
     
     // Add enabled custom feeds
     enabledFeeds = [...enabledFeeds, ...customFeeds.filter((feed: CustomRSSFeed) => feed.enabled)];
@@ -57,7 +52,6 @@ export async function POST(request: Request) {
     if (enabledFeeds.length === 0) {
       console.log('No feeds explicitly enabled, using default RSS_FEEDS');
       enabledFeeds = RSS_FEEDS.filter(feed => feed.enabled);
-      console.log('Using default feeds:', enabledFeeds.map(f => f.name));
     }
 
     console.log(`Fetching RSS feeds... (${enabledFeeds.length} enabled feeds)`);

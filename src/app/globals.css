@@ -8,6 +8,8 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-hebrew: var(--font-heebo);
+  --font-hebrew-alt: var(--font-alef);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -118,5 +120,105 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Hebrew and RTL Support */
+@layer components {
+  /* Hebrew font stack with fallbacks */
+  .hebrew-text, [lang="he"] {
+    font-family: var(--font-hebrew), var(--font-hebrew-alt), 'Noto Sans Hebrew', 'Arial Unicode MS', Arial, sans-serif;
+    direction: rtl;
+    text-align: right;
+  }
+
+  /* Mixed Hebrew-English content */
+  .mixed-content {
+    direction: rtl;
+    text-align: right;
+    unicode-bidi: plaintext; /* Allows proper bidirectional text flow */
+  }
+
+  .mixed-content.inline {
+    display: inline;
+    direction: rtl;
+    unicode-bidi: plaintext;
+  }
+
+  /* English text within Hebrew context */
+  .english-in-hebrew {
+    direction: ltr;
+    unicode-bidi: embed;
+    display: inline-block;
+  }
+
+  /* Newsletter article styling for Hebrew */
+  .newsletter-article {
+    direction: rtl;
+    text-align: right;
+  }
+
+  .newsletter-article h1,
+  .newsletter-article h2,
+  .newsletter-article h3,
+  .newsletter-article h4 {
+    direction: rtl;
+    text-align: right;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+
+  .newsletter-article p {
+    direction: rtl;
+    text-align: right;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+    unicode-bidi: plaintext;
+  }
+
+  /* Fix for mixed content in key takeaways */
+  .key-takeaway {
+    direction: rtl;
+    text-align: right;
+    border-right: 4px solid rgb(99 102 241);
+    border-left: none;
+    padding-right: 1rem;
+    padding-left: 0;
+    margin: 1rem 0;
+    background-color: rgb(99 102 241 / 0.1);
+    unicode-bidi: plaintext;
+  }
+
+  /* Categories and tags */
+  .article-category {
+    direction: ltr;
+    text-align: left;
+    display: inline-block;
+    background-color: rgb(99 102 241);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    margin-left: 0.5rem;
+  }
+
+  /* Links within Hebrew text */
+  .hebrew-text a,
+  .mixed-content a {
+    color: rgb(99 102 241);
+    text-decoration: underline;
+    unicode-bidi: embed;
+  }
+}
+
+/* Auto-detect Hebrew text and apply styling */
+@layer utilities {
+  .auto-hebrew {
+    font-family: var(--font-hebrew), var(--font-hebrew-alt), 'Noto Sans Hebrew', 'Arial Unicode MS', Arial, sans-serif;
+  }
+  
+  .auto-hebrew:dir(rtl) {
+    direction: rtl;
+    text-align: right;
   }
 }

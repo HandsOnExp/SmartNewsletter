@@ -52,3 +52,15 @@ next-env.d.ts
 
 # temporary settings storage (contains user data)
 /.temp-settings/
+
+# Documentation with sensitive info (development notes)
+*_SETUP.md
+*_NOTES.md
+DEVELOPMENT.md
+SECRETS.md
+API_KEYS.md
+*_CONFIG.md
+notes.txt
+scratch.md
+test-keys.js
+encrypt-*.js

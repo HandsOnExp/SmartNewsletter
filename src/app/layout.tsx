@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Heebo, Alef } from "next/font/google";
 import {
   ClerkProvider,
   SignInButton,
@@ -21,6 +21,17 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const heebo = Heebo({
+  variable: "--font-heebo",
+  subsets: ["latin", "hebrew"],
+});
+
+const alef = Alef({
+  variable: "--font-alef",
+  subsets: ["latin", "hebrew"],
+  weight: ["400", "700"],
+});
+
 export const metadata: Metadata = {
   title: "Smart Newsletter",
   description: "AI-powered newsletter generator",
@@ -35,7 +46,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en">
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+          className={`${geistSans.variable} ${geistMono.variable} ${heebo.variable} ${alef.variable} antialiased`}
         >
           <header className="relative z-50 flex justify-between items-center p-4 bg-gray-900 border-b border-gray-800">
             <h1 className="text-xl font-bold text-white">Smart Newsletter</h1>

@@ -28,6 +28,22 @@ export function NewsletterPreview({ data, onSave, onPublish, onClose }: Newslett
     toast.success('Newsletter downloaded successfully!');
   };
 
+  // Function to detect Hebrew content
+  const isHebrewText = (text: string): boolean => {
+    const hebrewPattern = /[\u0590-\u05FF]/;
+    return hebrewPattern.test(text);
+  };
+
+  // Function to get language attributes and direction
+  const getTextAttributes = (text: string) => {
+    const hasHebrew = isHebrewText(text);
+    return {
+      lang: hasHebrew ? 'he' : 'en',
+      dir: hasHebrew ? 'rtl' : 'ltr',
+      className: hasHebrew ? 'hebrew-content' : 'english-content'
+    };
+  };
+
   const generateHTML = (data: NewsletterPreviewProps['data']) => {
     const currentDate = new Date().toLocaleDateString('en-US', {
       weekday: 'long',
@@ -36,21 +52,31 @@ export function NewsletterPreview({ data, onSave, onPublish, onClose }: Newslett
       day: 'numeric'
     });
 
+    // Detect the primary language of the newsletter
+    const titleAttrs = getTextAttributes(data.newsletterTitle);
+    const hasHebrew = data.topics.some(topic => 
+      isHebrewText(topic.headline) || isHebrewText(topic.summary)
+    );
+
     return `
       <!DOCTYPE html>
-      <html lang="en">
+      <html lang="${titleAttrs.lang}" dir="${titleAttrs.dir}">
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${data.newsletterTitle}</title>
         <style>
           body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; 
+            font-family: ${hasHebrew ? 
+              `'David Libre', 'Frank Ruhl Libre', 'Alef', 'Heebo', 'Noto Sans Hebrew', 'Arial Unicode MS', Arial, sans-serif` : 
+              `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif`
+            }; 
             line-height: 1.6;
             color: #333;
             margin: 0;
             padding: 0;
             background-color: #f5f5f5;
+            direction: ${hasHebrew ? 'rtl' : 'ltr'};
           }
           .container { 
             max-width: 600px; 
@@ -79,7 +105,7 @@ export function NewsletterPreview({ data, onSave, onPublish, onClose }: Newslett
             background-color: #f8f9fa;
             font-size: 16px;
             font-style: italic;
-            border-left: 4px solid #667eea;
+            ${hasHebrew ? 'border-right: 4px solid #667eea; text-align: right;' : 'border-left: 4px solid #667eea;'}
           }
           .topic { 
             margin: 0; 
@@ -94,6 +120,7 @@ export function NewsletterPreview({ data, onSave, onPublish, onClose }: Newslett
             margin: 0 0 15px 0; 
             font-size: 22px;
             line-height: 1.3;
+            ${hasHebrew ? 'text-align: right; direction: rtl;' : ''}
           }
           .topic img { 
             width: 100%; 
@@ -106,6 +133,7 @@ export function NewsletterPreview({ data, onSave, onPublish, onClose }: Newslett
             margin: 0 0 15px 0;
             color: #4a5568;
             font-size: 15px;
+            ${hasHebrew ? 'text-align: right; direction: rtl; unicode-bidi: plaintext;' : ''}
           }
           .topic a {
             color: #667eea;
@@ -153,7 +181,12 @@ export function NewsletterPreview({ data, onSave, onPublish, onClose }: Newslett
               <h2>${index + 1}. ${topic.headline}</h2>
               ${topic.imageUrl ? `<img src="${topic.imageUrl}" alt="${topic.headline}" />` : ''}
               <p>${topic.summary}</p>
-              ${topic.keyTakeaway ? `<p><strong>Key Takeaway:</strong> ${topic.keyTakeaway}</p>` : ''}
+              ${topic.keyTakeaway ? `
+                <div style="${hasHebrew && isHebrewText(topic.keyTakeaway) ? 'text-align: right; direction: rtl;' : ''}">
+                  <span style="font-weight: bold; direction: ltr; display: inline-block;">Key Takeaway: </span>
+                  <span style="${hasHebrew && isHebrewText(topic.keyTakeaway) ? 'direction: rtl; unicode-bidi: plaintext;' : ''}">${topic.keyTakeaway}</span>
+                </div>
+              ` : ''}
               ${topic.sourceUrl ? `<a href="${topic.sourceUrl}" target="_blank">Read full article →</a>` : ''}
             </div>
           `).join('')}
@@ -240,7 +273,7 @@ export function NewsletterPreview({ data, onSave, onPublish, onClose }: Newslett
         <div className="bg-white mx-6 mb-6 rounded-lg shadow-lg max-h-[600px] overflow-y-auto">
           {/* Newsletter Header */}
           <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white p-8 text-center">
-            <h1 className="text-3xl font-bold mb-2">
+            <h1 className={`text-3xl font-bold mb-2 ${isHebrewText(data.newsletterTitle) ? 'hebrew-text' : ''}`}>
               {data.newsletterTitle}
             </h1>
             <p className="text-purple-100">
@@ -255,8 +288,8 @@ export function NewsletterPreview({ data, onSave, onPublish, onClose }: Newslett
 
           {/* Introduction */}
           {data.introduction && (
-            <div className="p-6 bg-gray-50 border-l-4 border-purple-500">
-              <p className="text-gray-700 italic text-lg leading-relaxed">
+            <div className={`p-6 bg-gray-50 ${isHebrewText(data.introduction) ? 'border-r-4 border-purple-500' : 'border-l-4 border-purple-500'}`}>
+              <p className={`text-gray-700 italic text-lg leading-relaxed ${isHebrewText(data.introduction) ? 'mixed-content' : ''}`}>
                 {data.introduction}
               </p>
             </div>
@@ -277,7 +310,7 @@ export function NewsletterPreview({ data, onSave, onPublish, onClose }: Newslett
                   {topic.category?.toUpperCase() || 'NEWS'}
                 </span>
                 
-                <h2 className="text-xl font-bold text-gray-800 mb-3 leading-tight">
+                <h2 className={`text-xl font-bold text-gray-800 mb-3 leading-tight ${isHebrewText(topic.headline) ? 'newsletter-article' : ''}`}>
                   {index + 1}. {topic.headline}
                 </h2>
                 
@@ -294,15 +327,16 @@ export function NewsletterPreview({ data, onSave, onPublish, onClose }: Newslett
                   </div>
                 )}
                 
-                <p className="text-gray-700 leading-relaxed mb-4 text-base">
+                <p className={`text-gray-700 leading-relaxed mb-4 text-base ${isHebrewText(topic.summary) ? 'mixed-content' : ''}`}>
                   {topic.summary}
                 </p>
                 
                 {topic.keyTakeaway && (
-                  <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4">
-                    <p className="text-blue-800">
-                      <span className="font-semibold">Key Takeaway:</span> {topic.keyTakeaway}
-                    </p>
+                  <div className={`bg-blue-50 p-4 mb-4 ${isHebrewText(topic.keyTakeaway) ? 'key-takeaway' : 'border-l-4 border-blue-400'}`}>
+                    <div className={`text-blue-800 ${isHebrewText(topic.keyTakeaway) ? 'text-right' : ''}`}>
+                      <span className="font-semibold english-in-hebrew">Key Takeaway: </span>
+                      <span className={isHebrewText(topic.keyTakeaway) ? 'mixed-content inline' : ''}>{topic.keyTakeaway}</span>
+                    </div>
                   </div>
                 )}
                 

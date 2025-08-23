@@ -1,5 +1,11 @@
 import Parser from 'rss-parser';
 import { RSS_FEEDS, type RSSFeed } from '@/config/rss-feeds';
+import { 
+  cacheRSSContent, 
+  getCachedRSSContent, 
+  createContentHash,
+  LazyContent
+} from '@/utils/cache-optimization';
 
 const parser = new Parser({
   timeout: 10000,
@@ -13,7 +19,7 @@ export interface ParsedArticle {
   link: string;
   pubDate: string;
   contentSnippet: string;
-  content: string;
+  content: string | LazyContent;
   creator: string;
   categories: string[];
   source: string;
@@ -21,20 +27,37 @@ export interface ParsedArticle {
 
 export async function fetchRSSFeed(url: string, feedName: string) {
   try {
+    // Check cache first
+    const cacheKey = createContentHash(`${url}:${feedName}`);
+    const cachedContent = getCachedRSSContent(cacheKey);
+    
+    if (cachedContent) {
+      console.log(`Using cached RSS feed for ${feedName}`);
+      return JSON.parse(cachedContent);
+    }
+    
     const feed = await parser.parseURL(url);
-    return {
+    const result = {
       success: true,
       data: feed.items.map(item => ({
         title: item.title || '',
         link: item.link || '',
         pubDate: item.pubDate || '',
         contentSnippet: item.contentSnippet || '',
-        content: item.content || '',
+        // Use LazyContent for large content fields to optimize memory
+        content: item.content && item.content.length > 10000 
+          ? new LazyContent(() => Promise.resolve(item.content || ''))
+          : item.content || '',
         creator: item.creator || '',
         categories: item.categories || [],
         source: feedName
       })) as ParsedArticle[]
     };
+    
+    // Cache the result
+    cacheRSSContent(cacheKey, JSON.stringify(result));
+    
+    return result;
   } catch (error) {
     console.error(`Error fetching RSS feed ${feedName}:`, error);
     return { 

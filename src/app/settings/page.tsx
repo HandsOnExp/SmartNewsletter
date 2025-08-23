@@ -16,7 +16,7 @@ import { RSS_FEEDS, type RSSFeed } from '@/config/rss-feeds';
 import { UserSettings, CustomRSSFeed } from '@/types';
 
 export default function SettingsPage() {
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testingKey, setTestingKey] = useState<{ provider: string; testing: boolean }>({ provider: '', testing: false });
@@ -311,6 +311,18 @@ export default function SettingsPage() {
       setSaving(false);
     }
   };
+
+  // Show loading while Clerk is checking authentication
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900 flex items-center justify-center">
+        <div className="text-center text-white">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-4"></div>
+          <p className="text-xl">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user) {
     return (

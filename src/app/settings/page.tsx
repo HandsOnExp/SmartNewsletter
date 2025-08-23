@@ -197,10 +197,18 @@ export default function SettingsPage() {
     setCustomFeeds(settings.rssFeeds?.custom || []);
     
     // Update feed enabled/disabled status
-    const updatedFeeds = RSS_FEEDS.map(feed => ({
-      ...feed,
-      enabled: settings.rssFeeds?.enabled?.includes(feed.id) || false
-    }));
+    const enabledIds = settings.rssFeeds?.enabled || [];
+    console.log('Loading settings - enabled IDs:', enabledIds);
+    
+    const updatedFeeds = RSS_FEEDS.map(feed => {
+      const isEnabled = enabledIds.includes(feed.id);
+      console.log(`Feed ${feed.id} (${feed.name}): enabled = ${isEnabled}`);
+      return {
+        ...feed,
+        enabled: isEnabled
+      };
+    });
+    console.log('Updated feeds state:', updatedFeeds.map(f => `${f.id}: ${f.enabled}`));
     setFeeds(updatedFeeds);
   };
 

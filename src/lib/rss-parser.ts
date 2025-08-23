@@ -120,11 +120,23 @@ export function sortArticlesByDate(articles: ParsedArticle[]): ParsedArticle[] {
   });
 }
 
-export function filterArticlesByTimePeriod(articles: ParsedArticle[], timePeriod: TimePeriod): ParsedArticle[] {
+export interface FilterResult {
+  articles: ParsedArticle[];
+  usedFallback: boolean;
+  originalPeriod: string;
+  fallbackPeriod?: string;
+  fallbackMessage?: string;
+}
+
+export function filterArticlesByTimePeriod(articles: ParsedArticle[], timePeriod: TimePeriod): FilterResult {
   const timePeriodOption = TIME_PERIOD_OPTIONS.find(option => option.value === timePeriod);
   if (!timePeriodOption) {
     console.warn(`Unknown time period: ${timePeriod}, returning all articles`);
-    return articles;
+    return { 
+      articles, 
+      usedFallback: false, 
+      originalPeriod: timePeriod 
+    };
   }
 
   const now = new Date();
@@ -155,35 +167,93 @@ export function filterArticlesByTimePeriod(articles: ParsedArticle[], timePeriod
 
   console.log(`Time filtering: ${articles.length} -> ${filteredArticles.length} (cutoff: ${cutoffTime.toISOString()}, period: ${timePeriodOption.label})`);
   
-  // Fallback: if no articles match the time filter, use the most recent articles
-  if (filteredArticles.length === 0 && articles.length > 0) {
-    console.warn(`No articles found within ${timePeriodOption.label}. Using most recent 20 articles as fallback.`);
-    
-    // Sort by date and take the 20 most recent articles
-    const sortedByDate = articles
-      .filter(article => article.pubDate && !isNaN(new Date(article.pubDate).getTime()))
-      .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
-      .slice(0, 20);
-    
-    console.log(`Fallback articles: ${sortedByDate.length} most recent articles`);
-    if (sortedByDate.length > 0) {
-      console.log('Sample fallback articles:');
-      sortedByDate.slice(0, 3).forEach(article => {
-        const hoursAgo = (now.getTime() - new Date(article.pubDate).getTime()) / (1000 * 60 * 60);
-        console.log(`  - "${article.title}" (${hoursAgo.toFixed(1)} hours ago)`);
-      });
-    }
-    
-    return sortedByDate;
-  }
-  
-  // Show sample of recent articles if any
+  // If articles found in the requested period, return them
   if (filteredArticles.length > 0) {
     console.log('Sample recent articles:');
     filteredArticles.slice(0, 3).forEach(article => {
       console.log(`  - "${article.title}" (${article.pubDate})`);
     });
+    
+    return { 
+      articles: filteredArticles, 
+      usedFallback: false, 
+      originalPeriod: timePeriodOption.label 
+    };
   }
   
-  return filteredArticles;
+  // Fallback: if no articles match, try incremental time periods
+  if (articles.length > 0) {
+    console.warn(`No articles found within ${timePeriodOption.label}. Trying incremental fallback periods...`);
+    
+    // Get current period index and try next periods incrementally
+    const currentIndex = TIME_PERIOD_OPTIONS.findIndex(option => option.value === timePeriod);
+    
+    for (let i = currentIndex + 1; i < TIME_PERIOD_OPTIONS.length; i++) {
+      const fallbackOption = TIME_PERIOD_OPTIONS[i];
+      const fallbackCutoff = new Date(now.getTime() - (fallbackOption.hours * 60 * 60 * 1000));
+      
+      const fallbackArticles = articles.filter(article => {
+        if (!article.pubDate) return false;
+        const articleDate = new Date(article.pubDate);
+        const isValid = !isNaN(articleDate.getTime());
+        return isValid && articleDate >= fallbackCutoff;
+      });
+      
+      if (fallbackArticles.length > 0) {
+        console.log(`Found ${fallbackArticles.length} articles in fallback period: ${fallbackOption.label}`);
+        
+        // Sort by date and take up to 20 most recent
+        const sortedFallback = fallbackArticles
+          .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
+          .slice(0, 20);
+        
+        console.log('Sample fallback articles:');
+        sortedFallback.slice(0, 3).forEach(article => {
+          const hoursAgo = (now.getTime() - new Date(article.pubDate).getTime()) / (1000 * 60 * 60);
+          console.log(`  - "${article.title}" (${hoursAgo.toFixed(1)} hours ago)`);
+        });
+        
+        return {
+          articles: sortedFallback,
+          usedFallback: true,
+          originalPeriod: timePeriodOption.label,
+          fallbackPeriod: fallbackOption.label,
+          fallbackMessage: `No news found from the selected sources in the ${timePeriodOption.label.toLowerCase()}, showing news from the ${fallbackOption.label.toLowerCase()} instead.`
+        };
+      }
+    }
+    
+    // If no incremental periods work, use the 20 most recent articles regardless of age
+    console.warn(`No articles found in any incremental time period. Using 20 most recent articles as final fallback.`);
+    
+    const sortedByDate = articles
+      .filter(article => article.pubDate && !isNaN(new Date(article.pubDate).getTime()))
+      .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
+      .slice(0, 20);
+    
+    if (sortedByDate.length > 0) {
+      const oldestArticle = sortedByDate[sortedByDate.length - 1];
+      const oldestHours = (now.getTime() - new Date(oldestArticle.pubDate).getTime()) / (1000 * 60 * 60);
+      const timeDesc = oldestHours > 168 ? `${Math.round(oldestHours / 24)} days` : 
+                       oldestHours > 24 ? `${Math.round(oldestHours / 24)} days` : 
+                       `${Math.round(oldestHours)} hours`;
+      
+      console.log(`Final fallback: ${sortedByDate.length} most recent articles (up to ${timeDesc} old)`);
+      
+      return {
+        articles: sortedByDate,
+        usedFallback: true,
+        originalPeriod: timePeriodOption.label,
+        fallbackPeriod: `${timeDesc}`,
+        fallbackMessage: `No recent news found from the selected sources in the ${timePeriodOption.label.toLowerCase()}, showing the most recent available news from the past ${timeDesc} instead.`
+      };
+    }
+  }
+  
+  // No articles at all
+  return { 
+    articles: [], 
+    usedFallback: false, 
+    originalPeriod: timePeriodOption.label 
+  };
 }

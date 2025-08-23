@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { fetchAllFeeds, deduplicateArticles, sortArticlesByDate, filterArticlesByTimePeriod } from '@/lib/rss-parser';
+import { fetchAllFeeds, deduplicateArticles, sortArticlesByDate, filterArticlesByTimePeriod, FilterResult } from '@/lib/rss-parser';
 import { generateNewsletterContent, checkRateLimit } from '@/lib/ai-processors';
 import { RSS_FEEDS } from '@/config/rss-feeds';
 import { createNewsletter, connectDB, getUserSettings } from '@/lib/db';
@@ -76,8 +76,8 @@ export async function POST(request: Request) {
     // Step 3: Deduplicate and filter articles by time period
     const uniqueArticles = deduplicateArticles(allArticles);
     const timePeriod = userSettings?.preferences?.timePeriod || '24hours';
-    const filteredArticles = filterArticlesByTimePeriod(uniqueArticles, timePeriod);
-    const sortedArticles = sortArticlesByDate(filteredArticles);
+    const filterResult = filterArticlesByTimePeriod(uniqueArticles, timePeriod);
+    const sortedArticles = sortArticlesByDate(filterResult.articles);
 
     console.log(`Processing ${sortedArticles.length} unique articles (filtered by ${timePeriod}) to generate ${maxTopics} topics in ${language}`);
 
@@ -135,6 +135,15 @@ export async function POST(request: Request) {
           articlesAnalyzed: sortedArticles.length,
           generationTime: `${((Date.now() - startTime) / 1000).toFixed(1)}s`,
           id: savedNewsletter._id.toString()
+        },
+        fallbackNotification: filterResult.usedFallback ? {
+          usedFallback: true,
+          originalPeriod: filterResult.originalPeriod,
+          fallbackPeriod: filterResult.fallbackPeriod,
+          message: filterResult.fallbackMessage
+        } : {
+          usedFallback: false,
+          originalPeriod: filterResult.originalPeriod
         }
       };
 
@@ -162,6 +171,15 @@ export async function POST(request: Request) {
           articlesAnalyzed: sortedArticles.length,
           generationTime: `${((Date.now() - startTime) / 1000).toFixed(1)}s`,
           id: 'temp-id'
+        },
+        fallbackNotification: filterResult.usedFallback ? {
+          usedFallback: true,
+          originalPeriod: filterResult.originalPeriod,
+          fallbackPeriod: filterResult.fallbackPeriod,
+          message: filterResult.fallbackMessage
+        } : {
+          usedFallback: false,
+          originalPeriod: filterResult.originalPeriod
         }
       };
 

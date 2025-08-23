@@ -110,6 +110,12 @@ export interface NewsletterGenerationResponse {
     generationTime: string;
     id: string;
   };
+  fallbackNotification?: {
+    usedFallback: boolean;
+    originalPeriod: string;
+    fallbackPeriod?: string;
+    message?: string;
+  };
   error?: string;
 }
 

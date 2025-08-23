@@ -410,15 +410,15 @@ export default function SettingsPage() {
                       placeholder="Feed name"
                       value={newFeedName}
                       onChange={(e) => setNewFeedName(e.target.value)}
-                      className="bg-gray-800 border-gray-600 text-white"
+                      className="bg-gray-800 border-gray-600 text-white w-40 flex-shrink-0"
                     />
                     <Input
                       placeholder="RSS feed URL"
                       value={newFeedUrl}
                       onChange={(e) => setNewFeedUrl(e.target.value)}
-                      className="bg-gray-800 border-gray-600 text-white flex-1"
+                      className="bg-gray-800 border-gray-600 text-white flex-1 min-w-0"
                     />
-                    <Button onClick={addCustomFeed} className="bg-purple-600 hover:bg-purple-700">
+                    <Button onClick={addCustomFeed} className="bg-purple-600 hover:bg-purple-700 flex-shrink-0">
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>

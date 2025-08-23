@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Rss, Settings, Key, Bell, Save, Plus, Trash2, ArrowLeft, ExternalLink, X, CheckCircle } from 'lucide-react';
+import { Rss, Settings, Key, Bell, Save, Plus, Trash2, ArrowLeft, ExternalLink, X, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { RSS_FEEDS, type RSSFeed } from '@/config/rss-feeds';
 import { UserSettings, CustomRSSFeed } from '@/types';
 
@@ -20,6 +20,10 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testingKey, setTestingKey] = useState<{ provider: string; testing: boolean }>({ provider: '', testing: false });
+  const [showApiKeys, setShowApiKeys] = useState({
+    cohere: false,
+    gemini: false
+  });
   
   const [feeds, setFeeds] = useState<RSSFeed[]>(RSS_FEEDS);
   const [customFeeds, setCustomFeeds] = useState<CustomRSSFeed[]>([]);
@@ -55,6 +59,13 @@ export default function SettingsPage() {
       [provider]: ''
     }));
     toast.success(`${provider.charAt(0).toUpperCase() + provider.slice(1)} API key cleared`);
+  };
+
+  const toggleApiKeyVisibility = (provider: 'cohere' | 'gemini') => {
+    setShowApiKeys(prev => ({
+      ...prev,
+      [provider]: !prev[provider]
+    }));
   };
 
   const testAPIKey = async (provider: 'cohere' | 'gemini') => {
@@ -493,14 +504,31 @@ export default function SettingsPage() {
                       )}
                     </div>
                   </div>
-                  <Input
-                    id="cohere-key"
-                    type="password"
-                    placeholder="Enter your Cohere API key"
-                    value={apiKeys.cohere}
-                    onChange={(e) => setApiKeys({...apiKeys, cohere: e.target.value})}
-                    className="bg-gray-800 border-gray-600 text-white"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="cohere-key"
+                      type={showApiKeys.cohere ? "text" : "password"}
+                      placeholder="Enter your Cohere API key"
+                      value={apiKeys.cohere}
+                      onChange={(e) => setApiKeys({...apiKeys, cohere: e.target.value})}
+                      className="bg-gray-800 border-gray-600 text-white pr-10"
+                    />
+                    {apiKeys.cohere && (
+                      <Button
+                        type="button"
+                        onClick={() => toggleApiKeyVisibility('cohere')}
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-gray-400 hover:text-white"
+                      >
+                        {showApiKeys.cohere ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
                   <p className="text-xs text-gray-500">
                     Get your free key at dashboard.cohere.com • 1000 calls/month
                   </p>
@@ -547,14 +575,31 @@ export default function SettingsPage() {
                       )}
                     </div>
                   </div>
-                  <Input
-                    id="gemini-key"
-                    type="password"
-                    placeholder="Enter your Gemini API key"
-                    value={apiKeys.gemini}
-                    onChange={(e) => setApiKeys({...apiKeys, gemini: e.target.value})}
-                    className="bg-gray-800 border-gray-600 text-white"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="gemini-key"
+                      type={showApiKeys.gemini ? "text" : "password"}
+                      placeholder="Enter your Gemini API key"
+                      value={apiKeys.gemini}
+                      onChange={(e) => setApiKeys({...apiKeys, gemini: e.target.value})}
+                      className="bg-gray-800 border-gray-600 text-white pr-10"
+                    />
+                    {apiKeys.gemini && (
+                      <Button
+                        type="button"
+                        onClick={() => toggleApiKeyVisibility('gemini')}
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-gray-400 hover:text-white"
+                      >
+                        {showApiKeys.gemini ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    )}
+                  </div>
                   <p className="text-xs text-gray-500">
                     Get your key at makersuite.google.com • 15 requests/min free
                   </p>

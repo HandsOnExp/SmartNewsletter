@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import { connectDB, getUserSettings, updateUserSettings } from '@/lib/db';
 import { APIResponse, UserSettings } from '@/types';
 import { RSS_FEEDS } from '@/config/rss-feeds';
+import { encryptApiKeys, decryptApiKeys } from '@/lib/crypto';
 import fs from 'fs';
 import path from 'path';
 
@@ -69,7 +70,20 @@ export async function GET() {
 
     // If no database settings, check file storage, then memory, then defaults
     if (!settings) {
-      settings = fileSettings.get(userId) || tempSettings.get(userId) || {
+      let fallbackSettings = fileSettings.get(userId) || tempSettings.get(userId);
+      
+      if (fallbackSettings && fallbackSettings.apiKeys) {
+        // Decrypt API keys from fallback storage
+        try {
+          const decryptedKeys = decryptApiKeys(fallbackSettings.apiKeys);
+          fallbackSettings = { ...fallbackSettings, apiKeys: decryptedKeys };
+        } catch (error) {
+          console.error('Failed to decrypt API keys from fallback storage:', error);
+          // If decryption fails, assume keys are already unencrypted
+        }
+      }
+      
+      settings = fallbackSettings || {
         userId,
         apiKeys: {
           cohere: '',
@@ -166,9 +180,21 @@ export async function POST(request: Request) {
       console.log('Database not available, saving to temporary storage');
     }
 
+    // Encrypt API keys before saving to fallback storage
+    let settingsToStore = updatedSettings;
+    if (updatedSettings.apiKeys) {
+      try {
+        const encryptedKeys = encryptApiKeys(updatedSettings.apiKeys);
+        settingsToStore = { ...updatedSettings, apiKeys: encryptedKeys };
+      } catch (error) {
+        console.error('Failed to encrypt API keys for fallback storage:', error);
+        // Continue with unencrypted keys if encryption fails
+      }
+    }
+    
     // Save to file storage (persistent) and memory storage (fast access)
-    fileSettings.set(userId, updatedSettings);
-    tempSettings.set(userId, updatedSettings);
+    fileSettings.set(userId, settingsToStore);
+    tempSettings.set(userId, settingsToStore);
     
     // Persist to file
     saveFileSettings(fileSettings);

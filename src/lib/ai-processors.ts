@@ -2,6 +2,25 @@ import { CohereClient } from 'cohere-ai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { ParsedArticle } from './rss-parser';
 import { buildPrompt, buildGeminiImagePrompt } from '@/config/prompts';
+import {
+  cacheAIResponse,
+  getCachedAIResponse,
+  createContentHash,
+  LazyContent
+} from '@/utils/cache-optimization';
+
+// Helper function to resolve LazyContent in articles
+async function resolveArticleContent(articles: ParsedArticle[]): Promise<ParsedArticle[]> {
+  return Promise.all(articles.map(async (article) => {
+    if (article.content instanceof LazyContent) {
+      return {
+        ...article,
+        content: await article.content.getContent()
+      };
+    }
+    return article;
+  }));
+}
 
 // Initialize AI clients with better error handling
 const cohereApiKey = process.env.COHERE_API_KEY;
@@ -52,6 +71,19 @@ export async function analyzeWithCohere(
 ): Promise<{ success: boolean; content?: string; error?: string }> {
   const maxRetries = 2;
   
+  // Resolve any lazy content first
+  const resolvedArticles = await resolveArticleContent(articles);
+  
+  // Check cache first
+  const prompt = buildPrompt(resolvedArticles, 'cohere', options);
+  const cacheKey = createContentHash(prompt);
+  const cachedResponse = getCachedAIResponse(cacheKey);
+  
+  if (cachedResponse) {
+    console.log('Using cached Cohere response');
+    return { success: true, content: cachedResponse };
+  }
+  
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       if (!cohere) {
@@ -60,8 +92,6 @@ export async function analyzeWithCohere(
           error: 'Cohere API key not configured. Please add COHERE_API_KEY to your .env.local file.'
         };
       }
-
-      const prompt = buildPrompt(articles, 'cohere', options);
       
       console.log(`Cohere attempt ${attempt}/${maxRetries}`);
       
@@ -90,6 +120,8 @@ export async function analyzeWithCohere(
       // Use shared processing function
       const processResult = processAIResponse(response.text, options?.language, maxRetries, attempt);
       if (processResult.success) {
+        // Cache successful response
+        cacheAIResponse(cacheKey, processResult.content!);
         return {
           success: true,
           content: processResult.content
@@ -142,13 +174,25 @@ export async function analyzeWithGemini(
       };
     }
     
+    // Resolve any lazy content first
+    const resolvedArticles = await resolveArticleContent(articles);
+    
+    const prompt = buildPrompt(resolvedArticles, 'gemini', options);
+    
+    // Check cache first
+    const cacheKey = createContentHash(prompt);
+    const cachedResponse = getCachedAIResponse(cacheKey);
+    
+    if (cachedResponse) {
+      console.log('Using cached Gemini response');
+      return { success: true, content: cachedResponse };
+    }
+    
     console.log('Using Gemini API key:', geminiApiKey.substring(0, 10) + '...');
 
     const model = genAI.getGenerativeModel({ 
       model: "gemini-2.0-flash-exp" // Free tier model
     });
-    
-    const prompt = buildPrompt(articles, 'gemini', options);
     
     const result = await model.generateContent(prompt);
     const response = await result.response;
@@ -157,6 +201,8 @@ export async function analyzeWithGemini(
     // Use shared processing function for consistent Hebrew support
     const processResult = processAIResponse(rawContent, options?.language);
     if (processResult.success) {
+      // Cache successful response
+      cacheAIResponse(cacheKey, processResult.content!);
       return {
         success: true,
         content: processResult.content
@@ -241,6 +287,9 @@ export async function generateNewsletterContent(
   const startTime = Date.now();
   const maxRetries = 3;
   
+  // Resolve any lazy content first
+  const resolvedArticles = await resolveArticleContent(articles);
+  
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`Newsletter generation attempt ${attempt}/${maxRetries}`);
@@ -248,9 +297,9 @@ export async function generateNewsletterContent(
       let response;
       
       if (provider === 'gemini') {
-        response = await analyzeWithGemini(articles, options);
+        response = await analyzeWithGemini(resolvedArticles, options);
       } else {
-        response = await analyzeWithCohere(articles, options);
+        response = await analyzeWithCohere(resolvedArticles, options);
       }
       
       if (!response.success) {
@@ -354,7 +403,7 @@ export async function generateNewsletterContent(
       const finalData: NewsletterData = {
         ...newsletterData,
         stats: {
-          sourcesAnalyzed: articles.length,
+          sourcesAnalyzed: resolvedArticles.length,
           generationTime: Date.now() - startTime,
           llmUsed: provider
         }

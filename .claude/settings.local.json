@@ -14,9 +14,38 @@
       "Bash(rmdir:*)",
       "Bash(grep:*)",
       "Bash(git push:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(npm i:*)",
+      "Read(/C:\\Users\\danie/**)",
+      "Read(/C:\\Users\\danie\\.claude/**)",
+      "Bash(cmd /c:*)",
+      "Read(/C:\\Users\\danie\\.claude/**)",
+      "Read(/C:\\Users\\danie\\.claude\\plugins/**)",
+      "Read(/C:\\Users\\danie\\.claude/**)",
+      "Bash(claude mcp list:*)",
+      "Bash(/mcp)",
+      "Read(/C:\\Users\\danie/**)",
+      "Read(/C:\\Users\\danie/**)",
+      "Read(/C:\\Users\\danie/**)",
+      "Read(/C:\\Users\\danie/**)",
+      "Read(/C:\\Users\\danie/**)",
+      "Read(/C:\\Users\\danie/**)",
+      "Read(/C:\\Users\\danie/**)",
+      "Read(/C:\\Users\\danie/**)",
+      "Bash(claude mcp:*)",
+      "mcp__MongoDB__connect",
+      "mcp__MongoDB__find",
+      "mcp__MongoDB__list-collections",
+      "WebFetch(domain:github.com)",
+      "mcp__MongoDB__list-databases",
+      "mcp__MongoDB__collection-schema",
+      "mcp__MongoDB__mongodb-logs",
+      "Bash(npm run check-secrets:*)"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enabledMcpjsonServers": [
+    "MongoDB"
+  ]
 }

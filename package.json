@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check-secrets": "python -m detect_secrets scan --baseline .secrets.baseline --exclude-files \"node_modules/.*\" --exclude-files \"\\.git/.*\" --exclude-files \"\\.next/.*\" .",
+    "precommit": "npm run check-secrets"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.31.3",

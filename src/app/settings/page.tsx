@@ -387,19 +387,28 @@ export default function SettingsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {feeds.map((feed) => (
-                    <div key={feed.id} className="flex items-center justify-between p-4 border border-gray-700 rounded-lg bg-gray-800/50">
-                      <div>
-                        <h3 className="font-semibold text-white">{feed.name}</h3>
-                        <p className="text-sm text-gray-400 capitalize">{feed.category}</p>
-                        <p className="text-xs text-gray-500 mt-1">{feed.url}</p>
+                  {feeds.map((feed) => {
+                    console.log(`Rendering feed ${feed.id}: enabled=${feed.enabled}, name=${feed.name}`);
+                    return (
+                      <div key={feed.id} className="flex items-center justify-between p-4 border border-gray-700 rounded-lg bg-gray-800/50">
+                        <div>
+                          <h3 className="font-semibold text-white">{feed.name}</h3>
+                          <p className="text-sm text-gray-400 capitalize">{feed.category}</p>
+                          <p className="text-xs text-gray-500 mt-1">{feed.url}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-400 mb-1">State: {feed.enabled ? 'ON' : 'OFF'}</p>
+                          <Switch 
+                            checked={feed.enabled}
+                            onCheckedChange={(checked) => {
+                              console.log(`Toggling ${feed.id} from ${feed.enabled} to ${checked}`);
+                              toggleFeed(feed.id, checked);
+                            }}
+                          />
+                        </div>
                       </div>
-                      <Switch 
-                        checked={feed.enabled}
-                        onCheckedChange={(checked) => toggleFeed(feed.id, checked)}
-                      />
-                    </div>
-                  ))}
+                    );
+                  })}
                 </CardContent>
               </Card>
 

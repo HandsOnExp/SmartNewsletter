@@ -436,9 +436,7 @@ function processAIResponse(
       .replace(/,\s*}/g, '}') // Remove trailing commas
       .replace(/,\s*]/g, ']') // Remove trailing commas in arrays
       .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters that can break JSON
-      .replace(/\r\n/g, '\n') // Normalize line endings
-      .replace(/\n/g, '\\n') // Escape newlines in strings
-      .replace(/\t/g, '\\t'); // Escape tabs
+      .replace(/\r\n/g, '\n'); // Normalize line endings only
     
     // Additional validation for Hebrew and RTL text
     if (language && ['hebrew', 'arabic'].includes(language)) {
@@ -506,10 +504,7 @@ function validateAndRepairJSON(jsonString: string, language?: string): { success
     // General JSON repairs
     repairedJson = repairedJson
       .replace(/,(\s*[}\]])/g, '$1') // Remove trailing commas
-      .replace(/\n/g, '\\n') // Escape newlines
-      .replace(/\t/g, '\\t') // Escape tabs
-      .replace(/\r/g, '\\r') // Escape carriage returns
-      .replace(/[\u0000-\u001F\u007F-\u009F]/g, ''); // Remove control characters
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, ''); // Remove control characters only
     
     try {
       const parsed = JSON.parse(repairedJson);

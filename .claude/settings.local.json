@@ -2,7 +2,19 @@
   "permissions": {
     "allow": [
       "Bash(npm run build:*)",
-      "Bash(gh:*)"
+      "Bash(gh:*)",
+      "Bash(mkdir:*)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(git add:*)",
+      "Bash(npm run dev:*)",
+      "Bash(git commit:*)",
+      "Bash(mv:*)",
+      "Bash(tree:*)",
+      "Bash(dir:*)",
+      "Bash(rmdir:*)",
+      "Bash(grep:*)",
+      "Bash(git push:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

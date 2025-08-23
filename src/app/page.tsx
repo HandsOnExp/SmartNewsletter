@@ -1,103 +1,174 @@
-import Image from "next/image";
+'use client';
+
+import { useUser, UserButton } from '@clerk/nextjs';
+import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Zap, ArrowRight, Bot, Newspaper } from 'lucide-react';
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const { user } = useUser();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-violet-900">
+      <motion.div 
+        className="absolute inset-0 opacity-30"
+        animate={{
+          background: [
+            'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+            'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+            'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+            'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          ]
+        }}
+        transition={{
+          duration: 10,
+          repeat: Infinity,
+          repeatType: "reverse"
+        }}
+      />
+      
+      <div className="relative z-10 container mx-auto px-4 py-16">
+        {/* Top Navigation */}
+        {user && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-between items-center mb-8"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            <div></div>
+            <UserButton afterSignOutUrl="/" />
+          </motion.div>
+        )}
+
+        {/* Hero Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-16"
+        >
+          <h1 className="text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 via-pink-500 to-cyan-400 mb-6">
+            Smart Newsletter
+          </h1>
+          <p className="text-2xl text-gray-300 mb-8 max-w-3xl mx-auto">
+            Transform RSS feeds into stunning AI-powered newsletters in seconds. 
+            Never miss important AI developments again.
+          </p>
+          
+          {user && (
+            <Button 
+              onClick={() => window.location.href = '/dashboard'}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8 py-4 text-lg font-semibold"
+            >
+              Go to Dashboard
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+          )}
+        </motion.div>
+
+        {/* Features Grid */}
+        <div className="grid md:grid-cols-3 gap-8 mb-16">
+          {[
+            {
+              icon: Bot,
+              title: "AI-Powered Curation",
+              description: "Our AI analyzes RSS feeds and creates engaging, personalized newsletters with summaries and insights.",
+              color: "from-blue-500 to-cyan-500"
+            },
+            {
+              icon: Zap,
+              title: "Lightning Fast",
+              description: "Generate professional newsletters in under 30 seconds. No more manual curation or writing.",
+              color: "from-purple-500 to-pink-500"
+            },
+            {
+              icon: Newspaper,
+              title: "Beautiful Templates",
+              description: "Export ready-to-send HTML newsletters with modern designs and responsive layouts.",
+              color: "from-green-500 to-teal-500"
+            }
+          ].map((feature, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.2 }}
+              whileHover={{ scale: 1.05 }}
+              className="relative group"
+            >
+              <div className={`absolute -inset-0.5 bg-gradient-to-r ${feature.color} rounded-lg blur opacity-60 group-hover:opacity-100 transition duration-1000 group-hover:duration-200`}></div>
+              <Card className="relative bg-gray-900 border-gray-800 h-full">
+                <CardContent className="p-6 text-center">
+                  <feature.icon className="h-12 w-12 text-white mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-white mb-3">{feature.title}</h3>
+                  <p className="text-gray-400">{feature.description}</p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+
+        {/* How It Works */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+          className="text-center mb-16"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+          <h2 className="text-4xl font-bold text-white mb-12">How It Works</h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                step: "1",
+                title: "Connect RSS Feeds",
+                description: "Add your favorite AI news sources or use our curated list of top AI publications."
+              },
+              {
+                step: "2", 
+                title: "AI Processing",
+                description: "Our AI analyzes articles, extracts key insights, and creates engaging summaries."
+              },
+              {
+                step: "3",
+                title: "Get Your Newsletter",
+                description: "Receive a beautifully formatted newsletter ready to share or send to your audience."
+              }
+            ].map((step, index) => (
+              <div key={index} className="text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl font-bold text-white">{step.step}</span>
+                </div>
+                <h3 className="text-xl font-bold text-white mb-3">{step.title}</h3>
+                <p className="text-gray-400">{step.description}</p>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Demo Stats */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.8 }}
+          className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center"
         >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          {[
+            { label: "RSS Sources", value: "7+" },
+            { label: "AI Models", value: "2" },
+            { label: "Generation Time", value: "<30s" },
+            { label: "Export Formats", value: "HTML" }
+          ].map((stat, index) => (
+            <div key={index} className="bg-gray-900/50 backdrop-blur-xl rounded-lg p-6 border border-gray-800">
+              <div className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent mb-2">
+                {stat.value}
+              </div>
+              <div className="text-gray-400">{stat.label}</div>
+            </div>
+          ))}
+        </motion.div>
+
+      </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 # SmartNewsletter
 
-AI-powered weekly newsletter generator that creates content in a humoristic, to-the-point style with simple explanations.
+AI-powered weekly newsletter generator that creates content from top picked RSS feeds and the option to use custom RSS feed, to-the-point style with simple explanations.
 
 ## What It Does
 

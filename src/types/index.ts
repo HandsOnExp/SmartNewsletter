@@ -116,6 +116,11 @@ export interface NewsletterGenerationResponse {
     fallbackPeriod?: string;
     message?: string;
   };
+  topicCountNotification?: {
+    requested: number;
+    generated: number;
+    message: string;
+  };
   error?: string;
 }
 

@@ -40,7 +40,8 @@
       "mcp__MongoDB__list-databases",
       "mcp__MongoDB__collection-schema",
       "mcp__MongoDB__mongodb-logs",
-      "Bash(npm run check-secrets:*)"
+      "Bash(npm run check-secrets:*)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []

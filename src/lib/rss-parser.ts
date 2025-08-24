@@ -128,7 +128,7 @@ export interface FilterResult {
   fallbackMessage?: string;
 }
 
-export function filterArticlesByTimePeriod(articles: ParsedArticle[], timePeriod: TimePeriod): FilterResult {
+export function filterArticlesByTimePeriod(articles: ParsedArticle[], timePeriod: TimePeriod, minArticlesNeeded: number = 3): FilterResult {
   const timePeriodOption = TIME_PERIOD_OPTIONS.find(option => option.value === timePeriod);
   if (!timePeriodOption) {
     console.warn(`Unknown time period: ${timePeriod}, returning all articles`);
@@ -167,8 +167,8 @@ export function filterArticlesByTimePeriod(articles: ParsedArticle[], timePeriod
 
   console.log(`Time filtering: ${articles.length} -> ${filteredArticles.length} (cutoff: ${cutoffTime.toISOString()}, period: ${timePeriodOption.label})`);
   
-  // If articles found in the requested period, return them
-  if (filteredArticles.length > 0) {
+  // If sufficient articles found in the requested period, return them
+  if (filteredArticles.length >= minArticlesNeeded) {
     console.log('Sample recent articles:');
     filteredArticles.slice(0, 3).forEach(article => {
       console.log(`  - "${article.title}" (${article.pubDate})`);
@@ -179,6 +179,11 @@ export function filterArticlesByTimePeriod(articles: ParsedArticle[], timePeriod
       usedFallback: false, 
       originalPeriod: timePeriodOption.label 
     };
+  }
+  
+  // If some articles found but not enough, note it for fallback
+  if (filteredArticles.length > 0 && filteredArticles.length < minArticlesNeeded) {
+    console.warn(`Found only ${filteredArticles.length} articles in ${timePeriodOption.label}, need at least ${minArticlesNeeded}. Attempting fallback to longer periods...`);
   }
   
   // Fallback: if no articles match, try incremental time periods

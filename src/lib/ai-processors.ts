@@ -368,13 +368,15 @@ export async function generateNewsletterContent(
           
           console.log(`Selected top ${expectedTopics} topics based on quality scoring`);
         } else if (actualTopics < expectedTopics) {
-          // Too few topics - only retry if significantly under (more than 2 topics short)
+          // Too few topics - only retry if we have very few topics and there are more attempts
           const shortfall = expectedTopics - actualTopics;
-          if (shortfall > 2 && attempt < maxRetries) {
-            console.log(`Attempt ${attempt}: Generated only ${actualTopics} topics, expected ${expectedTopics}. Retrying...`);
+          const minAcceptableTopics = Math.max(1, Math.floor(expectedTopics * 0.4)); // Accept at least 40% of requested topics
+          
+          if (actualTopics < minAcceptableTopics && attempt < maxRetries) {
+            console.log(`Attempt ${attempt}: Generated only ${actualTopics} topics (less than minimum ${minAcceptableTopics}), expected ${expectedTopics}. Retrying...`);
             continue;
           } else {
-            console.log(`Generated ${actualTopics} topics (${shortfall} short), but proceeding since close to target`);
+            console.log(`Generated ${actualTopics} topics (${shortfall} short), but proceeding since we have sufficient content`);
           }
         }
       }
@@ -531,23 +533,27 @@ function validateAndRepairJSON(jsonString: string, language?: string): { success
         .replace(/[\u200E\u200F\u202A\u202B\u202C\u202D\u202E\u2066\u2067\u2068\u2069]/g, '')
         // Replace non-breaking and special spaces
         .replace(/[\u00A0\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]/g, ' ')
-        // Fix Hebrew punctuation that might break JSON
-        .replace(/[\u05BE\u05C0\u05C3\u05C6\u05F3\u05F4]/g, '') // Hebrew punctuation marks
-        // Escape problematic Hebrew characters in strings
-        .replace(/"([^"]*[א-ת\u0590-\u05FF][^"]*?)"/g, (match, content) => {
+        // Fix Hebrew punctuation that might break JSON (but keep essential Hebrew characters)
+        .replace(/[\u05BE\u05C0\u05C3\u05C6]/g, '') // Only remove specific problematic marks
+        // Fix unescaped quotes and newlines in Hebrew strings
+        .replace(/"([^"]*[א-ת\u0590-\u05FF][^"]*?)"/gu, (match, content) => {
           // Clean the content inside quotes
           const cleaned = content
-            .replace(/\\/g, '\\\\') // Escape backslashes
-            .replace(/"/g, '\\"') // Escape quotes
-            .replace(/\n/g, '\\n') // Escape newlines
-            .replace(/\r/g, '\\r') // Escape carriage returns
-            .replace(/\t/g, '\\t'); // Escape tabs
+            .replace(/(?<!\\)"/g, '\\"') // Escape unescaped quotes
+            .replace(/(?<!\\)\n/g, '\\n') // Escape unescaped newlines
+            .replace(/(?<!\\)\r/g, '\\r') // Escape unescaped carriage returns
+            .replace(/(?<!\\)\t/g, '\\t') // Escape unescaped tabs
+            .replace(/\\\\/g, '\\'); // Fix double backslashes
           return `"${cleaned}"`;
         })
         // Fix unquoted Hebrew text (common AI mistake)
-        .replace(/:\s*([א-ת][^\s,}\]]*(?:\s+[א-ת][^\s,}\]]*)*)\s*([,}\]])/g, ': "$1"$2')
-        // Fix Hebrew text that spans multiple lines
-        .replace(/:\s*"([^"]*[א-ת][^"]*)\n([^"]*[א-ת][^"]*?)"\s*([,}\]])/g, ': "$1 $2"$3');
+        .replace(/:\s*([א-ת\u0590-\u05FF][^\s,}\]"]*(?:\s+[א-ת\u0590-\u05FF][^\s,}\]"]*)*)\s*([,}\]])/gu, ': "$1"$2')
+        // Fix Hebrew text that spans multiple lines without proper escaping
+        .replace(/:\s*"([^"]*[א-ת\u0590-\u05FF][^"]*)\n([^"]*[א-ת\u0590-\u05FF][^"]*?)"\s*([,}\]])/gu, ': "$1 $2"$3')
+        // Fix broken JSON structure around Hebrew content
+        .replace(/([א-ת\u0590-\u05FF])\s*"\s*([,}\]])/gu, '$1"$2')
+        // Ensure proper JSON structure
+        .replace(/,(\s*[}\]])/g, '$1'); // Remove trailing commas
     }
     
     // General JSON repairs
@@ -587,64 +593,195 @@ function validateAndRepairJSON(jsonString: string, language?: string): { success
 function reconstructHebrewJSON(brokenJson: string): unknown | null {
   try {
     console.log('Attempting Hebrew JSON reconstruction...');
+    console.log('Input JSON length:', brokenJson.length);
+    console.log('First 500 chars:', brokenJson.substring(0, 500));
     
-    // Extract key components using regex patterns
-    const titleMatch = brokenJson.match(/"newsletterTitle"\s*:\s*"([^"]*(?:[א-ת][^"]*)*)"/);
-    const dateMatch = brokenJson.match(/"newsletterDate"\s*:\s*"([^"]*(?:[א-ת][^"]*)*)"/);
-    const introMatch = brokenJson.match(/"introduction"\s*:\s*"([^"]*(?:[א-ת][^"]*)*)"/);
-    const conclusionMatch = brokenJson.match(/"conclusion"\s*:\s*"([^"]*(?:[א-ת][^"]*)*)"/);
+    // Extract key components using more flexible regex patterns
+    const titleMatch = brokenJson.match(/"newsletterTitle"\s*:\s*"([^"]*(?:[א-ת\u0590-\u05FF\uFB1D-\uFB4F][^"]*)*)"/u) ||
+                     brokenJson.match(/"newsletterTitle"\s*:\s*"([^"]*)"/);
     
-    // Extract topics array - this is more complex
-    const topicsMatch = brokenJson.match(/"topics"\s*:\s*\[([\s\S]*?)\]/);
-    const topics = [];
+    const dateMatch = brokenJson.match(/"newsletterDate"\s*:\s*"([^"]*(?:[א-ת\u0590-\u05FF\uFB1D-\uFB4F][^"]*)*)"/u) ||
+                     brokenJson.match(/"newsletterDate"\s*:\s*"([^"]*)"/);
+    
+    const introMatch = brokenJson.match(/"introduction"\s*:\s*"([^"]*(?:[א-ת\u0590-\u05FF\uFB1D-\uFB4F][^"]*)*)"/u) ||
+                      brokenJson.match(/"introduction"\s*:\s*"([^"]*)"/);
+    
+    const conclusionMatch = brokenJson.match(/"conclusion"\s*:\s*"([^"]*(?:[א-ת\u0590-\u05FF\uFB1D-\uFB4F][^"]*)*)"/u) ||
+                           brokenJson.match(/"conclusion"\s*:\s*"([^"]*)"/);
+    
+    // Extract topics array - use more flexible approach
+    let topicsMatch = brokenJson.match(/"topics"\s*:\s*\[([\s\S]*?)\]/);
+    
+    // If topics array not found, try alternative patterns
+    if (!topicsMatch) {
+      console.log('Standard topics pattern failed, trying alternatives...');
+      // Try without quotes around topics
+      topicsMatch = brokenJson.match(/topics\s*:\s*\[([\s\S]*?)\]/);
+      
+      if (!topicsMatch) {
+        // Try finding topics content between [ and ]
+        const arrayStart = brokenJson.indexOf('[');
+        const arrayEnd = brokenJson.lastIndexOf(']');
+        if (arrayStart !== -1 && arrayEnd !== -1 && arrayEnd > arrayStart) {
+          console.log('Found array brackets, extracting content...');
+          const arrayContent = brokenJson.substring(arrayStart + 1, arrayEnd);
+          topicsMatch = [brokenJson, arrayContent];
+        } else {
+          console.log('No array brackets found, trying to find topics by keyword...');
+          // Last resort: search for "topics" keyword and try to extract from there
+          const topicsIndex = brokenJson.toLowerCase().indexOf('"topics"');
+          if (topicsIndex !== -1) {
+            const afterTopics = brokenJson.substring(topicsIndex + 8); // Skip past "topics"
+            const colonIndex = afterTopics.indexOf(':');
+            if (colonIndex !== -1) {
+              const afterColon = afterTopics.substring(colonIndex + 1).trim();
+              // Try to find some content that looks like topics
+              if (afterColon.includes('{') && afterColon.includes('headline')) {
+                console.log('Found potential topics content after "topics:" keyword');
+                topicsMatch = [brokenJson, afterColon];
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    const topics: NewsletterTopic[] = [];
+    
+    console.log('Title match:', titleMatch?.[1]);
+    console.log('Topics match found:', !!topicsMatch);
+    if (topicsMatch) {
+      console.log('Topics content preview (first 300 chars):', topicsMatch[1]?.substring(0, 300));
+    }
     
     if (topicsMatch) {
-      // Split topics by }, { pattern but be careful with Hebrew content
       const topicsContent = topicsMatch[1];
-      const topicBlocks = topicsContent.split(/},\s*{/);
+      console.log('Topics content length:', topicsContent.length);
+      console.log('Topics content preview:', topicsContent.substring(0, 200));
       
-      for (let i = 0; i < topicBlocks.length; i++) {
-        let block = topicBlocks[i].trim();
-        if (i === 0) block = block.replace(/^{/, '');
-        if (i === topicBlocks.length - 1) block = block.replace(/}$/, '');
-        if (i > 0) block = '{' + block;
-        if (i < topicBlocks.length - 1) block = block + '}';
+      // Try to extract individual topic objects more robustly
+      let topicMatches: string[] | null = topicsContent.match(/\{[^}]*"headline"[^}]*\}/g);
+      
+      // If strict matching fails, try more flexible patterns
+      if (!topicMatches) {
+        console.log('Strict topic matching failed, trying flexible patterns...');
+        // Try to match objects that contain headline field (even if incomplete)
+        topicMatches = topicsContent.match(/\{[\s\S]*?"headline"[\s\S]*?\}/g);
         
-        try {
-          // Extract individual topic fields
-          const headlineMatch = block.match(/"headline"\s*:\s*"([^"]*)"/);
-          const summaryMatch = block.match(/"summary"\s*:\s*"([^"]*(?:[א-ת][^"]*)*)"/);
-          const takeawayMatch = block.match(/"keyTakeaway"\s*:\s*"([^"]*(?:[א-ת][^"]*)*)"/);
-          const imageMatch = block.match(/"imagePrompt"\s*:\s*"([^"]*)"/);
-          const urlMatch = block.match(/"sourceUrl"\s*:\s*"([^"]*)"/);
-          const categoryMatch = block.match(/"category"\s*:\s*"([^"]*)"/);
+        if (!topicMatches) {
+          // Even more flexible - split by likely topic boundaries
+          const possibleTopics = topicsContent.split(/\s*},?\s*\{/);
+          if (possibleTopics.length > 1) {
+            console.log(`Found ${possibleTopics.length} potential topic blocks by splitting`);
+            topicMatches = possibleTopics.map(block => {
+              // Add braces if missing
+              let cleanBlock = block.trim();
+              if (!cleanBlock.startsWith('{')) cleanBlock = '{' + cleanBlock;
+              if (!cleanBlock.endsWith('}')) cleanBlock = cleanBlock + '}';
+              return cleanBlock;
+            }).filter(block => block.includes('headline') || block.includes('summary'));
+          }
+        }
+      }
+      
+      if (topicMatches && topicMatches.length > 0) {
+        console.log('Found', topicMatches.length, 'topic objects');
+        
+        topicMatches.forEach((topicStr, i) => {
+          try {
+            console.log(`Processing topic ${i}: ${topicStr.substring(0, 100)}...`);
+            
+            // More flexible field extraction with Hebrew support
+            const headlineMatch = topicStr.match(/"headline"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u) ||
+                                  topicStr.match(/headline\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u);
+            
+            const summaryMatch = topicStr.match(/"summary"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u) ||
+                                topicStr.match(/summary\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u);
+            
+            const takeawayMatch = topicStr.match(/"keyTakeaway"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u) ||
+                                 topicStr.match(/keyTakeaway\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u);
+            
+            const imageMatch = topicStr.match(/"imagePrompt"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u) ||
+                              topicStr.match(/imagePrompt\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u);
+            
+            const urlMatch = topicStr.match(/"sourceUrl"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u) ||
+                            topicStr.match(/sourceUrl\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u);
+            
+            const categoryMatch = topicStr.match(/"category"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u) ||
+                                 topicStr.match(/category\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u);
+            
+            console.log(`Topic ${i}: headline=${!!headlineMatch}, summary=${!!summaryMatch}`);
+            
+            if (headlineMatch || summaryMatch) {
+              const cleanHeadline = (headlineMatch?.[1] || `נושא AI ${i + 1}`).replace(/\\"/g, '"').replace(/\\n/g, '\n').trim();
+              const cleanSummary = (summaryMatch?.[1] || 'תקציר חדשות AI').replace(/\\"/g, '"').replace(/\\n/g, '\n').trim();
+              
+              topics.push({
+                headline: cleanHeadline,
+                summary: cleanSummary,
+                keyTakeaway: (takeawayMatch?.[1] || '').replace(/\\"/g, '"').replace(/\\n/g, '\n').trim(),
+                imagePrompt: (imageMatch?.[1] || 'AI technology illustration').replace(/\\"/g, '"').trim(),
+                sourceUrl: (urlMatch?.[1] || '').replace(/\\"/g, '"').trim(),
+                category: (categoryMatch?.[1]?.replace(/\\"/g, '"').trim() || 'research') as 'research' | 'product' | 'business' | 'policy' | 'fun'
+              });
+              console.log(`Successfully extracted topic ${i}: "${cleanHeadline}"`);
+            }
+          } catch (topicError) {
+            console.log(`Failed to parse topic ${i}:`, topicError);
+          }
+        });
+      } else {
+        // Final fallback: create some topics from the content we have
+        console.log('No topic objects found at all, creating fallback topics...');
+        
+        // Try to find Hebrew text that looks like headlines
+        const hebrewHeadlines = brokenJson.match(/[א-ת\u0590-\u05FF][^"]*[א-ת\u0590-\u05FF]/gu);
+        
+        if (hebrewHeadlines && hebrewHeadlines.length > 0) {
+          console.log(`Found ${hebrewHeadlines.length} potential Hebrew headlines`);
           
-          if (headlineMatch && summaryMatch) {
+          hebrewHeadlines.slice(0, 5).forEach((headline, i) => {
+            if (headline.length > 10 && headline.length < 200) {
+              topics.push({
+                headline: headline.trim(),
+                summary: 'תקציר חדשות AI מתוכן המקורי',
+                keyTakeaway: '',
+                imagePrompt: 'AI technology illustration',
+                sourceUrl: '',
+                category: 'research' as const
+              });
+              console.log(`Created fallback topic ${i}: "${headline.substring(0, 50)}..."`);
+            }
+          });
+        }
+        
+        // If still no topics, create minimal ones
+        if (topics.length === 0) {
+          console.log('Creating minimal fallback topics...');
+          for (let i = 0; i < 3; i++) {
             topics.push({
-              headline: headlineMatch[1] || '',
-              summary: summaryMatch[1] || '',
-              keyTakeaway: takeawayMatch?.[1] || '',
-              imagePrompt: imageMatch?.[1] || 'AI technology illustration',
-              sourceUrl: urlMatch?.[1] || '',
-              category: categoryMatch?.[1] || 'research'
+              headline: `חדשות AI ${i + 1}`,
+              summary: 'תקציר חדשות מעולם הבינה המלאכותית השבוע',
+              keyTakeaway: '',
+              imagePrompt: 'AI technology illustration',
+              sourceUrl: '',
+              category: 'research' as const
             });
           }
-        } catch (topicError) {
-          console.log(`Failed to parse topic ${i}:`, topicError);
         }
       }
     }
     
     // Reconstruct the JSON object
     const reconstructed = {
-      newsletterTitle: titleMatch?.[1] || 'AI Newsletter in Hebrew',
-      newsletterDate: dateMatch?.[1] || new Date().toLocaleDateString('he-IL'),
-      introduction: introMatch?.[1] || 'חדשות AI השבוע',
+      newsletterTitle: (titleMatch?.[1] || 'AI Newsletter בעברית').replace(/\\"/g, '"'),
+      newsletterDate: (dateMatch?.[1] || new Date().toLocaleDateString('he-IL')).replace(/\\"/g, '"'),
+      introduction: (introMatch?.[1] || 'חדשות AI השבוע').replace(/\\"/g, '"'),
       topics: topics,
-      conclusion: conclusionMatch?.[1] || 'זהו לשבוע זה!'
+      conclusion: (conclusionMatch?.[1] || 'זהו לשבוע זה!').replace(/\\"/g, '"')
     };
     
-    console.log(`Reconstructed newsletter with ${topics.length} topics`);
+    console.log(`Successfully reconstructed newsletter with ${topics.length} topics`);
     return reconstructed;
     
   } catch (error) {

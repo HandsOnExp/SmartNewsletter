@@ -626,6 +626,22 @@ function reconstructHebrewJSON(brokenJson: string): unknown | null {
           console.log('Found array brackets, extracting content...');
           const arrayContent = brokenJson.substring(arrayStart + 1, arrayEnd);
           topicsMatch = [brokenJson, arrayContent];
+        } else {
+          console.log('No array brackets found, trying to find topics by keyword...');
+          // Last resort: search for "topics" keyword and try to extract from there
+          const topicsIndex = brokenJson.toLowerCase().indexOf('"topics"');
+          if (topicsIndex !== -1) {
+            const afterTopics = brokenJson.substring(topicsIndex + 8); // Skip past "topics"
+            const colonIndex = afterTopics.indexOf(':');
+            if (colonIndex !== -1) {
+              const afterColon = afterTopics.substring(colonIndex + 1).trim();
+              // Try to find some content that looks like topics
+              if (afterColon.includes('{') && afterColon.includes('headline')) {
+                console.log('Found potential topics content after "topics:" keyword');
+                topicsMatch = [brokenJson, afterColon];
+              }
+            }
+          }
         }
       }
     }

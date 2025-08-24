@@ -76,9 +76,8 @@ export async function POST(request: Request) {
     // Step 3: Deduplicate and filter articles by time period
     const uniqueArticles = deduplicateArticles(allArticles);
     const timePeriod = userSettings?.preferences?.timePeriod || '24hours';
-    // Pass maxTopics as minimum articles needed (with a reasonable minimum of 3)
-    const minArticlesNeeded = Math.max(3, Math.ceil(maxTopics * 0.6)); // Need at least 60% of requested topics worth of articles
-    const filterResult = filterArticlesByTimePeriod(uniqueArticles, timePeriod, minArticlesNeeded);
+    // Don't require a minimum - use whatever articles are found in the time period
+    const filterResult = filterArticlesByTimePeriod(uniqueArticles, timePeriod, 1); // Minimum of 1 article to avoid completely empty results
     const sortedArticles = sortArticlesByDate(filterResult.articles);
 
     console.log(`Processing ${sortedArticles.length} unique articles (filtered by ${timePeriod}) to generate ${maxTopics} topics in ${language}`);

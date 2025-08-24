@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { fetchAllFeeds, deduplicateArticles, sortArticlesByDate, filterArticlesByTimePeriod, FilterResult } from '@/lib/rss-parser';
+import { fetchAllFeeds, deduplicateArticles, sortArticlesByDate, filterArticlesByTimePeriod } from '@/lib/rss-parser';
 import { generateNewsletterContent, checkRateLimit } from '@/lib/ai-processors';
 import { RSS_FEEDS } from '@/config/rss-feeds';
 import { createNewsletter, connectDB, getUserSettings } from '@/lib/db';

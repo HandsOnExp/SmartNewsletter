@@ -610,11 +610,33 @@ function reconstructHebrewJSON(brokenJson: string): unknown | null {
                            brokenJson.match(/"conclusion"\s*:\s*"([^"]*)"/);
     
     // Extract topics array - use more flexible approach
-    const topicsMatch = brokenJson.match(/"topics"\s*:\s*\[([\s\S]*?)\]/);
+    let topicsMatch = brokenJson.match(/"topics"\s*:\s*\[([\s\S]*?)\]/);
+    
+    // If topics array not found, try alternative patterns
+    if (!topicsMatch) {
+      console.log('Standard topics pattern failed, trying alternatives...');
+      // Try without quotes around topics
+      topicsMatch = brokenJson.match(/topics\s*:\s*\[([\s\S]*?)\]/);
+      
+      if (!topicsMatch) {
+        // Try finding topics content between [ and ]
+        const arrayStart = brokenJson.indexOf('[');
+        const arrayEnd = brokenJson.lastIndexOf(']');
+        if (arrayStart !== -1 && arrayEnd !== -1 && arrayEnd > arrayStart) {
+          console.log('Found array brackets, extracting content...');
+          const arrayContent = brokenJson.substring(arrayStart + 1, arrayEnd);
+          topicsMatch = [brokenJson, arrayContent];
+        }
+      }
+    }
+    
     const topics: NewsletterTopic[] = [];
     
     console.log('Title match:', titleMatch?.[1]);
     console.log('Topics match found:', !!topicsMatch);
+    if (topicsMatch) {
+      console.log('Topics content preview (first 300 chars):', topicsMatch[1]?.substring(0, 300));
+    }
     
     if (topicsMatch) {
       const topicsContent = topicsMatch[1];
@@ -622,56 +644,115 @@ function reconstructHebrewJSON(brokenJson: string): unknown | null {
       console.log('Topics content preview:', topicsContent.substring(0, 200));
       
       // Try to extract individual topic objects more robustly
-      const topicMatches = topicsContent.match(/\{[^}]*"headline"[^}]*\}/g);
+      let topicMatches: string[] | null = topicsContent.match(/\{[^}]*"headline"[^}]*\}/g);
       
-      if (topicMatches) {
+      // If strict matching fails, try more flexible patterns
+      if (!topicMatches) {
+        console.log('Strict topic matching failed, trying flexible patterns...');
+        // Try to match objects that contain headline field (even if incomplete)
+        topicMatches = topicsContent.match(/\{[\s\S]*?"headline"[\s\S]*?\}/g);
+        
+        if (!topicMatches) {
+          // Even more flexible - split by likely topic boundaries
+          const possibleTopics = topicsContent.split(/\s*},?\s*\{/);
+          if (possibleTopics.length > 1) {
+            console.log(`Found ${possibleTopics.length} potential topic blocks by splitting`);
+            topicMatches = possibleTopics.map(block => {
+              // Add braces if missing
+              let cleanBlock = block.trim();
+              if (!cleanBlock.startsWith('{')) cleanBlock = '{' + cleanBlock;
+              if (!cleanBlock.endsWith('}')) cleanBlock = cleanBlock + '}';
+              return cleanBlock;
+            }).filter(block => block.includes('headline') || block.includes('summary'));
+          }
+        }
+      }
+      
+      if (topicMatches && topicMatches.length > 0) {
         console.log('Found', topicMatches.length, 'topic objects');
         
         topicMatches.forEach((topicStr, i) => {
           try {
-            // More flexible field extraction
-            const headlineMatch = topicStr.match(/"headline"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
-            const summaryMatch = topicStr.match(/"summary"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
-            const takeawayMatch = topicStr.match(/"keyTakeaway"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
-            const imageMatch = topicStr.match(/"imagePrompt"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
-            const urlMatch = topicStr.match(/"sourceUrl"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
-            const categoryMatch = topicStr.match(/"category"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
+            console.log(`Processing topic ${i}: ${topicStr.substring(0, 100)}...`);
+            
+            // More flexible field extraction with Hebrew support
+            const headlineMatch = topicStr.match(/"headline"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u) ||
+                                  topicStr.match(/headline\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u);
+            
+            const summaryMatch = topicStr.match(/"summary"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u) ||
+                                topicStr.match(/summary\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u);
+            
+            const takeawayMatch = topicStr.match(/"keyTakeaway"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u) ||
+                                 topicStr.match(/keyTakeaway\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u);
+            
+            const imageMatch = topicStr.match(/"imagePrompt"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u) ||
+                              topicStr.match(/imagePrompt\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u);
+            
+            const urlMatch = topicStr.match(/"sourceUrl"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u) ||
+                            topicStr.match(/sourceUrl\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u);
+            
+            const categoryMatch = topicStr.match(/"category"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u) ||
+                                 topicStr.match(/category\s*:\s*"([^"]*(?:\\.[^"]*)*)"/u);
             
             console.log(`Topic ${i}: headline=${!!headlineMatch}, summary=${!!summaryMatch}`);
             
             if (headlineMatch || summaryMatch) {
+              const cleanHeadline = (headlineMatch?.[1] || `נושא AI ${i + 1}`).replace(/\\"/g, '"').replace(/\\n/g, '\n').trim();
+              const cleanSummary = (summaryMatch?.[1] || 'תקציר חדשות AI').replace(/\\"/g, '"').replace(/\\n/g, '\n').trim();
+              
               topics.push({
-                headline: (headlineMatch?.[1] || '').replace(/\\"/g, '"').replace(/\\n/g, '\n'),
-                summary: (summaryMatch?.[1] || '').replace(/\\"/g, '"').replace(/\\n/g, '\n'),
-                keyTakeaway: (takeawayMatch?.[1] || '').replace(/\\"/g, '"').replace(/\\n/g, '\n'),
-                imagePrompt: (imageMatch?.[1] || 'AI technology illustration').replace(/\\"/g, '"'),
-                sourceUrl: (urlMatch?.[1] || '').replace(/\\"/g, '"'),
-                category: (categoryMatch?.[1]?.replace(/\\"/g, '"') || 'research') as 'research' | 'product' | 'business' | 'policy' | 'fun'
+                headline: cleanHeadline,
+                summary: cleanSummary,
+                keyTakeaway: (takeawayMatch?.[1] || '').replace(/\\"/g, '"').replace(/\\n/g, '\n').trim(),
+                imagePrompt: (imageMatch?.[1] || 'AI technology illustration').replace(/\\"/g, '"').trim(),
+                sourceUrl: (urlMatch?.[1] || '').replace(/\\"/g, '"').trim(),
+                category: (categoryMatch?.[1]?.replace(/\\"/g, '"').trim() || 'research') as 'research' | 'product' | 'business' | 'policy' | 'fun'
               });
+              console.log(`Successfully extracted topic ${i}: "${cleanHeadline}"`);
             }
           } catch (topicError) {
             console.log(`Failed to parse topic ${i}:`, topicError);
           }
         });
       } else {
-        // Fallback: try to extract by splitting on common patterns
-        console.log('No topic objects found, trying fallback extraction...');
-        const fallbackTopics = topicsContent.split(/(?=\s*{[^}]*"headline")/);
+        // Final fallback: create some topics from the content we have
+        console.log('No topic objects found at all, creating fallback topics...');
         
-        fallbackTopics.forEach((block, i) => {
-          if (block.trim() && block.includes('headline')) {
-            console.log(`Processing fallback topic ${i}`);
-            // Create a minimal topic structure
+        // Try to find Hebrew text that looks like headlines
+        const hebrewHeadlines = brokenJson.match(/[א-ת\u0590-\u05FF][^"]*[א-ת\u0590-\u05FF]/gu);
+        
+        if (hebrewHeadlines && hebrewHeadlines.length > 0) {
+          console.log(`Found ${hebrewHeadlines.length} potential Hebrew headlines`);
+          
+          hebrewHeadlines.slice(0, 5).forEach((headline, i) => {
+            if (headline.length > 10 && headline.length < 200) {
+              topics.push({
+                headline: headline.trim(),
+                summary: 'תקציר חדשות AI מתוכן המקורי',
+                keyTakeaway: '',
+                imagePrompt: 'AI technology illustration',
+                sourceUrl: '',
+                category: 'research' as const
+              });
+              console.log(`Created fallback topic ${i}: "${headline.substring(0, 50)}..."`);
+            }
+          });
+        }
+        
+        // If still no topics, create minimal ones
+        if (topics.length === 0) {
+          console.log('Creating minimal fallback topics...');
+          for (let i = 0; i < 3; i++) {
             topics.push({
-              headline: `נושא ${i + 1}`,
-              summary: 'תקציר חדשות AI',
+              headline: `חדשות AI ${i + 1}`,
+              summary: 'תקציר חדשות מעולם הבינה המלאכותית השבוע',
               keyTakeaway: '',
               imagePrompt: 'AI technology illustration',
               sourceUrl: '',
               category: 'research' as const
             });
           }
-        });
+        }
       }
     }
     

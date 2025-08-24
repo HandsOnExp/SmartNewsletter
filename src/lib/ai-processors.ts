@@ -9,17 +9,63 @@ import {
   LazyContent
 } from '@/utils/cache-optimization';
 
-// Helper function to resolve LazyContent in articles
+// Helper function to resolve LazyContent in articles with chunked processing
 async function resolveArticleContent(articles: ParsedArticle[]): Promise<ParsedArticle[]> {
-  return Promise.all(articles.map(async (article) => {
-    if (article.content instanceof LazyContent) {
-      return {
-        ...article,
-        content: await article.content.getContent()
-      };
+  const CHUNK_SIZE = 10; // Process articles in chunks to prevent memory overload
+  const resolvedArticles: ParsedArticle[] = [];
+  
+  for (let i = 0; i < articles.length; i += CHUNK_SIZE) {
+    const chunk = articles.slice(i, i + CHUNK_SIZE);
+    
+    const resolvedChunk = await Promise.all(chunk.map(async (article) => {
+      if (article.content instanceof LazyContent) {
+        const content = await article.content.getContent();
+        // Clear the lazy content to free memory
+        article.content.clear();
+        return {
+          ...article,
+          content
+        };
+      }
+      return article;
+    }));
+    
+    resolvedArticles.push(...resolvedChunk);
+    
+    // Log progress for large batches
+    if (articles.length > CHUNK_SIZE) {
+      console.log(`Processed ${Math.min(i + CHUNK_SIZE, articles.length)}/${articles.length} articles`);
     }
-    return article;
-  }));
+  }
+  
+  return resolvedArticles;
+}
+
+// Helper function to chunk articles for AI processing to prevent token limits
+export function chunkArticlesForProcessing(articles: ParsedArticle[], maxTokensPerChunk: number = 50000): ParsedArticle[][] {
+  const chunks: ParsedArticle[][] = [];
+  let currentChunk: ParsedArticle[] = [];
+  let currentTokens = 0;
+  
+  for (const article of articles) {
+    // Estimate tokens (rough approximation: 1 token ≈ 4 characters)
+    const articleTokens = Math.ceil((article.title.length + article.contentSnippet.length + (typeof article.content === 'string' ? article.content.length : 1000)) / 4);
+    
+    if (currentTokens + articleTokens > maxTokensPerChunk && currentChunk.length > 0) {
+      chunks.push(currentChunk);
+      currentChunk = [article];
+      currentTokens = articleTokens;
+    } else {
+      currentChunk.push(article);
+      currentTokens += articleTokens;
+    }
+  }
+  
+  if (currentChunk.length > 0) {
+    chunks.push(currentChunk);
+  }
+  
+  return chunks;
 }
 
 // Initialize AI clients with better error handling

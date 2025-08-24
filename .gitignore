@@ -28,7 +28,7 @@ Thumbs.db
 .idea/
 *.temp
 *.tmp
-claude settings.local.json
+.claude/
 
 # debug
 npm-debug.log*

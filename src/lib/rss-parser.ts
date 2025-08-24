@@ -37,7 +37,7 @@ export interface ParsedArticle {
   source: string;
 }
 
-export async function fetchRSSFeed(url: string, feedName: string) {
+export async function fetchRSSFeed(url: string, feedName: string, timeoutMs: number = 8000) {
   try {
     // Check cache first
     const cacheKey = createContentHash(`${url}:${feedName}`);
@@ -48,10 +48,36 @@ export async function fetchRSSFeed(url: string, feedName: string) {
       return JSON.parse(cachedContent);
     }
     
-    const feed = await parser.parseURL(url);
+    // Create a promise that rejects after timeout
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`Feed ${feedName} timed out after ${timeoutMs}ms`)), timeoutMs);
+    });
+    
+    // Race between feed parsing and timeout
+    const feed = await Promise.race([
+      parser.parseURL(url),
+      timeoutPromise
+    ]) as { items: {
+      title?: string;
+      link?: string;
+      pubDate?: string;
+      contentSnippet?: string;
+      content?: string;
+      creator?: string;
+      categories?: string[];
+    }[] };
+    
     const result = {
       success: true,
-      data: feed.items.map(item => ({
+      data: feed.items.map((item: {
+        title?: string;
+        link?: string;
+        pubDate?: string;
+        contentSnippet?: string;
+        content?: string;
+        creator?: string;
+        categories?: string[];
+      }) => ({
         title: item.title || '',
         link: item.link || '',
         pubDate: item.pubDate || '',
@@ -83,9 +109,14 @@ export async function fetchRSSFeed(url: string, feedName: string) {
 export async function fetchAllFeeds(feeds: RSSFeed[] = RSS_FEEDS) {
   const enabledFeeds = feeds.filter(f => f.enabled);
   
+  // Sort feeds by priority (higher priority = faster expected response)
+  const prioritizedFeeds = enabledFeeds.sort((a, b) => b.priority - a.priority);
+  
+  // Use different timeouts based on feed priority
   const results = await Promise.allSettled(
-    enabledFeeds.map(async (feed) => {
-      const result = await fetchRSSFeed(feed.url, feed.name);
+    prioritizedFeeds.map(async (feed) => {
+      const timeoutMs = feed.priority >= 3 ? 6000 : feed.priority >= 2 ? 8000 : 12000;
+      const result = await fetchRSSFeed(feed.url, feed.name, timeoutMs);
       return {
         ...feed,
         articles: result
@@ -93,11 +124,24 @@ export async function fetchAllFeeds(feeds: RSSFeed[] = RSS_FEEDS) {
     })
   );
 
-  return results.map((result, index) => ({
-    feed: enabledFeeds[index],
+  // Restore original order based on input array
+  const orderedResults = results.map((result, index) => ({
+    feed: prioritizedFeeds[index],
     status: result.status,
-    articles: result.status === 'fulfilled' ? result.value.articles : { success: false, error: 'Promise rejected', data: [] }
+    articles: result.status === 'fulfilled' ? result.value.articles : { success: false, error: 'Promise rejected', data: [] },
+    responseTime: result.status === 'fulfilled' ? Date.now() : null
   }));
+
+  // Log performance metrics
+  const successful = orderedResults.filter(r => r.status === 'fulfilled' && r.articles.success);
+  const failed = orderedResults.filter(r => r.status === 'rejected' || !r.articles.success);
+  
+  console.log(`RSS Fetch Summary: ${successful.length}/${orderedResults.length} feeds successful`);
+  if (failed.length > 0) {
+    console.log(`Failed feeds: ${failed.map(f => f.feed.name).join(', ')}`);
+  }
+
+  return orderedResults;
 }
 
 export function deduplicateArticles(articles: ParsedArticle[]): ParsedArticle[] {

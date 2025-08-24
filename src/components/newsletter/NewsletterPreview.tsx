@@ -8,24 +8,34 @@ import { toast } from 'sonner';
 import { NewsletterPreviewProps } from '@/types';
 
 export function NewsletterPreview({ data, onSave, onPublish, onClose }: NewsletterPreviewProps) {
-  const copyToClipboard = () => {
-    const htmlContent = generateHTML(data);
-    navigator.clipboard.writeText(htmlContent);
-    toast.success('Newsletter HTML copied to clipboard!');
+  const copyToClipboard = async () => {
+    try {
+      const htmlContent = await generateHTML(data);
+      navigator.clipboard.writeText(htmlContent);
+      toast.success('Newsletter HTML copied to clipboard!');
+    } catch (error) {
+      console.error('Failed to copy HTML:', error);
+      toast.error('Failed to copy HTML to clipboard');
+    }
   };
 
-  const downloadHTML = () => {
-    const htmlContent = generateHTML(data);
-    const blob = new Blob([htmlContent], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `newsletter-${new Date().toISOString().split('T')[0]}.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    toast.success('Newsletter downloaded successfully!');
+  const downloadHTML = async () => {
+    try {
+      const htmlContent = await generateHTML(data);
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `newsletter-${new Date().toISOString().split('T')[0]}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success('Newsletter downloaded successfully!');
+    } catch (error) {
+      console.error('Failed to download HTML:', error);
+      toast.error('Failed to download HTML');
+    }
   };
 
   // Function to detect Hebrew content
@@ -34,176 +44,31 @@ export function NewsletterPreview({ data, onSave, onPublish, onClose }: Newslett
     return hebrewPattern.test(text);
   };
 
-  // Function to get language attributes and direction
-  const getTextAttributes = (text: string) => {
-    const hasHebrew = isHebrewText(text);
-    return {
-      lang: hasHebrew ? 'he' : 'en',
-      dir: hasHebrew ? 'rtl' : 'ltr',
-      className: hasHebrew ? 'hebrew-content' : 'english-content'
-    };
-  };
+  // Server-side HTML generation using API
+  const generateHTML = async (data: NewsletterPreviewProps['data']): Promise<string> => {
+    try {
+      const response = await fetch('/api/newsletter/generate-html', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
 
-  const generateHTML = (data: NewsletterPreviewProps['data']) => {
-    const currentDate = new Date().toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+      if (!response.ok) {
+        throw new Error(`Failed to generate HTML: ${response.statusText}`);
+      }
 
-    // Detect the primary language of the newsletter
-    const titleAttrs = getTextAttributes(data.newsletterTitle);
-    const hasHebrew = data.topics.some(topic => 
-      isHebrewText(topic.headline) || isHebrewText(topic.summary)
-    );
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to generate HTML');
+      }
 
-    return `
-      <!DOCTYPE html>
-      <html lang="${titleAttrs.lang}" dir="${titleAttrs.dir}">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>${data.newsletterTitle}</title>
-        <style>
-          body { 
-            font-family: ${hasHebrew ? 
-              `'David Libre', 'Frank Ruhl Libre', 'Alef', 'Heebo', 'Noto Sans Hebrew', 'Arial Unicode MS', Arial, sans-serif` : 
-              `-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif`
-            }; 
-            line-height: 1.6;
-            color: #333;
-            margin: 0;
-            padding: 0;
-            background-color: #f5f5f5;
-            direction: ${hasHebrew ? 'rtl' : 'ltr'};
-          }
-          .container { 
-            max-width: 600px; 
-            margin: 0 auto; 
-            background-color: white;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
-          }
-          .header { 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-            color: white; 
-            padding: 40px 30px; 
-            text-align: center;
-          }
-          .header h1 {
-            margin: 0 0 10px 0;
-            font-size: 28px;
-            font-weight: bold;
-          }
-          .header p {
-            margin: 0;
-            opacity: 0.9;
-            font-size: 16px;
-          }
-          .intro {
-            padding: 30px;
-            background-color: #f8f9fa;
-            font-size: 16px;
-            font-style: italic;
-            ${hasHebrew ? 'border-right: 4px solid #667eea; text-align: right;' : 'border-left: 4px solid #667eea;'}
-          }
-          .topic { 
-            margin: 0; 
-            padding: 30px; 
-            border-bottom: 1px solid #eee;
-          }
-          .topic:last-child {
-            border-bottom: none;
-          }
-          .topic h2 { 
-            color: #1a202c; 
-            margin: 0 0 15px 0; 
-            font-size: 22px;
-            line-height: 1.3;
-            ${hasHebrew ? 'text-align: right; direction: rtl;' : ''}
-          }
-          .topic img { 
-            width: 100%; 
-            height: 300px; 
-            object-fit: cover; 
-            border-radius: 8px; 
-            margin: 15px 0; 
-          }
-          .topic p {
-            margin: 0 0 15px 0;
-            color: #4a5568;
-            font-size: 15px;
-            ${hasHebrew ? 'text-align: right; direction: rtl; unicode-bidi: plaintext;' : ''}
-          }
-          .topic a {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 500;
-          }
-          .topic a:hover {
-            text-decoration: underline;
-          }
-          .footer {
-            background-color: #f8f9fa;
-            padding: 30px;
-            text-align: center;
-            color: #6c757d;
-            font-size: 14px;
-          }
-          .category-badge {
-            display: inline-block;
-            background-color: #e2e8f0;
-            color: #4a5568;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 500;
-            margin-bottom: 10px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>${data.newsletterTitle}</h1>
-            <p>${data.newsletterDate || currentDate}</p>
-          </div>
-          
-          ${data.introduction ? `
-            <div class="intro">
-              ${data.introduction}
-            </div>
-          ` : ''}
-          
-          ${data.topics.map((topic, index: number) => `
-            <div class="topic">
-              <span class="category-badge">${topic.category?.toUpperCase() || 'NEWS'}</span>
-              <h2>${index + 1}. ${topic.headline}</h2>
-              ${topic.imageUrl ? `<img src="${topic.imageUrl}" alt="${topic.headline}" />` : ''}
-              <p>${topic.summary}</p>
-              ${topic.keyTakeaway ? `
-                <div style="${hasHebrew && isHebrewText(topic.keyTakeaway) ? 'text-align: right; direction: rtl;' : ''}">
-                  <span style="font-weight: bold; direction: ltr; display: inline-block;">Key Takeaway: </span>
-                  <span style="${hasHebrew && isHebrewText(topic.keyTakeaway) ? 'direction: rtl; unicode-bidi: plaintext;' : ''}">${topic.keyTakeaway}</span>
-                </div>
-              ` : ''}
-              ${topic.sourceUrl ? `<a href="${topic.sourceUrl}" target="_blank">Read full article →</a>` : ''}
-            </div>
-          `).join('')}
-          
-          ${data.conclusion ? `
-            <div class="footer">
-              ${data.conclusion}
-            </div>
-          ` : `
-            <div class="footer">
-              Generated with AI Newsletter Generator • ${currentDate}
-            </div>
-          `}
-        </div>
-      </body>
-      </html>
-    `;
+      return result.data.html;
+    } catch (error) {
+      console.error('Error generating HTML:', error);
+      throw error;
+    }
   };
 
   return (

@@ -8,7 +8,7 @@ if (!MONGODB_URI) {
   console.warn('MONGODB_URI not found. Database features will be disabled.');
 }
 
-// Global mongoose instance for Next.js
+// Global mongoose instance for Next.js with enhanced connection pooling
 let cached = global.mongoose;
 
 if (!cached) {
@@ -22,15 +22,42 @@ export async function connectDB() {
   }
 
   if (cached.conn) {
-    return cached.conn;
+    // Check if connection is still alive
+    if (mongoose.connection.readyState === 1) {
+      return cached.conn;
+    }
+    // If connection is dead, reset cache
+    cached.conn = null;
+    cached.promise = null;
   }
 
   if (!cached.promise) {
     const opts = {
       bufferCommands: false,
+      // Enhanced connection pooling options
+      maxPoolSize: 10, // Maintain up to 10 socket connections
+      serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
+      socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
+      family: 4, // Use IPv4, skip trying IPv6
+      // Connection pool monitoring
+      maxIdleTimeMS: 30000, // Close connections after 30 seconds of inactivity
+      waitQueueTimeoutMS: 5000, // Timeout waiting for connections from pool
     };
 
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongooseInstance) => {
+      console.log('MongoDB connected with enhanced pooling');
+      
+      // Add connection event listeners for monitoring
+      mongoose.connection.on('error', (err) => {
+        console.error('MongoDB connection error:', err);
+      });
+      
+      mongoose.connection.on('disconnected', () => {
+        console.warn('MongoDB disconnected');
+        cached.conn = null;
+        cached.promise = null;
+      });
+      
       return mongooseInstance;
     });
   }
@@ -46,12 +73,22 @@ export async function connectDB() {
   return cached.conn;
 }
 
+// Connection health check utility
+export function getConnectionStatus() {
+  return {
+    isConnected: mongoose.connection.readyState === 1,
+    readyState: mongoose.connection.readyState,
+    host: mongoose.connection.host,
+    name: mongoose.connection.name,
+    collections: Object.keys(mongoose.connection.collections)
+  };
+}
+
 // Newsletter Schema
 const NewsletterSchema = new mongoose.Schema({
   userId: { 
     type: String, 
-    required: true,
-    index: true 
+    required: true 
   },
   title: { 
     type: String, 
@@ -111,9 +148,13 @@ const NewsletterSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Add indexes for better performance
-NewsletterSchema.index({ userId: 1, createdAt: -1 });
-NewsletterSchema.index({ status: 1 });
+// Add composite indexes for common query patterns
+NewsletterSchema.index({ userId: 1, createdAt: -1 }); // User newsletters by date
+NewsletterSchema.index({ userId: 1, status: 1, createdAt: -1 }); // User newsletters by status and date
+NewsletterSchema.index({ status: 1 }); // All newsletters by status
+NewsletterSchema.index({ llmUsed: 1, createdAt: -1 }); // Analytics by LLM usage
+NewsletterSchema.index({ 'stats.generationTime': 1 }); // Performance analytics
+NewsletterSchema.index({ 'metadata.totalArticles': 1 }); // Content analytics
 
 // User Settings Schema
 const UserSettingsSchema = new mongoose.Schema({
@@ -162,17 +203,21 @@ const UserSettingsSchema = new mongoose.Schema({
   timestamps: true 
 });
 
+// Add indexes for UserSettings
+UserSettingsSchema.index({ userId: 1 }, { unique: true }); // Primary lookup
+UserSettingsSchema.index({ 'preferences.llmPreference': 1 }); // Analytics by LLM preference
+UserSettingsSchema.index({ 'preferences.language': 1 }); // Analytics by language
+UserSettingsSchema.index({ 'rssFeeds.enabled': 1 }); // Feed usage analytics
+
 // Feed Analytics Schema
 const FeedAnalyticsSchema = new mongoose.Schema({
   feedId: { 
     type: String, 
-    required: true,
-    index: true 
+    required: true 
   },
   date: { 
     type: Date, 
-    default: Date.now,
-    index: true 
+    default: Date.now 
   },
   articlesCount: { type: Number, default: 0 },
   successfulFetch: { type: Boolean, default: true },
@@ -186,6 +231,10 @@ const FeedAnalyticsSchema = new mongoose.Schema({
 }, { 
   timestamps: true 
 });
+
+// Add indexes for FeedAnalytics
+FeedAnalyticsSchema.index({ feedId: 1, date: -1 }); // Feed performance over time
+FeedAnalyticsSchema.index({ successfulFetch: 1 }); // Success/failure analytics
 
 // Export models
 export const Newsletter = mongoose.models.Newsletter || mongoose.model('Newsletter', NewsletterSchema);

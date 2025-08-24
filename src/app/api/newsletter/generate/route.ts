@@ -76,7 +76,9 @@ export async function POST(request: Request) {
     // Step 3: Deduplicate and filter articles by time period
     const uniqueArticles = deduplicateArticles(allArticles);
     const timePeriod = userSettings?.preferences?.timePeriod || '24hours';
-    const filterResult = filterArticlesByTimePeriod(uniqueArticles, timePeriod);
+    // Pass maxTopics as minimum articles needed (with a reasonable minimum of 3)
+    const minArticlesNeeded = Math.max(3, Math.ceil(maxTopics * 0.6)); // Need at least 60% of requested topics worth of articles
+    const filterResult = filterArticlesByTimePeriod(uniqueArticles, timePeriod, minArticlesNeeded);
     const sortedArticles = sortArticlesByDate(filterResult.articles);
 
     console.log(`Processing ${sortedArticles.length} unique articles (filtered by ${timePeriod}) to generate ${maxTopics} topics in ${language}`);
@@ -116,7 +118,22 @@ export async function POST(request: Request) {
 
       console.log(`Newsletter saved with ID: ${savedNewsletter._id}`);
 
-      // Step 6: Return successful response
+      // Step 6: Check for topic count notification
+      const generatedTopics = newsletterData.topics.length;
+      let topicCountNotification = undefined;
+      
+      if (generatedTopics < maxTopics) {
+        topicCountNotification = {
+          requested: maxTopics,
+          generated: generatedTopics,
+          message: language === 'hebrew' 
+            ? `נוצרו ${generatedTopics} נושאים במקום ${maxTopics} שהוזמנו בגלל מחסור בכתבות עדכניות`
+            : `Generated ${generatedTopics} topics instead of ${maxTopics} requested due to insufficient recent articles`
+        };
+        console.log(`Topic count notification: Generated ${generatedTopics} topics instead of ${maxTopics} requested`);
+      }
+
+      // Step 7: Return successful response
       const response: NewsletterGenerationResponse = {
         success: true,
         newsletter: {
@@ -144,13 +161,28 @@ export async function POST(request: Request) {
         } : {
           usedFallback: false,
           originalPeriod: filterResult.originalPeriod
-        }
+        },
+        topicCountNotification
       };
 
       return NextResponse.json(response);
 
     } catch (dbError) {
       console.error('Database error:', dbError);
+      
+      // Check for topic count notification even in error case
+      const generatedTopics = newsletterData.topics.length;
+      let topicCountNotification = undefined;
+      
+      if (generatedTopics < maxTopics) {
+        topicCountNotification = {
+          requested: maxTopics,
+          generated: generatedTopics,
+          message: language === 'hebrew' 
+            ? `נוצרו ${generatedTopics} נושאים במקום ${maxTopics} שהוזמנו בגלל מחסור בכתבות עדכניות`
+            : `Generated ${generatedTopics} topics instead of ${maxTopics} requested due to insufficient recent articles`
+        };
+      }
       
       // Return the generated content even if saving fails
       const response: NewsletterGenerationResponse = {
@@ -180,7 +212,8 @@ export async function POST(request: Request) {
         } : {
           usedFallback: false,
           originalPeriod: filterResult.originalPeriod
-        }
+        },
+        topicCountNotification
       };
 
       return NextResponse.json(response);

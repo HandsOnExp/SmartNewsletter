@@ -368,13 +368,15 @@ export async function generateNewsletterContent(
           
           console.log(`Selected top ${expectedTopics} topics based on quality scoring`);
         } else if (actualTopics < expectedTopics) {
-          // Too few topics - only retry if significantly under (more than 2 topics short)
+          // Too few topics - only retry if we have very few topics and there are more attempts
           const shortfall = expectedTopics - actualTopics;
-          if (shortfall > 2 && attempt < maxRetries) {
-            console.log(`Attempt ${attempt}: Generated only ${actualTopics} topics, expected ${expectedTopics}. Retrying...`);
+          const minAcceptableTopics = Math.max(1, Math.floor(expectedTopics * 0.4)); // Accept at least 40% of requested topics
+          
+          if (actualTopics < minAcceptableTopics && attempt < maxRetries) {
+            console.log(`Attempt ${attempt}: Generated only ${actualTopics} topics (less than minimum ${minAcceptableTopics}), expected ${expectedTopics}. Retrying...`);
             continue;
           } else {
-            console.log(`Generated ${actualTopics} topics (${shortfall} short), but proceeding since close to target`);
+            console.log(`Generated ${actualTopics} topics (${shortfall} short), but proceeding since we have sufficient content`);
           }
         }
       }

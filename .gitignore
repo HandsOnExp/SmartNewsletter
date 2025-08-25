@@ -53,6 +53,9 @@ next-env.d.ts
 # temporary settings storage (contains user data)
 /.temp-settings/
 
+# playwright mcp server files
+.playwright-mcp/
+
 # Documentation with sensitive info (development notes)
 *_SETUP.md
 *_NOTES.md

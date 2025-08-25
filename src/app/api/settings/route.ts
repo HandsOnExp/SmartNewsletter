@@ -134,7 +134,16 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    console.log('Settings POST body:', body); // Debug log
+    // Sanitized debug log - never log API keys
+    console.log('Settings POST received:', {
+      hasApiKeys: !!body.apiKeys,
+      preferences: body.preferences,
+      rssFeeds: {
+        enabled: body.rssFeeds?.enabled?.length || 0,
+        disabled: body.rssFeeds?.disabled?.length || 0,
+        custom: body.rssFeeds?.custom?.length || 0
+      }
+    });
 
     const { apiKeys, preferences, rssFeeds } = body;
 

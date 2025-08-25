@@ -566,7 +566,7 @@ function validateAndRepairJSON(jsonString: string, language?: string): { success
   try {
     const parsed = JSON.parse(jsonString);
     return { success: true, data: parsed };
-  } catch (error) {
+  } catch {
     console.log('JSON validation failed, attempting repair...');
     
     let repairedJson = jsonString;

@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { sanitizeURL } from '@/lib/url-validator';
 import { Rss, Settings, Key, Bell, Save, Plus, Trash2, ArrowLeft, ExternalLink, X, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { RSS_FEEDS, type RSSFeed } from '@/config/rss-feeds';
 import { UserSettings, CustomRSSFeed, TimePeriod } from '@/types';
@@ -99,47 +100,13 @@ export default function SettingsPage() {
           description: data.error
         });
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to test API key', {
         description: 'Network error or server unavailable'
       });
     } finally {
       setTestingKey({ provider: '', testing: false });
     }
-  };
-
-  useEffect(() => {
-    if (user) {
-      loadUserSettings();
-    }
-  }, [user]); // loadUserSettings is recreated on each render, which is fine for this use case
-
-  const getStorageKey = (userId: string) => `smart-newsletter-settings-${userId}`;
-
-  const saveToLocalStorage = (settings: UserSettings) => {
-    if (user && typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(getStorageKey(user.id), JSON.stringify({
-          ...settings,
-          lastSaved: new Date().toISOString()
-        }));
-      } catch (error) {
-        console.error('Failed to save to localStorage:', error);
-      }
-    }
-  };
-
-  const loadFromLocalStorage = (): UserSettings | null => {
-    if (user && typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem(getStorageKey(user.id));
-        return stored ? JSON.parse(stored) : null;
-      } catch (error) {
-        console.error('Failed to load from localStorage:', error);
-        return null;
-      }
-    }
-    return null;
   };
 
   const loadUserSettings = async () => {
@@ -185,6 +152,41 @@ export default function SettingsPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (user) {
+      loadUserSettings();
+    }
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const getStorageKey = (userId: string) => `smart-newsletter-settings-${userId}`;
+
+  const saveToLocalStorage = (settings: UserSettings) => {
+    if (user && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(getStorageKey(user.id), JSON.stringify({
+          ...settings,
+          lastSaved: new Date().toISOString()
+        }));
+      } catch (error) {
+        console.error('Failed to save to localStorage:', error);
+      }
+    }
+  };
+
+  const loadFromLocalStorage = (): UserSettings | null => {
+    if (user && typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(getStorageKey(user.id));
+        return stored ? JSON.parse(stored) : null;
+      } catch (error) {
+        console.error('Failed to load from localStorage:', error);
+        return null;
+      }
+    }
+    return null;
+  };
+
 
   const applySettings = (settings: UserSettings) => {
     setApiKeys(settings.apiKeys || { cohere: '', gemini: '' });
@@ -241,10 +243,27 @@ export default function SettingsPage() {
       return;
     }
 
+    // Validate URL format
+    const sanitizedUrl = sanitizeURL(newFeedUrl);
+    
+    try {
+      new URL(sanitizedUrl);
+    } catch {
+      toast.error('Please enter a valid URL (e.g., https://example.com/feed.xml)');
+      return;
+    }
+
+    // Check if URL already exists
+    const urlExists = customFeeds.some(feed => feed.url === sanitizedUrl);
+    if (urlExists) {
+      toast.error('This RSS feed URL has already been added');
+      return;
+    }
+
     const newFeed: CustomRSSFeed = {
       id: `custom-${Date.now()}`,
       name: newFeedName,
-      url: newFeedUrl,
+      url: sanitizedUrl,
       category: 'custom',
       enabled: true
     };

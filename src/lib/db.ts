@@ -160,8 +160,7 @@ NewsletterSchema.index({ 'metadata.totalArticles': 1 }); // Content analytics
 const UserSettingsSchema = new mongoose.Schema({
   userId: { 
     type: String, 
-    required: true,
-    unique: true 
+    required: true
   },
   apiKeys: {
     cohere: { type: String, default: '' },

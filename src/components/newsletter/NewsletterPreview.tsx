@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -244,9 +245,11 @@ export function NewsletterPreview({ data, onSave, onPublish, onClose }: Newslett
                 
                 {topic.imageUrl && (
                   <div className="mb-4">
-                    <img 
+                    <Image 
                       src={topic.imageUrl} 
                       alt={topic.headline}
+                      width={600}
+                      height={256}
                       className="w-full h-64 object-cover rounded-lg shadow-md"
                       onError={(e) => {
                         e.currentTarget.style.display = 'none';

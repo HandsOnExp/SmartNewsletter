@@ -6,6 +6,7 @@ import {
   createContentHash,
   LazyContent
 } from '@/utils/cache-optimization';
+import { validateURLsBatch, sanitizeURL, getFallbackURL, filterValidURLs } from '@/lib/url-validator';
 import { TimePeriod, TimePeriodOption } from '@/types';
 
 const parser = new Parser({
@@ -142,6 +143,126 @@ export async function fetchAllFeeds(feeds: RSSFeed[] = RSS_FEEDS) {
   }
 
   return orderedResults;
+}
+
+/**
+ * Processes articles to validate and fix URLs
+ */
+export async function processAndValidateArticles(
+  articles: ParsedArticle[], 
+  options: { 
+    validateURLs?: boolean; 
+    fixBrokenLinks?: boolean;
+    batchSize?: number;
+    skipValidationPatterns?: string[];
+  } = {}
+): Promise<ParsedArticle[]> {
+  const { 
+    validateURLs = true, 
+    fixBrokenLinks = true, 
+    batchSize = 10,
+    skipValidationPatterns = ['.pdf', 'mailto:', 'javascript:', '/amp/']
+  } = options;
+
+  if (!validateURLs) {
+    return articles;
+  }
+
+  console.log(`Processing ${articles.length} articles for URL validation...`);
+
+  // Step 1: Sanitize all URLs
+  const sanitizedArticles = articles.map(article => ({
+    ...article,
+    link: sanitizeURL(article.link)
+  })).filter(article => {
+    // Remove articles with clearly invalid URLs
+    if (!article.link || article.link.length < 10) {
+      console.log(`Removed article with invalid URL: "${article.title}"`);
+      return false;
+    }
+    
+    // Skip articles matching exclusion patterns
+    const shouldSkip = skipValidationPatterns.some(pattern => 
+      article.link.toLowerCase().includes(pattern.toLowerCase())
+    );
+    
+    if (shouldSkip) {
+      console.log(`Skipped validation for: ${article.link}`);
+    }
+    
+    return !shouldSkip;
+  });
+
+  if (sanitizedArticles.length === 0) {
+    console.log('No articles left after sanitization');
+    return [];
+  }
+
+  // Step 2: Validate URLs in batches
+  const urlsToValidate = [...new Set(sanitizedArticles.map(a => a.link))];
+  console.log(`Validating ${urlsToValidate.length} unique URLs...`);
+
+  const validationResults = await validateURLsBatch(urlsToValidate, {
+    batchSize,
+    timeout: 8000,
+    delayMs: 500, // Be gentle on servers
+    allowedStatusCodes: [200, 201, 202, 301, 302, 307, 308]
+  });
+
+  // Step 3: Filter articles with valid URLs
+  let validArticles = filterValidURLs(sanitizedArticles, validationResults);
+  
+  console.log(`URL validation: ${sanitizedArticles.length} -> ${validArticles.length} articles`);
+
+  // Step 4: Optional - attempt to fix broken URLs
+  if (fixBrokenLinks && validArticles.length < sanitizedArticles.length * 0.7) {
+    console.log('Many URLs failed validation, attempting to fix broken links...');
+    
+    const invalidArticles = sanitizedArticles.filter(article => 
+      !validArticles.some(valid => valid.link === article.link)
+    );
+
+    const fixedArticles: ParsedArticle[] = [];
+    
+    for (const article of invalidArticles.slice(0, 5)) { // Limit fixes to prevent spam
+      try {
+        const domain = new URL(article.link).hostname;
+        const fallbackUrl = getFallbackURL(article.link, domain);
+        
+        // Test the fallback URL
+        const fallbackValidation = await validateURLsBatch([fallbackUrl], { batchSize: 1 });
+        
+        if (fallbackValidation[0]?.isValid) {
+          console.log(`Fixed broken link: ${article.link} -> ${fallbackUrl}`);
+          fixedArticles.push({
+            ...article,
+            link: fallbackUrl
+          });
+        }
+      } catch {
+        console.log(`Could not fix URL for article: ${article.title}`);
+      }
+    }
+    
+    validArticles = [...validArticles, ...fixedArticles];
+  }
+
+  // Step 5: Log results
+  const removedCount = articles.length - validArticles.length;
+  if (removedCount > 0) {
+    console.log(`Removed ${removedCount} articles with broken or invalid URLs`);
+    
+    // Log some examples of removed URLs for debugging
+    const invalidResults = validationResults.filter(r => !r.isValid).slice(0, 3);
+    if (invalidResults.length > 0) {
+      console.log('Sample invalid URLs:');
+      invalidResults.forEach(result => {
+        console.log(`  - ${result.url}: ${result.error}`);
+      });
+    }
+  }
+
+  return validArticles;
 }
 
 export function deduplicateArticles(articles: ParsedArticle[]): ParsedArticle[] {

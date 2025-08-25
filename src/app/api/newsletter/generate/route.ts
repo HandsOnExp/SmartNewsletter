@@ -78,14 +78,22 @@ export async function POST(request: Request) {
     const timePeriod = userSettings?.preferences?.timePeriod || '24hours';
     // Don't require a minimum - use whatever articles are found in the time period
     const filterResult = filterArticlesByTimePeriod(uniqueArticles, timePeriod, 1); // Minimum of 1 article to avoid completely empty results
+    
     const sortedArticles = sortArticlesByDate(filterResult.articles);
+    
+    if (sortedArticles.length === 0) {
+      return NextResponse.json<APIResponse>({ 
+        success: false, 
+        error: 'No articles found after filtering' 
+      }, { status: 400 });
+    }
 
-    console.log(`Processing ${sortedArticles.length} unique articles (filtered by ${timePeriod}) to generate ${maxTopics} topics in ${language}`);
+    console.log(`Processing ${sortedArticles.length} articles (filtered by ${timePeriod}) to generate ${maxTopics} topics in ${language}`);
 
     // Step 4: Generate newsletter content
     console.log(`Generating ${maxTopics} newsletter topics with ${llmProvider} in ${language}...`);
     const generationResult = await generateNewsletterContent(sortedArticles, llmProvider, {
-      maxTopics,
+      maxTopics: Math.min(maxTopics, sortedArticles.length), // Don't request more topics than we have articles
       language
     });
 

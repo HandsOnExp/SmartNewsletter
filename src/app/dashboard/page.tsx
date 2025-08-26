@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NewsletterPreview } from '@/components/newsletter/NewsletterPreview';
 import { StatsCards } from '@/components/dashboard/StatsCards';
+import { DemoBanner } from '@/components/ui/demo-banner';
 
 import { NewsletterGenerationResponse, DashboardStats } from '@/types';
 import { NewsletterTopic } from '@/lib/ai-processors';
@@ -249,6 +250,15 @@ export default function Dashboard() {
           <p className="text-lg text-gray-400 mt-2">
             Welcome back, {user.firstName || user.emailAddresses[0].emailAddress}
           </p>
+        </motion.div>
+
+        {/* Demo Banner */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <DemoBanner />
         </motion.div>
 
         {/* Stats Cards */}

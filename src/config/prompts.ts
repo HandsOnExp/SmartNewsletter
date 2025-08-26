@@ -27,7 +27,7 @@ export const NEWSLETTER_PROMPTS = {
           "summary": "MUST be exactly 4-6 full sentences. Provide comprehensive coverage including: what happened, why it's significant, key technical details, and real-world implications. Do NOT use short sentences. Each sentence should be substantial and information-rich. Minimum 80 words total.",
           "keyTakeaway": "One sentence 'bottom line' insight",
           "imagePrompt": "Detailed prompt for image generation",
-          "sourceUrl": "Original article URL",
+          "sourceUrl": "MUST be the exact URL from one of the provided articles - never generate fake URLs",
           "category": "business|product|policy|security|research|technology|ai|analysis|enterprise|consumer|development|innovation|news"
         }
       ],
@@ -68,7 +68,7 @@ export const NEWSLETTER_PROMPTS = {
           "summary": "MUST be exactly 4-6 full sentences. Provide comprehensive coverage including: what happened, why it's significant, key technical details, and real-world implications. Do NOT use short sentences. Each sentence should be substantial and information-rich. Minimum 80 words total.",
           "keyTakeaway": "One sentence 'bottom line' insight",
           "imagePrompt": "Detailed prompt for image generation",
-          "sourceUrl": "Original article URL",
+          "sourceUrl": "MUST be the exact URL from one of the provided articles - never generate fake URLs",
           "category": "business|product|policy|security|research|technology|ai|analysis|enterprise|consumer|development|innovation|news"
         }
       ],
@@ -126,6 +126,8 @@ export function buildPrompt(
     🎯 TARGET: ${maxTopics} TOPICS (NOT 13, NOT 7, EXACTLY ${maxTopics})
     
     Analyze these recent AI developments and create a newsletter with EXACTLY ${maxTopics} topics.
+    
+    🔗 CRITICAL URL REQUIREMENT: For each topic, you MUST use the exact "link" field from one of the articles below. Do NOT create, modify, or generate any URLs. Only copy the exact URL from the "link" field of the articles provided.
     
     Articles to analyze:
     ${JSON.stringify(sortedArticles.map(a => ({

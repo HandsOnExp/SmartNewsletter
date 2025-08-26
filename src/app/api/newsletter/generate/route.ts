@@ -132,6 +132,40 @@ export async function POST(request: Request) {
 
     const newsletterData = generationResult.data;
 
+    // Step 4.5: Validate and fix URLs in newsletter topics
+    console.log('Validating URLs in generated newsletter content...');
+    const validArticleUrls = new Set(sortedArticles.map(article => article.link));
+    
+    // Check if any URLs in the newsletter don't exist in our original articles
+    let invalidUrls = 0;
+    const fixedTopics = newsletterData.topics.map(topic => {
+      if (!validArticleUrls.has(topic.sourceUrl)) {
+        console.warn(`Invalid URL detected in topic "${topic.headline}": ${topic.sourceUrl}`);
+        invalidUrls++;
+        
+        // Try to find a matching article by title similarity
+        const matchingArticle = sortedArticles.find(article => 
+          article.title.toLowerCase().includes(topic.headline.toLowerCase().split(' ')[0]) ||
+          topic.headline.toLowerCase().includes(article.title.toLowerCase().split(' ')[0])
+        );
+        
+        if (matchingArticle) {
+          console.log(`Fixed URL for topic "${topic.headline}": ${topic.sourceUrl} -> ${matchingArticle.link}`);
+          return { ...topic, sourceUrl: matchingArticle.link };
+        } else {
+          // Use the first available article as fallback
+          console.log(`Using fallback URL for topic "${topic.headline}": ${sortedArticles[0].link}`);
+          return { ...topic, sourceUrl: sortedArticles[0].link };
+        }
+      }
+      return topic;
+    });
+    
+    if (invalidUrls > 0) {
+      console.log(`Fixed ${invalidUrls} invalid URLs in newsletter`);
+      newsletterData.topics = fixedTopics;
+    }
+
     // Step 5: Save to database
     try {
       await connectDB();

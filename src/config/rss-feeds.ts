@@ -79,9 +79,9 @@ export const RSS_FEEDS = [
     enabled: true
   },
   {
-    id: 'google-ai-blog',
-    name: 'Google AI Blog',
-    url: 'https://ai.googleblog.com/feeds/posts/default',
+    id: 'openai-research',
+    name: 'OpenAI Research',
+    url: 'https://openai.com/research/rss.xml',
     category: 'research',
     priority: 10,
     enabled: true
@@ -149,9 +149,9 @@ export const RSS_FEEDS = [
     enabled: true
   },
   {
-    id: 'infoworld-ai',
-    name: 'InfoWorld AI',
-    url: 'https://www.infoworld.com/category/artificial-intelligence/rss',
+    id: 'computerworld-ai',
+    name: 'Computerworld AI',
+    url: 'https://www.computerworld.com/category/artificial-intelligence/rss',
     category: 'enterprise',
     priority: 16,
     enabled: true
@@ -221,9 +221,9 @@ export const RSS_FEEDS = [
     enabled: true
   },
   {
-    id: 'innovation-news',
-    name: 'Innovation Excellence',
-    url: 'https://www.innovationexcellence.com/feed/',
+    id: 'techcrunch-startups',
+    name: 'TechCrunch Startups',
+    url: 'https://techcrunch.com/category/startups/feed/',
     category: 'innovation',
     priority: 22,
     enabled: true

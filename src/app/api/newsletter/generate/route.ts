@@ -78,7 +78,11 @@ export async function POST(request: Request) {
     const validatedArticles = await processAndValidateArticles(allArticles, {
       validateURLs: true,
       fixBrokenLinks: true,
-      batchSize: 10
+      batchSize: 10,
+      skipValidationPatterns: [
+        // MIT Technology Review problematic URL patterns
+        'technologyreview\\.com/\\d{4}/\\d{2}/\\d{2}/[^/]+/$'
+      ]
     });
     
     const removedArticles = allArticles.length - validatedArticles.length;

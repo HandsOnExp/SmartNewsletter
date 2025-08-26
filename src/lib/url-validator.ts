@@ -50,7 +50,9 @@ export async function validateURL(url: string, options: ValidationOptions = {}):
     /\.pdf$/i,
     /localhost/,
     /127\.0\.0\.1/,
-    /\.local$/
+    /\.local$/,
+    // MIT Technology Review problematic URL patterns
+    /technologyreview\.com\/\d{4}\/\d{2}\/\d{2}\/[^\/]+\/$/
   ];
 
   if (skipPatterns.some(pattern => pattern.test(url))) {

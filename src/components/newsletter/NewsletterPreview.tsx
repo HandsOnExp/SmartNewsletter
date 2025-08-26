@@ -1,13 +1,10 @@
 'use client';
 
-import { useState } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Copy, Download, Send, Sparkles, ExternalLink, X, Mail, Loader2 } from 'lucide-react';
+import { Copy, Download, Sparkles, ExternalLink, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { NewsletterPreviewProps } from '@/types';
 
@@ -42,10 +39,6 @@ function getCategoryIcon(category: string): string {
 }
 
 export function NewsletterPreview({ data, onSave, onPublish, onClose }: NewsletterPreviewProps) {
-  const [showEmailDialog, setShowEmailDialog] = useState(false);
-  const [emailAddress, setEmailAddress] = useState('');
-  const [recipientName, setRecipientName] = useState('');
-  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   const copyToClipboard = async () => {
     try {
@@ -77,51 +70,6 @@ export function NewsletterPreview({ data, onSave, onPublish, onClose }: Newslett
     }
   };
 
-  const sendEmail = async () => {
-    if (!emailAddress.trim()) {
-      toast.error('Please enter a valid email address');
-      return;
-    }
-
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(emailAddress.trim())) {
-      toast.error('Please enter a valid email address');
-      return;
-    }
-
-    setIsSendingEmail(true);
-    
-    try {
-      const response = await fetch('/api/newsletter/send-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          newsletterData: data,
-          recipientEmail: emailAddress.trim(),
-          recipientName: recipientName.trim() || undefined,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        toast.success(`Newsletter sent successfully to ${emailAddress}!`);
-        setShowEmailDialog(false);
-        setEmailAddress('');
-        setRecipientName('');
-      } else {
-        toast.error(result.error || 'Failed to send email');
-      }
-    } catch (error) {
-      console.error('Email sending error:', error);
-      toast.error('Failed to send email. Please try again.');
-    } finally {
-      setIsSendingEmail(false);
-    }
-  };
 
   // Function to detect Hebrew content
   const isHebrewText = (text: string): boolean => {
@@ -183,15 +131,6 @@ export function NewsletterPreview({ data, onSave, onPublish, onClose }: Newslett
               <Download className="mr-2 h-4 w-4" />
               Download
             </Button>
-            <Button 
-              onClick={() => setShowEmailDialog(true)} 
-              variant="outline" 
-              size="sm" 
-              className="bg-orange-500/20 border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-white transition-colors"
-            >
-              <Mail className="mr-2 h-4 w-4" />
-              Email
-            </Button>
             {onSave && (
               <Button 
                 onClick={onSave} 
@@ -199,7 +138,7 @@ export function NewsletterPreview({ data, onSave, onPublish, onClose }: Newslett
                 size="sm" 
                 className="bg-yellow-500/20 border-yellow-500 text-yellow-400 hover:bg-yellow-500 hover:text-white transition-colors"
               >
-                <Send className="mr-2 h-4 w-4" />
+                <Sparkles className="mr-2 h-4 w-4" />
                 Save Draft
               </Button>
             )}
@@ -209,7 +148,7 @@ export function NewsletterPreview({ data, onSave, onPublish, onClose }: Newslett
                 size="sm" 
                 className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
               >
-                <Send className="mr-2 h-4 w-4" />
+                <Sparkles className="mr-2 h-4 w-4" />
                 Publish
               </Button>
             )}
@@ -474,105 +413,6 @@ export function NewsletterPreview({ data, onSave, onPublish, onClose }: Newslett
           </motion.div>
         </div>
       </CardContent>
-
-      {/* Email Dialog */}
-      {showEmailDialog && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-        >
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-800">Send Newsletter via Email</h3>
-              <Button
-                onClick={() => setShowEmailDialog(false)}
-                variant="ghost"
-                size="sm"
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="email" className="text-gray-700">
-                  Recipient Email Address *
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="recipient@example.com"
-                  value={emailAddress}
-                  onChange={(e) => setEmailAddress(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="name" className="text-gray-700">
-                  Recipient Name (optional)
-                </Label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="John Doe"
-                  value={recipientName}
-                  onChange={(e) => setRecipientName(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-              
-              <div className="bg-blue-50 p-3 rounded-lg">
-                <p className="text-sm text-blue-700">
-                  <strong>Newsletter:</strong> {data.newsletterTitle}
-                  <br />
-                  <strong>Topics:</strong> {data.topics.length} articles
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex gap-3 mt-6">
-              <Button
-                onClick={() => setShowEmailDialog(false)}
-                variant="outline"
-                className="flex-1"
-                disabled={isSendingEmail}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={sendEmail}
-                className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white"
-                disabled={isSendingEmail || !emailAddress.trim()}
-              >
-                {isSendingEmail ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Send className="mr-2 h-4 w-4" />
-                    Send Email
-                  </>
-                )}
-              </Button>
-            </div>
-            
-            <p className="text-xs text-gray-500 mt-4 text-center">
-              Note: This is a demo feature. In production, it would integrate with an email service provider.
-            </p>
-          </motion.div>
-        </motion.div>
-      )}
     </Card>
   );
 }

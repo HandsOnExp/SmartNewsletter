@@ -70,6 +70,22 @@ export const RSS_FEEDS = [
     priority: 8,
     enabled: true
   },
+  {
+    id: 'arxiv-ai',
+    name: 'ArXiv AI',
+    url: 'https://rss.arxiv.org/rss/cs.AI',
+    category: 'research',
+    priority: 9,
+    enabled: true
+  },
+  {
+    id: 'google-ai-blog',
+    name: 'Google AI Blog',
+    url: 'https://ai.googleblog.com/feeds/posts/default',
+    category: 'research',
+    priority: 10,
+    enabled: true
+  },
 
   // Analysis Category
   {
@@ -122,6 +138,22 @@ export const RSS_FEEDS = [
     url: 'https://www.enterpriseai.news/feed/',
     category: 'enterprise',
     priority: 14,
+    enabled: true
+  },
+  {
+    id: 'cio-ai',
+    name: 'CIO AI',
+    url: 'https://www.cio.com/feed/',
+    category: 'enterprise',
+    priority: 15,
+    enabled: true
+  },
+  {
+    id: 'infoworld-ai',
+    name: 'InfoWorld AI',
+    url: 'https://www.infoworld.com/category/artificial-intelligence/rss',
+    category: 'enterprise',
+    priority: 16,
     enabled: true
   },
 
@@ -194,6 +226,22 @@ export const RSS_FEEDS = [
     url: 'https://www.innovationexcellence.com/feed/',
     category: 'innovation',
     priority: 22,
+    enabled: true
+  },
+  {
+    id: 'techradar-ai',
+    name: 'TechRadar AI',
+    url: 'https://www.techradar.com/rss/news/computing/artificial-intelligence',
+    category: 'innovation',
+    priority: 23,
+    enabled: true
+  },
+  {
+    id: 'zdnet-innovation',
+    name: 'ZDNet Innovation',
+    url: 'https://www.zdnet.com/topic/innovation/rss.xml',
+    category: 'innovation',
+    priority: 24,
     enabled: true
   },
 

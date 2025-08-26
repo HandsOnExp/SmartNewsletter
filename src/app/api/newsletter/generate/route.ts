@@ -103,8 +103,9 @@ export async function POST(request: Request) {
     // Step 3: Deduplicate and filter articles by time period
     const uniqueArticles = deduplicateArticles(validatedArticles);
     const timePeriod = userSettings?.preferences?.timePeriod || '24hours';
-    // Don't require a minimum - use whatever articles are found in the time period
-    const filterResult = filterArticlesByTimePeriod(uniqueArticles, timePeriod, 1); // Minimum of 1 article to avoid completely empty results
+    // Require at least half the requested articles to use the strict time filter, otherwise fallback to longer periods
+    const minArticlesForStrict = Math.max(3, Math.ceil(maxArticles * 0.5)); // At least 3 articles or half of requested amount
+    const filterResult = filterArticlesByTimePeriod(uniqueArticles, timePeriod, minArticlesForStrict);
     
     const sortedArticles = sortArticlesByDate(filterResult.articles);
     

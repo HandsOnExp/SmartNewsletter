@@ -28,7 +28,7 @@ export const NEWSLETTER_PROMPTS = {
           "keyTakeaway": "One sentence 'bottom line' insight",
           "imagePrompt": "Detailed prompt for image generation",
           "sourceUrl": "Original article URL",
-          "category": "research|product|business|policy|security|fun"
+          "category": "business|product|policy|security|research|technology|ai|analysis|enterprise|consumer|development|innovation|news"
         }
       ],
       "conclusion": "Witty sign-off message"
@@ -69,7 +69,7 @@ export const NEWSLETTER_PROMPTS = {
           "keyTakeaway": "One sentence 'bottom line' insight",
           "imagePrompt": "Detailed prompt for image generation",
           "sourceUrl": "Original article URL",
-          "category": "research|product|business|policy|security|fun"
+          "category": "business|product|policy|security|research|technology|ai|analysis|enterprise|consumer|development|innovation|news"
         }
       ],
       "conclusion": "Witty sign-off message"

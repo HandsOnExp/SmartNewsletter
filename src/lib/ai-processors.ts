@@ -286,7 +286,7 @@ export async function generateImage(prompt: string): Promise<{ success: boolean;
       const encodedPrompt = encodeURIComponent(prompt.slice(0, 50));
       return {
         success: true,
-        imageUrl: `https://via.placeholder.com/800x400/667eea/ffffff?text=${encodedPrompt}`
+        imageUrl: `https://placehold.co/800x400/667eea/ffffff?text=${encodedPrompt}`
       };
     }
     
@@ -312,7 +312,7 @@ export async function generateImage(prompt: string): Promise<{ success: boolean;
     const encodedPrompt = encodeURIComponent(prompt.slice(0, 50));
     return {
       success: true,
-      imageUrl: `https://source.unsplash.com/800x400/?artificial-intelligence,technology,${encodedPrompt}`
+      imageUrl: `https://placehold.co/800x400/667eea/ffffff?text=${encodedPrompt}`
     };
     
   } catch (error) {
@@ -442,7 +442,7 @@ export async function generateNewsletterContent(
         newsletterData.topics.forEach((topic: NewsletterTopic) => {
           if (!topic.imageUrl) {
             const encodedHeadline = encodeURIComponent(topic.headline.slice(0, 30));
-            topic.imageUrl = `https://source.unsplash.com/800x400/?artificial-intelligence,technology,${encodedHeadline}`;
+            topic.imageUrl = `https://placehold.co/800x400/667eea/ffffff?text=${encodedHeadline}`;
           }
         });
       }
@@ -566,7 +566,7 @@ function validateAndRepairJSON(jsonString: string, language?: string): { success
   try {
     const parsed = JSON.parse(jsonString);
     return { success: true, data: parsed };
-  } catch (error) {
+  } catch {
     console.log('JSON validation failed, attempting repair...');
     
     let repairedJson = jsonString;

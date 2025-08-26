@@ -11,9 +11,10 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { sanitizeURL } from '@/lib/url-validator';
 import { Rss, Settings, Key, Bell, Save, Plus, Trash2, ArrowLeft, ExternalLink, X, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { RSS_FEEDS, type RSSFeed } from '@/config/rss-feeds';
-import { UserSettings, CustomRSSFeed, TimePeriod } from '@/types';
+import { UserSettings, CustomRSSFeed, TimePeriod, NewsletterCategory } from '@/types';
 import { TIME_PERIOD_OPTIONS } from '@/lib/rss-parser';
 
 export default function SettingsPage() {
@@ -26,8 +27,9 @@ export default function SettingsPage() {
     gemini: false
   });
   
-  const [feeds, setFeeds] = useState<RSSFeed[]>(RSS_FEEDS);
+  const [feeds, setFeeds] = useState<RSSFeed[]>([]);
   const [customFeeds, setCustomFeeds] = useState<CustomRSSFeed[]>([]);
+  const [deletedFeeds, setDeletedFeeds] = useState<string[]>([]);
   const [newFeedUrl, setNewFeedUrl] = useState('');
   const [newFeedName, setNewFeedName] = useState('');
   
@@ -41,9 +43,10 @@ export default function SettingsPage() {
     generateTime: '09:00',
     emailNotifications: true,
     llmPreference: 'cohere' as 'cohere' | 'gemini' | 'auto',
-    maxArticles: 7,
+    maxArticles: 5,
     language: 'english' as 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese',
-    timePeriod: '24hours' as TimePeriod
+    timePeriod: '24hours' as TimePeriod,
+    preferredCategories: ['business', 'product', 'technology'] as NewsletterCategory[]
   });
 
   // API Key management functions
@@ -99,47 +102,13 @@ export default function SettingsPage() {
           description: data.error
         });
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to test API key', {
         description: 'Network error or server unavailable'
       });
     } finally {
       setTestingKey({ provider: '', testing: false });
     }
-  };
-
-  useEffect(() => {
-    if (user) {
-      loadUserSettings();
-    }
-  }, [user]); // loadUserSettings is recreated on each render, which is fine for this use case
-
-  const getStorageKey = (userId: string) => `smart-newsletter-settings-${userId}`;
-
-  const saveToLocalStorage = (settings: UserSettings) => {
-    if (user && typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(getStorageKey(user.id), JSON.stringify({
-          ...settings,
-          lastSaved: new Date().toISOString()
-        }));
-      } catch (error) {
-        console.error('Failed to save to localStorage:', error);
-      }
-    }
-  };
-
-  const loadFromLocalStorage = (): UserSettings | null => {
-    if (user && typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem(getStorageKey(user.id));
-        return stored ? JSON.parse(stored) : null;
-      } catch (error) {
-        console.error('Failed to load from localStorage:', error);
-        return null;
-      }
-    }
-    return null;
   };
 
   const loadUserSettings = async () => {
@@ -186,6 +155,41 @@ export default function SettingsPage() {
     }
   };
 
+  useEffect(() => {
+    if (user) {
+      loadUserSettings();
+    }
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const getStorageKey = (userId: string) => `smart-newsletter-settings-${userId}`;
+
+  const saveToLocalStorage = (settings: UserSettings) => {
+    if (user && typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(getStorageKey(user.id), JSON.stringify({
+          ...settings,
+          lastSaved: new Date().toISOString()
+        }));
+      } catch (error) {
+        console.error('Failed to save to localStorage:', error);
+      }
+    }
+  };
+
+  const loadFromLocalStorage = (): UserSettings | null => {
+    if (user && typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(getStorageKey(user.id));
+        return stored ? JSON.parse(stored) : null;
+      } catch (error) {
+        console.error('Failed to load from localStorage:', error);
+        return null;
+      }
+    }
+    return null;
+  };
+
+
   const applySettings = (settings: UserSettings) => {
     setApiKeys(settings.apiKeys || { cohere: '', gemini: '' });
     setPreferences(settings.preferences || {
@@ -193,18 +197,24 @@ export default function SettingsPage() {
       generateTime: '09:00',
       emailNotifications: true,
       llmPreference: 'cohere',
-      maxArticles: 7,
+      maxArticles: 5,
       language: 'english',
-      timePeriod: '24hours'
+      timePeriod: '24hours',
+      preferredCategories: ['business', 'product', 'technology']
     });
     setCustomFeeds(settings.rssFeeds?.custom || []);
     
-    // Update feed enabled/disabled status
+    // Update feed enabled/disabled status and filter out deleted feeds
     const enabledIds = settings.rssFeeds?.enabled || [];
-    const updatedFeeds = RSS_FEEDS.map(feed => ({
-      ...feed,
-      enabled: enabledIds.includes(feed.id)
-    }));
+    const deletedIds = settings.rssFeeds?.deleted || [];
+    setDeletedFeeds(deletedIds);
+    
+    const updatedFeeds = RSS_FEEDS
+      .filter(feed => !deletedIds.includes(feed.id)) // Filter out deleted feeds
+      .map(feed => ({
+        ...feed,
+        enabled: enabledIds.includes(feed.id)
+      }));
     setFeeds(updatedFeeds);
   };
 
@@ -215,11 +225,13 @@ export default function SettingsPage() {
       generateTime: '09:00',
       emailNotifications: true,
       llmPreference: 'cohere',
-      maxArticles: 7,
+      maxArticles: 5,
       language: 'english',
-      timePeriod: '24hours'
+      timePeriod: '24hours',
+      preferredCategories: ['business', 'product', 'technology']
     });
     setCustomFeeds([]);
+    setDeletedFeeds([]);
     
     // All feeds disabled by default
     const updatedFeeds = RSS_FEEDS.map(feed => ({
@@ -241,10 +253,27 @@ export default function SettingsPage() {
       return;
     }
 
+    // Validate URL format
+    const sanitizedUrl = sanitizeURL(newFeedUrl);
+    
+    try {
+      new URL(sanitizedUrl);
+    } catch {
+      toast.error('Please enter a valid URL (e.g., https://example.com/feed.xml)');
+      return;
+    }
+
+    // Check if URL already exists
+    const urlExists = customFeeds.some(feed => feed.url === sanitizedUrl);
+    if (urlExists) {
+      toast.error('This RSS feed URL has already been added');
+      return;
+    }
+
     const newFeed: CustomRSSFeed = {
       id: `custom-${Date.now()}`,
       name: newFeedName,
-      url: newFeedUrl,
+      url: sanitizedUrl,
       category: 'custom',
       enabled: true
     };
@@ -256,8 +285,20 @@ export default function SettingsPage() {
   };
 
   const removeCustomFeed = (feedId: string) => {
-    setCustomFeeds(prev => prev.filter(feed => feed.id !== feedId));
-    toast.success('Custom feed removed');
+    const feed = customFeeds.find(f => f.id === feedId);
+    if (feed && confirm(`Are you sure you want to remove "${feed.name}"? This action cannot be undone.`)) {
+      setCustomFeeds(prev => prev.filter(feed => feed.id !== feedId));
+      toast.success('Custom feed removed');
+    }
+  };
+
+  const removeFeed = (feedId: string) => {
+    const feed = feeds.find(f => f.id === feedId);
+    if (feed && confirm(`Are you sure you want to remove "${feed.name}"? This action cannot be undone.`)) {
+      setFeeds(prev => prev.filter(feed => feed.id !== feedId));
+      setDeletedFeeds(prev => [...prev, feedId]); // Track deleted feed
+      toast.success('RSS feed removed');
+    }
   };
 
   const toggleCustomFeed = (feedId: string, enabled: boolean) => {
@@ -275,6 +316,7 @@ export default function SettingsPage() {
         rssFeeds: {
           enabled: feeds.filter(f => f.enabled).map(f => f.id),
           disabled: feeds.filter(f => !f.enabled).map(f => f.id),
+          deleted: deletedFeeds,
           custom: customFeeds
         }
       };
@@ -403,10 +445,20 @@ export default function SettingsPage() {
                         <p className="text-sm text-gray-400 capitalize">{feed.category}</p>
                         <p className="text-xs text-gray-500 mt-1">{feed.url}</p>
                       </div>
-                      <Switch 
-                        checked={!feed.enabled}
-                        onCheckedChange={(checked) => toggleFeed(feed.id, !checked)}
-                      />
+                      <div className="flex items-center gap-2">
+                        <Switch 
+                          checked={!feed.enabled}
+                          onCheckedChange={(checked) => toggleFeed(feed.id, !checked)}
+                        />
+                        <Button
+                          onClick={() => removeFeed(feed.id)}
+                          variant="outline"
+                          size="sm"
+                          className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </CardContent>
@@ -700,7 +752,7 @@ export default function SettingsPage() {
               <CardContent className="space-y-6">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <Label className="text-white">Newsletter Topics</Label>
+                    <Label className="text-white">Newsletter Articles</Label>
                     <span className="text-purple-400 font-semibold text-lg">
                       {preferences.maxArticles}
                     </span>
@@ -709,12 +761,12 @@ export default function SettingsPage() {
                     <input
                       type="range"
                       min="1"
-                      max="20"
+                      max="8"
                       value={preferences.maxArticles}
                       onChange={(e) => setPreferences({...preferences, maxArticles: parseInt(e.target.value)})}
                       className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
                       style={{
-                        background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${((preferences.maxArticles - 1) / 19) * 100}%, #374151 ${((preferences.maxArticles - 1) / 19) * 100}%, #374151 100%)`
+                        background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${((preferences.maxArticles - 1) / 7) * 100}%, #374151 ${((preferences.maxArticles - 1) / 7) * 100}%, #374151 100%)`
                       }}
                     />
                     <style jsx>{`
@@ -748,11 +800,11 @@ export default function SettingsPage() {
                   </div>
                   <div className="flex justify-between text-xs text-gray-400">
                     <span>1</span>
-                    <span>10</span>
-                    <span>20</span>
+                    <span>4</span>
+                    <span>8</span>
                   </div>
                   <p className="text-xs text-gray-500">
-                    Number of topics to include in each generated newsletter
+                    Number of articles to include in each generated newsletter
                   </p>
                 </div>
 
@@ -811,6 +863,83 @@ export default function SettingsPage() {
                   </Select>
                   <p className="text-xs text-gray-500">
                     Choose how far back to fetch articles from RSS feeds
+                  </p>
+                </div>
+
+                {/* Category Selection */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-white">Preferred Categories</Label>
+                    <span className="text-purple-400 text-sm font-medium">
+                      {preferences.preferredCategories.length}/3 selected
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-400">
+                    Select 1-3 categories that interest you. Only articles from these categories will appear in your newsletters.
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {([
+                      { value: 'business', label: 'Business', emoji: '💼' },
+                      { value: 'product', label: 'Product', emoji: '🚀' },
+                      { value: 'policy', label: 'Policy', emoji: '📋' },
+                      { value: 'security', label: 'Security', emoji: '🔒' },
+                      { value: 'research', label: 'Research', emoji: '🔬' },
+                      { value: 'technology', label: 'Technology', emoji: '⚡' },
+                      { value: 'ai', label: 'AI', emoji: '🤖' },
+                      { value: 'analysis', label: 'Analysis', emoji: '📊' },
+                      { value: 'enterprise', label: 'Enterprise', emoji: '🏢' },
+                      { value: 'consumer', label: 'Consumer', emoji: '🛍️' },
+                      { value: 'development', label: 'Development', emoji: '⚙️' },
+                      { value: 'innovation', label: 'Innovation', emoji: '💡' },
+                      { value: 'news', label: 'News', emoji: '📰' }
+                    ] as const).map((category) => {
+                      const isSelected = preferences.preferredCategories.includes(category.value as NewsletterCategory);
+                      const isDisabled = !isSelected && preferences.preferredCategories.length >= 3;
+                      
+                      return (
+                        <button
+                          key={category.value}
+                          onClick={() => {
+                            if (isSelected) {
+                              setPreferences({
+                                ...preferences,
+                                preferredCategories: preferences.preferredCategories.filter(c => c !== category.value)
+                              });
+                            } else if (!isDisabled) {
+                              setPreferences({
+                                ...preferences,
+                                preferredCategories: [...preferences.preferredCategories, category.value as NewsletterCategory]
+                              });
+                            }
+                          }}
+                          disabled={isDisabled}
+                          className={`
+                            relative p-3 rounded-lg border transition-all duration-200 text-left
+                            ${isSelected 
+                              ? 'bg-purple-600/20 border-purple-500 text-white' 
+                              : isDisabled
+                                ? 'bg-gray-800/30 border-gray-700 text-gray-500 cursor-not-allowed'
+                                : 'bg-gray-800/50 border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:border-gray-500'
+                            }
+                          `}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{category.emoji}</span>
+                            <span className="text-sm font-medium">{category.label}</span>
+                          </div>
+                          {isSelected && (
+                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
+                              <svg className="w-3 h-3 text-white" fill="none" strokeWidth="2" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"></path>
+                              </svg>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    You must select at least one category. Maximum 3 categories allowed per generation.
                   </p>
                 </div>
               </CardContent>

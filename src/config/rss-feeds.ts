@@ -88,8 +88,8 @@ export const RSS_FEEDS = [
   },
   {
     id: 'ai-tools',
-    name: 'There\'s An AI For That',
-    url: 'https://theresanaiforthat.com/feed/',
+    name: 'AI News',
+    url: 'https://artificialintelligence-news.com/feed/',
     category: 'product',
     priority: 11,
     enabled: true

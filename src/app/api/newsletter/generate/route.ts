@@ -87,7 +87,19 @@ export async function POST(request: Request) {
       .flatMap(result => result.articles.data)
       .filter(article => article.title && article.link); // Filter out invalid articles
 
+    console.log(`📊 ARTICLE PROCESSING SUMMARY:`);
     console.log(`Fetched ${allArticles.length} articles from ${feedResults.length} feeds`);
+    
+    // Show articles per feed for debugging
+    const articlesPerFeed = feedResults.map(result => ({
+      name: result.feed.name,
+      count: result.articles.success ? result.articles.data.length : 0,
+      success: result.articles.success
+    }));
+    
+    console.log(`Articles per feed:`, articlesPerFeed);
+    console.log(`Average articles per feed: ${Math.round(allArticles.length / feedResults.length)}`);
+    console.log(`Target final articles: ${maxArticles}`);
 
     if (allArticles.length === 0) {
       return NextResponse.json<APIResponse>({ 

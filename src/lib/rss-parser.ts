@@ -68,9 +68,17 @@ export async function fetchRSSFeed(url: string, feedName: string, timeoutMs: num
       categories?: string[];
     }[] };
     
+    // Limit articles per feed to prevent overwhelming the system
+    const MAX_ARTICLES_PER_FEED = 25;
+    const limitedItems = feed.items.slice(0, MAX_ARTICLES_PER_FEED);
+    
+    if (feed.items.length > MAX_ARTICLES_PER_FEED) {
+      console.log(`Limited ${feedName} from ${feed.items.length} to ${MAX_ARTICLES_PER_FEED} articles`);
+    }
+    
     const result = {
       success: true,
-      data: feed.items.map((item: {
+      data: limitedItems.map((item: {
         title?: string;
         link?: string;
         pubDate?: string;

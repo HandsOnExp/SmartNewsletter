@@ -202,6 +202,81 @@ export async function POST(request: Request) {
     } catch (dbError) {
       console.error('Database error:', dbError);
       
+      // If it's a category validation error, try to save with normalized categories
+      if (dbError instanceof Error && dbError.message.includes('category') && dbError.message.includes('not a valid enum value')) {
+        try {
+          console.log('Attempting to save newsletter with category fallbacks...');
+          const { validateAndNormalizeTopics } = await import('@/lib/category-manager');
+          const normalizedTopics = await validateAndNormalizeTopics(newsletterData.topics);
+          
+          const savedNewsletter = await createNewsletter({
+            userId,
+            title: newsletterData.newsletterTitle,
+            topics: normalizedTopics,
+            llmUsed: llmProvider,
+            introduction: newsletterData.introduction,
+            conclusion: newsletterData.conclusion,
+            stats: {
+              sourcesAnalyzed: sortedArticles.length,
+              generationTime: Date.now() - startTime
+            }
+          });
+          
+          console.log(`Newsletter saved with normalized categories: ${savedNewsletter._id}`);
+          
+          // Continue with success response
+          const generatedArticles = normalizedTopics.length;
+          let topicCountNotification = undefined;
+          
+          if (generatedArticles < maxArticles) {
+            topicCountNotification = {
+              requested: maxArticles,
+              generated: generatedArticles,
+              message: language === 'hebrew' 
+                ? `נוצרו ${generatedArticles} כתבות במקום ${maxArticles} שהוזמנו בגלל מחסור בכתבות עדכניות`
+                : `Generated ${generatedArticles} articles instead of ${maxArticles} requested due to insufficient recent articles`
+            };
+          }
+          
+          const response: NewsletterGenerationResponse = {
+            success: true,
+            newsletter: {
+              newsletterTitle: newsletterData.newsletterTitle,
+              newsletterDate: newsletterData.newsletterDate || new Date().toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              }),
+              introduction: newsletterData.introduction,
+              topics: normalizedTopics,
+              conclusion: newsletterData.conclusion
+            },
+            stats: {
+              articlesAnalyzed: sortedArticles.length,
+              generationTime: `${((Date.now() - startTime) / 1000).toFixed(1)}s`,
+              id: savedNewsletter._id.toString()
+            },
+            fallbackNotification: filterResult.usedFallback ? {
+              usedFallback: true,
+              originalPeriod: filterResult.originalPeriod,
+              fallbackPeriod: filterResult.fallbackPeriod,
+              message: filterResult.fallbackMessage
+            } : {
+              usedFallback: false,
+              originalPeriod: filterResult.originalPeriod
+            },
+            topicCountNotification
+          };
+          
+          return NextResponse.json(response);
+          
+        } catch (fallbackError) {
+          console.error('Fallback category normalization also failed:', fallbackError);
+          // Fall through to original error handling
+        }
+      }
+      
       // Check for article count notification even in error case
       const generatedArticles = newsletterData.topics.length;
       let topicCountNotification = undefined;

@@ -146,7 +146,7 @@ export const RSS_FEEDS = [
     url: 'https://www.cio.com/feed/',
     category: 'enterprise',
     priority: 15,
-    enabled: true
+    enabled: false // Disabled due to Korean language content and parsing errors
   },
   {
     id: 'computerworld-ai',
@@ -154,7 +154,7 @@ export const RSS_FEEDS = [
     url: 'https://www.computerworld.com/category/artificial-intelligence/rss',
     category: 'enterprise',
     priority: 16,
-    enabled: true
+    enabled: false // Disabled due to XML parsing errors and potential foreign language content
   },
 
   // Consumer Category

@@ -102,6 +102,7 @@ export async function GET() {
         rssFeeds: {
           enabled: [],
           disabled: RSS_FEEDS.map(feed => feed.id),
+          deleted: [],
           custom: []
         }
       };
@@ -168,6 +169,7 @@ export async function POST(request: Request) {
       rssFeeds: {
         enabled: rssFeeds?.enabled || [],
         disabled: rssFeeds?.disabled || [],
+        deleted: rssFeeds?.deleted || [],
         custom: rssFeeds?.custom || []
       }
     };

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { NewsletterTopic } from './ai-processors';
 import { encryptApiKeys, decryptApiKeys } from './crypto';
+import { validateAndNormalizeTopics } from './category-manager';
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -110,8 +111,15 @@ const NewsletterSchema = new mongoose.Schema({
     sourceUrl: { type: String },
     category: { 
       type: String, 
-      enum: ['research', 'product', 'business', 'policy', 'security', 'fun', 'health', 'technology', 'science', 'innovation', 'ai', 'machine-learning'],
-      default: 'research'
+      default: 'research',
+      // Remove enum restriction - allow any category and validate/normalize in application logic
+      validate: {
+        validator: function(v: string) {
+          // Allow any string category - we'll handle validation in the application layer
+          return typeof v === 'string' && v.length > 0;
+        },
+        message: 'Category must be a non-empty string'
+      }
     }
   }],
   conclusion: {
@@ -195,6 +203,7 @@ const UserSettingsSchema = new mongoose.Schema({
   rssFeeds: {
     enabled: [{ type: String }], // Array of feed IDs
     disabled: [{ type: String }],
+    deleted: [{ type: String }], // Array of permanently deleted feed IDs
     custom: [{
       id: String,
       name: String,
@@ -259,7 +268,14 @@ export async function createNewsletter(data: {
   };
 }) {
   await connectDB();
-  return await Newsletter.create(data);
+  
+  // Validate and normalize categories before saving
+  const normalizedTopics = await validateAndNormalizeTopics(data.topics);
+  
+  return await Newsletter.create({
+    ...data,
+    topics: normalizedTopics
+  });
 }
 
 export async function getUserNewsletters(userId: string, limit: number = 10) {

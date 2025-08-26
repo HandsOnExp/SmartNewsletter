@@ -79,6 +79,7 @@ export interface UserSettings {
   rssFeeds: {
     enabled: string[];
     disabled: string[];
+    deleted: string[];
     custom: CustomRSSFeed[];
   };
 }

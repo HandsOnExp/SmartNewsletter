@@ -27,8 +27,9 @@ export default function SettingsPage() {
     gemini: false
   });
   
-  const [feeds, setFeeds] = useState<RSSFeed[]>(RSS_FEEDS);
+  const [feeds, setFeeds] = useState<RSSFeed[]>([]);
   const [customFeeds, setCustomFeeds] = useState<CustomRSSFeed[]>([]);
+  const [deletedFeeds, setDeletedFeeds] = useState<string[]>([]);
   const [newFeedUrl, setNewFeedUrl] = useState('');
   const [newFeedName, setNewFeedName] = useState('');
   
@@ -203,12 +204,17 @@ export default function SettingsPage() {
     });
     setCustomFeeds(settings.rssFeeds?.custom || []);
     
-    // Update feed enabled/disabled status
+    // Update feed enabled/disabled status and filter out deleted feeds
     const enabledIds = settings.rssFeeds?.enabled || [];
-    const updatedFeeds = RSS_FEEDS.map(feed => ({
-      ...feed,
-      enabled: enabledIds.includes(feed.id)
-    }));
+    const deletedIds = settings.rssFeeds?.deleted || [];
+    setDeletedFeeds(deletedIds);
+    
+    const updatedFeeds = RSS_FEEDS
+      .filter(feed => !deletedIds.includes(feed.id)) // Filter out deleted feeds
+      .map(feed => ({
+        ...feed,
+        enabled: enabledIds.includes(feed.id)
+      }));
     setFeeds(updatedFeeds);
   };
 
@@ -225,6 +231,7 @@ export default function SettingsPage() {
       preferredCategories: ['business', 'product', 'technology']
     });
     setCustomFeeds([]);
+    setDeletedFeeds([]);
     
     // All feeds disabled by default
     const updatedFeeds = RSS_FEEDS.map(feed => ({
@@ -278,8 +285,20 @@ export default function SettingsPage() {
   };
 
   const removeCustomFeed = (feedId: string) => {
-    setCustomFeeds(prev => prev.filter(feed => feed.id !== feedId));
-    toast.success('Custom feed removed');
+    const feed = customFeeds.find(f => f.id === feedId);
+    if (feed && confirm(`Are you sure you want to remove "${feed.name}"? This action cannot be undone.`)) {
+      setCustomFeeds(prev => prev.filter(feed => feed.id !== feedId));
+      toast.success('Custom feed removed');
+    }
+  };
+
+  const removeFeed = (feedId: string) => {
+    const feed = feeds.find(f => f.id === feedId);
+    if (feed && confirm(`Are you sure you want to remove "${feed.name}"? This action cannot be undone.`)) {
+      setFeeds(prev => prev.filter(feed => feed.id !== feedId));
+      setDeletedFeeds(prev => [...prev, feedId]); // Track deleted feed
+      toast.success('RSS feed removed');
+    }
   };
 
   const toggleCustomFeed = (feedId: string, enabled: boolean) => {
@@ -297,6 +316,7 @@ export default function SettingsPage() {
         rssFeeds: {
           enabled: feeds.filter(f => f.enabled).map(f => f.id),
           disabled: feeds.filter(f => !f.enabled).map(f => f.id),
+          deleted: deletedFeeds,
           custom: customFeeds
         }
       };
@@ -425,10 +445,20 @@ export default function SettingsPage() {
                         <p className="text-sm text-gray-400 capitalize">{feed.category}</p>
                         <p className="text-xs text-gray-500 mt-1">{feed.url}</p>
                       </div>
-                      <Switch 
-                        checked={!feed.enabled}
-                        onCheckedChange={(checked) => toggleFeed(feed.id, !checked)}
-                      />
+                      <div className="flex items-center gap-2">
+                        <Switch 
+                          checked={!feed.enabled}
+                          onCheckedChange={(checked) => toggleFeed(feed.id, !checked)}
+                        />
+                        <Button
+                          onClick={() => removeFeed(feed.id)}
+                          variant="outline"
+                          size="sm"
+                          className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </CardContent>

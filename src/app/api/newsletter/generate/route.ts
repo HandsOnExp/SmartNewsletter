@@ -4,6 +4,7 @@ import { fetchAllFeeds, deduplicateArticles, sortArticlesByDate, filterArticlesB
 import { generateNewsletterContent, checkRateLimit } from '@/lib/ai-processors';
 import { RSS_FEEDS } from '@/config/rss-feeds';
 import { createNewsletter, connectDB, getUserSettings } from '@/lib/db';
+import { autoCleanupIfNeeded } from '@/lib/database-cleanup';
 import { APIResponse, NewsletterGenerationResponse, CustomRSSFeed, NewsletterCategory } from '@/types';
 
 export async function POST(request: Request) {
@@ -37,6 +38,11 @@ export async function POST(request: Request) {
 
     const startTime = Date.now();
     console.log(`Starting newsletter generation for user ${userId} with ${llmProvider}`);
+
+    // Auto-cleanup database if needed (runs in background)
+    autoCleanupIfNeeded().catch(error => 
+      console.log('Background cleanup failed:', error)
+    );
 
     // Step 1: Get enabled RSS feeds based on preferred categories
     const customFeeds = userSettings?.rssFeeds?.custom || [];

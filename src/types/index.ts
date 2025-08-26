@@ -58,7 +58,7 @@ export interface TimePeriodOption {
 }
 
 // User Settings Types
-export type NewsletterCategory = 'business' | 'product' | 'policy' | 'security' | 'research' | 'technology' | 'ai' | 'analysis' | 'enterprise' | 'consumer' | 'development' | 'innovation' | 'news';
+export type NewsletterCategory = 'business' | 'product' | 'policy' | 'security' | 'research' | 'technology' | 'analysis' | 'enterprise' | 'consumer' | 'development' | 'innovation' | 'news';
 
 export interface UserSettings {
   userId: string;

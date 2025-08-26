@@ -185,7 +185,7 @@ export async function POST(request: Request) {
 
     // Step 4.6: Map AI-generated categories to standard categories (but preserve diversity)
     // Create a mapping from various category names to standard ones
-    type ValidCategory = 'research' | 'product' | 'business' | 'policy' | 'fun' | 'security' | 'technology' | 'development' | 'enterprise' | 'consumer' | 'analysis' | 'innovation' | 'ai';
+    type ValidCategory = 'research' | 'product' | 'business' | 'policy' | 'fun' | 'security' | 'technology' | 'development' | 'enterprise' | 'consumer' | 'analysis' | 'innovation';
     const categoryMapping: Record<string, ValidCategory> = {
       // Hebrew mappings
       'פיתוח': 'development',
@@ -195,7 +195,6 @@ export async function POST(request: Request) {
       'עסקים': 'business',
       'טכנולוגיה': 'technology',
       'מחקר': 'research',
-      'בינה מלאכותית': 'ai',
       // English mappings (in case AI uses English)
       'development': 'development',
       'security': 'security',
@@ -208,7 +207,6 @@ export async function POST(request: Request) {
       'consumer': 'consumer',
       'analysis': 'analysis',
       'innovation': 'innovation',
-      'ai': 'ai'
     };
 
     console.log('Mapping AI-generated categories to standard categories...');

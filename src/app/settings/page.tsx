@@ -885,7 +885,6 @@ export default function SettingsPage() {
                       { value: 'security', label: 'Security', emoji: '🔒' },
                       { value: 'research', label: 'Research', emoji: '🔬' },
                       { value: 'technology', label: 'Technology', emoji: '⚡' },
-                      { value: 'ai', label: 'AI', emoji: '🤖' },
                       { value: 'analysis', label: 'Analysis', emoji: '📊' },
                       { value: 'enterprise', label: 'Enterprise', emoji: '🏢' },
                       { value: 'consumer', label: 'Consumer', emoji: '🛍️' },

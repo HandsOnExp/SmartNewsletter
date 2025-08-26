@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     // Fetch user settings for preferences
     const userSettings = await getUserSettings(userId);
     const llmProvider = requestedProvider || userSettings?.preferences?.llmPreference || 'cohere';
-    const maxTopics = userSettings?.preferences?.maxArticles || 3; // maxArticles now controls number of topics
+    const maxArticles = userSettings?.preferences?.maxArticles || 5; // maxArticles controls number of articles
     const language = userSettings?.preferences?.language || 'english';
     const preferredCategories = userSettings?.preferences?.preferredCategories || ['business', 'product', 'technology'];
 
@@ -115,12 +115,12 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    console.log(`Processing ${sortedArticles.length} articles (filtered by ${timePeriod}) to generate ${maxTopics} topics in ${language}`);
+    console.log(`Processing ${sortedArticles.length} articles (filtered by ${timePeriod}) to generate ${maxArticles} articles in ${language}`);
 
     // Step 4: Generate newsletter content
-    console.log(`Generating ${maxTopics} newsletter topics with ${llmProvider} in ${language}...`);
+    console.log(`Generating ${maxArticles} newsletter articles with ${llmProvider} in ${language}...`);
     const generationResult = await generateNewsletterContent(sortedArticles, llmProvider, {
-      maxTopics: Math.min(maxTopics, sortedArticles.length), // Don't request more topics than we have articles
+      maxTopics: Math.min(maxArticles, sortedArticles.length), // Don't request more articles than we have
       language
     });
 
@@ -152,19 +152,19 @@ export async function POST(request: Request) {
 
       console.log(`Newsletter saved with ID: ${savedNewsletter._id}`);
 
-      // Step 6: Check for topic count notification
-      const generatedTopics = newsletterData.topics.length;
+      // Step 6: Check for article count notification
+      const generatedArticles = newsletterData.topics.length;
       let topicCountNotification = undefined;
       
-      if (generatedTopics < maxTopics) {
+      if (generatedArticles < maxArticles) {
         topicCountNotification = {
-          requested: maxTopics,
-          generated: generatedTopics,
+          requested: maxArticles,
+          generated: generatedArticles,
           message: language === 'hebrew' 
-            ? `נוצרו ${generatedTopics} נושאים במקום ${maxTopics} שהוזמנו בגלל מחסור בכתבות עדכניות`
-            : `Generated ${generatedTopics} topics instead of ${maxTopics} requested due to insufficient recent articles`
+            ? `נוצרו ${generatedArticles} כתבות במקום ${maxArticles} שהוזמנו בגלל מחסור בכתבות עדכניות`
+            : `Generated ${generatedArticles} articles instead of ${maxArticles} requested due to insufficient recent articles`
         };
-        console.log(`Topic count notification: Generated ${generatedTopics} topics instead of ${maxTopics} requested`);
+        console.log(`Article count notification: Generated ${generatedArticles} articles instead of ${maxArticles} requested`);
       }
 
       // Step 7: Return successful response
@@ -204,17 +204,17 @@ export async function POST(request: Request) {
     } catch (dbError) {
       console.error('Database error:', dbError);
       
-      // Check for topic count notification even in error case
-      const generatedTopics = newsletterData.topics.length;
+      // Check for article count notification even in error case
+      const generatedArticles = newsletterData.topics.length;
       let topicCountNotification = undefined;
       
-      if (generatedTopics < maxTopics) {
+      if (generatedArticles < maxArticles) {
         topicCountNotification = {
-          requested: maxTopics,
-          generated: generatedTopics,
+          requested: maxArticles,
+          generated: generatedArticles,
           message: language === 'hebrew' 
-            ? `נוצרו ${generatedTopics} נושאים במקום ${maxTopics} שהוזמנו בגלל מחסור בכתבות עדכניות`
-            : `Generated ${generatedTopics} topics instead of ${maxTopics} requested due to insufficient recent articles`
+            ? `נוצרו ${generatedArticles} כתבות במקום ${maxArticles} שהוזמנו בגלל מחסור בכתבות עדכניות`
+            : `Generated ${generatedArticles} articles instead of ${maxArticles} requested due to insufficient recent articles`
         };
       }
       

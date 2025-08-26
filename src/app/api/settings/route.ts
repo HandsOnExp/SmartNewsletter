@@ -94,7 +94,7 @@ export async function GET() {
           generateTime: '09:00',
           emailNotifications: true,
           llmPreference: 'cohere' as const,
-          maxArticles: 3,
+          maxArticles: 5,
           language: 'english' as const,
           timePeriod: '24hours' as const,
           preferredCategories: ['business', 'product', 'technology'] as const
@@ -160,7 +160,7 @@ export async function POST(request: Request) {
         generateTime: preferences?.generateTime || '09:00',
         emailNotifications: preferences?.emailNotifications !== false, // Default to true
         llmPreference: preferences?.llmPreference || 'cohere',
-        maxArticles: preferences?.maxArticles || 3,
+        maxArticles: preferences?.maxArticles || 5,
         language: preferences?.language || 'english',
         timePeriod: preferences?.timePeriod || '24hours',
         preferredCategories: preferences?.preferredCategories || ['business', 'product', 'technology']

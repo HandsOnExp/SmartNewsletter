@@ -42,7 +42,7 @@ export default function SettingsPage() {
     generateTime: '09:00',
     emailNotifications: true,
     llmPreference: 'cohere' as 'cohere' | 'gemini' | 'auto',
-    maxArticles: 3,
+    maxArticles: 5,
     language: 'english' as 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese',
     timePeriod: '24hours' as TimePeriod,
     preferredCategories: ['business', 'product', 'technology'] as NewsletterCategory[]
@@ -196,7 +196,7 @@ export default function SettingsPage() {
       generateTime: '09:00',
       emailNotifications: true,
       llmPreference: 'cohere',
-      maxArticles: 3,
+      maxArticles: 5,
       language: 'english',
       timePeriod: '24hours',
       preferredCategories: ['business', 'product', 'technology']
@@ -219,7 +219,7 @@ export default function SettingsPage() {
       generateTime: '09:00',
       emailNotifications: true,
       llmPreference: 'cohere',
-      maxArticles: 3,
+      maxArticles: 5,
       language: 'english',
       timePeriod: '24hours',
       preferredCategories: ['business', 'product', 'technology']
@@ -722,7 +722,7 @@ export default function SettingsPage() {
               <CardContent className="space-y-6">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <Label className="text-white">Newsletter Topics</Label>
+                    <Label className="text-white">Newsletter Articles</Label>
                     <span className="text-purple-400 font-semibold text-lg">
                       {preferences.maxArticles}
                     </span>
@@ -731,12 +731,12 @@ export default function SettingsPage() {
                     <input
                       type="range"
                       min="1"
-                      max="3"
+                      max="8"
                       value={preferences.maxArticles}
                       onChange={(e) => setPreferences({...preferences, maxArticles: parseInt(e.target.value)})}
                       className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
                       style={{
-                        background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${((preferences.maxArticles - 1) / 2) * 100}%, #374151 ${((preferences.maxArticles - 1) / 2) * 100}%, #374151 100%)`
+                        background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${((preferences.maxArticles - 1) / 7) * 100}%, #374151 ${((preferences.maxArticles - 1) / 7) * 100}%, #374151 100%)`
                       }}
                     />
                     <style jsx>{`
@@ -770,11 +770,11 @@ export default function SettingsPage() {
                   </div>
                   <div className="flex justify-between text-xs text-gray-400">
                     <span>1</span>
-                    <span>2</span>
-                    <span>3</span>
+                    <span>4</span>
+                    <span>8</span>
                   </div>
                   <p className="text-xs text-gray-500">
-                    Number of topics to include in each generated newsletter
+                    Number of articles to include in each generated newsletter
                   </p>
                 </div>
 

@@ -1,21 +1,4 @@
 export const RSS_FEEDS = [
-  // AI Category
-  {
-    id: 'rundown-ai',
-    name: 'The Rundown AI',
-    url: 'https://rss.beehiiv.com/feeds/2R3C6Bt5wj.xml',
-    category: 'ai',
-    priority: 1,
-    enabled: true
-  },
-  {
-    id: 'import-ai',
-    name: 'Import AI',
-    url: 'https://importai.substack.com/feed',
-    category: 'ai',
-    priority: 2,
-    enabled: true
-  },
 
   // Business Category
   {
@@ -27,9 +10,9 @@ export const RSS_FEEDS = [
     enabled: true
   },
   {
-    id: 'business-insider-ai',
-    name: 'Business Insider AI',
-    url: 'https://www.businessinsider.com/sai/rss',
+    id: 'fortune-tech',
+    name: 'Fortune Technology',
+    url: 'https://fortune.com/section/tech/feed/',
     category: 'business',
     priority: 4,
     enabled: true
@@ -37,17 +20,17 @@ export const RSS_FEEDS = [
 
   // Technology Category  
   {
-    id: 'ars-technica',
-    name: 'Ars Technica',
-    url: 'https://feeds.arstechnica.com/arstechnica/index',
+    id: 'the-verge',
+    name: 'The Verge',
+    url: 'https://www.theverge.com/rss/index.xml',
     category: 'technology',
     priority: 5,
     enabled: true
   },
   {
-    id: 'wired-ai',
-    name: 'Wired AI',
-    url: 'https://www.wired.com/feed/tag/ai/latest/rss',
+    id: 'ieee-spectrum',
+    name: 'IEEE Spectrum',
+    url: 'https://spectrum.ieee.org/rss',
     category: 'technology',
     priority: 6,
     enabled: true
@@ -79,11 +62,19 @@ export const RSS_FEEDS = [
     enabled: true
   },
   {
-    id: 'openai-research',
-    name: 'OpenAI Research',
-    url: 'https://openai.com/research/rss.xml',
+    id: 'google-ai-blog',
+    name: 'Google AI Blog',
+    url: 'https://ai.googleblog.com/feeds/posts/default',
     category: 'research',
     priority: 10,
+    enabled: true
+  },
+  {
+    id: 'openai-blog',
+    name: 'OpenAI Blog',
+    url: 'https://openai.com/blog/rss.xml',
+    category: 'research',
+    priority: 11,
     enabled: true
   },
 
@@ -255,21 +246,37 @@ export const RSS_FEEDS = [
     enabled: true
   },
   {
-    id: 'future-of-humanity',
-    name: 'Future of Humanity Institute',
-    url: 'https://www.fhi.ox.ac.uk/feed/',
+    id: 'ai-policy-institute',
+    name: 'AI Policy Institute',
+    url: 'https://www.aipolicyinstitute.org/feed/',
     category: 'policy',
     priority: 24,
+    enabled: true
+  },
+  {
+    id: 'governance-ai',
+    name: 'Governance AI',
+    url: 'https://www.governance.ai/feed/',
+    category: 'policy',
+    priority: 25,
     enabled: true
   },
 
   // News Category
   {
-    id: 'reuters-ai',
-    name: 'Reuters AI',
-    url: 'https://www.reuters.com/technology/artificial-intelligence/rss',
+    id: 'ap-technology',
+    name: 'Associated Press Technology',
+    url: 'https://apnews.com/rss/Technology',
     category: 'news',
     priority: 25,
+    enabled: true
+  },
+  {
+    id: 'ai-news',
+    name: 'AI News',
+    url: 'https://artificialintelligence-news.com/feed/',
+    category: 'news',
+    priority: 26,
     enabled: true
   },
   {
@@ -277,7 +284,189 @@ export const RSS_FEEDS = [
     name: 'BBC Technology',
     url: 'https://feeds.bbci.co.uk/news/technology/rss.xml',
     category: 'news',
-    priority: 26,
+    priority: 27,
+    enabled: true
+  },
+
+  // Additional feeds for better category coverage
+  
+  // More Business feeds
+  {
+    id: 'wsj-tech',
+    name: 'Wall Street Journal Tech',
+    url: 'https://feeds.a.dj.com/rss/RSSWSJD.xml',
+    category: 'business',
+    priority: 28,
+    enabled: true
+  },
+  {
+    id: 'bloomberg-tech',
+    name: 'Bloomberg Technology',
+    url: 'https://feeds.bloomberg.com/technology/news.rss',
+    category: 'business',
+    priority: 29,
+    enabled: true
+  },
+
+  // More Technology feeds
+  {
+    id: 'engadget',
+    name: 'Engadget',
+    url: 'https://www.engadget.com/rss.xml',
+    category: 'technology',
+    priority: 30,
+    enabled: true
+  },
+  {
+    id: 'techspot',
+    name: 'TechSpot',
+    url: 'https://www.techspot.com/backend/headlines/rss/',
+    category: 'technology',
+    priority: 31,
+    enabled: true
+  },
+
+  // More Research feeds
+  {
+    id: 'deepmind-blog',
+    name: 'DeepMind Blog',
+    url: 'https://deepmind.com/blog/feed/basic/',
+    category: 'research',
+    priority: 32,
+    enabled: true
+  },
+  {
+    id: 'distill-pub',
+    name: 'Distill',
+    url: 'https://distill.pub/rss.xml',
+    category: 'research',
+    priority: 33,
+    enabled: true
+  },
+
+  // More Product feeds
+  {
+    id: 'product-coalition',
+    name: 'Product Coalition',
+    url: 'https://productcoalition.com/feed',
+    category: 'product',
+    priority: 34,
+    enabled: true
+  },
+  {
+    id: 'first-round-review',
+    name: 'First Round Review',
+    url: 'https://review.firstround.com/rss',
+    category: 'product',
+    priority: 35,
+    enabled: true
+  },
+
+  // More Security feeds
+  {
+    id: 'krebs-security',
+    name: 'Krebs on Security',
+    url: 'https://krebsonsecurity.com/feed/',
+    category: 'security',
+    priority: 36,
+    enabled: true
+  },
+  {
+    id: 'threatpost',
+    name: 'Threatpost',
+    url: 'https://threatpost.com/feed/',
+    category: 'security',
+    priority: 37,
+    enabled: true
+  },
+
+  // More Development feeds
+  {
+    id: 'github-blog',
+    name: 'GitHub Blog',
+    url: 'https://github.blog/feed/',
+    category: 'development',
+    priority: 38,
+    enabled: true
+  },
+  {
+    id: 'stack-overflow-blog',
+    name: 'Stack Overflow Blog',
+    url: 'https://stackoverflow.blog/feed/',
+    category: 'development',
+    priority: 39,
+    enabled: true
+  },
+
+  // More Analysis feeds
+  {
+    id: 'a16z-future',
+    name: 'Andreessen Horowitz Future',
+    url: 'https://future.a16z.com/feed/',
+    category: 'analysis',
+    priority: 40,
+    enabled: true
+  },
+  {
+    id: 'cb-insights',
+    name: 'CB Insights',
+    url: 'https://www.cbinsights.com/research/rss',
+    category: 'analysis',
+    priority: 41,
+    enabled: true
+  },
+
+  // More Enterprise feeds
+  {
+    id: 'harvard-business-review-tech',
+    name: 'Harvard Business Review Tech',
+    url: 'https://feeds.hbr.org/harvardbusiness/technology',
+    category: 'enterprise',
+    priority: 42,
+    enabled: true
+  },
+  {
+    id: 'mit-sloan-tech',
+    name: 'MIT Sloan Management Review Tech',
+    url: 'https://sloanreview.mit.edu/topic/technology/feed/',
+    category: 'enterprise',
+    priority: 43,
+    enabled: true
+  },
+
+  // More Consumer feeds
+  {
+    id: 'pcworld',
+    name: 'PCWorld',
+    url: 'https://www.pcworld.com/index.rss',
+    category: 'consumer',
+    priority: 44,
+    enabled: true
+  },
+  {
+    id: 'cnet',
+    name: 'CNET',
+    url: 'https://www.cnet.com/rss/news/',
+    category: 'consumer',
+    priority: 45,
+    enabled: true
+  },
+
+  // More Innovation feeds
+  {
+    id: 'singularity-hub',
+    name: 'Singularity Hub',
+    url: 'https://singularityhub.com/feed/',
+    category: 'innovation',
+    priority: 46,
+    enabled: true
+  },
+  {
+    id: 'next-big-future',
+    name: 'Next Big Future',
+    url: 'https://www.nextbigfuture.com/feed',
+    category: 'innovation',
+    priority: 47,
     enabled: true
   }
 ];

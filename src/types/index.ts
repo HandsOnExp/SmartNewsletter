@@ -58,6 +58,8 @@ export interface TimePeriodOption {
 }
 
 // User Settings Types
+export type NewsletterCategory = 'business' | 'product' | 'policy' | 'security' | 'research' | 'technology' | 'ai' | 'analysis' | 'enterprise' | 'consumer' | 'development' | 'innovation' | 'news';
+
 export interface UserSettings {
   userId: string;
   apiKeys: {
@@ -72,6 +74,7 @@ export interface UserSettings {
     maxArticles: number;
     language: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
     timePeriod: TimePeriod;
+    preferredCategories: NewsletterCategory[];
   };
   rssFeeds: {
     enabled: string[];

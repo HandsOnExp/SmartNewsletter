@@ -94,9 +94,10 @@ export async function GET() {
           generateTime: '09:00',
           emailNotifications: true,
           llmPreference: 'cohere' as const,
-          maxArticles: 7,
+          maxArticles: 3,
           language: 'english' as const,
-          timePeriod: '24hours' as const
+          timePeriod: '24hours' as const,
+          preferredCategories: ['business', 'product', 'technology'] as const
         },
         rssFeeds: {
           enabled: [],
@@ -159,9 +160,10 @@ export async function POST(request: Request) {
         generateTime: preferences?.generateTime || '09:00',
         emailNotifications: preferences?.emailNotifications !== false, // Default to true
         llmPreference: preferences?.llmPreference || 'cohere',
-        maxArticles: preferences?.maxArticles || 7,
+        maxArticles: preferences?.maxArticles || 3,
         language: preferences?.language || 'english',
-        timePeriod: preferences?.timePeriod || '24hours'
+        timePeriod: preferences?.timePeriod || '24hours',
+        preferredCategories: preferences?.preferredCategories || ['business', 'product', 'technology']
       },
       rssFeeds: {
         enabled: rssFeeds?.enabled || [],

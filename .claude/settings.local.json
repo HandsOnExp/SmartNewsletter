@@ -50,7 +50,8 @@
       "mcp__playwright__browser_wait_for",
       "mcp__playwright__browser_type",
       "mcp__playwright__browser_press_key",
-      "mcp__playwright__browser_resize"
+      "mcp__playwright__browser_resize",
+      "WebFetch(domain:fastly.picsum.photos)"
     ],
     "deny": [],
     "ask": []

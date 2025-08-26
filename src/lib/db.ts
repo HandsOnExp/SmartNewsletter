@@ -185,6 +185,11 @@ const UserSettingsSchema = new mongoose.Schema({
       type: String,
       enum: ['1hour', '6hours', '12hours', '24hours', '3days', '1week', '1month'],
       default: '24hours'
+    },
+    preferredCategories: {
+      type: [String],
+      enum: ['business', 'product', 'policy', 'security', 'research', 'technology', 'ai', 'analysis', 'enterprise', 'consumer', 'development', 'innovation', 'news'],
+      default: ['business', 'product', 'technology']
     }
   },
   rssFeeds: {

@@ -13,6 +13,9 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  experimental: {
+    optimizePackageImports: ['rss-parser', 'cheerio'],
+  },
 };
 
 export default nextConfig;

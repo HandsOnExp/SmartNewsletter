@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { sanitizeURL } from '@/lib/url-validator';
 import { Rss, Settings, Key, Bell, Save, Plus, Trash2, ArrowLeft, ExternalLink, X, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { RSS_FEEDS, type RSSFeed } from '@/config/rss-feeds';
-import { UserSettings, CustomRSSFeed, TimePeriod } from '@/types';
+import { UserSettings, CustomRSSFeed, TimePeriod, NewsletterCategory } from '@/types';
 import { TIME_PERIOD_OPTIONS } from '@/lib/rss-parser';
 
 export default function SettingsPage() {
@@ -42,9 +42,10 @@ export default function SettingsPage() {
     generateTime: '09:00',
     emailNotifications: true,
     llmPreference: 'cohere' as 'cohere' | 'gemini' | 'auto',
-    maxArticles: 7,
+    maxArticles: 3,
     language: 'english' as 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese',
-    timePeriod: '24hours' as TimePeriod
+    timePeriod: '24hours' as TimePeriod,
+    preferredCategories: ['business', 'product', 'technology'] as NewsletterCategory[]
   });
 
   // API Key management functions
@@ -195,9 +196,10 @@ export default function SettingsPage() {
       generateTime: '09:00',
       emailNotifications: true,
       llmPreference: 'cohere',
-      maxArticles: 7,
+      maxArticles: 3,
       language: 'english',
-      timePeriod: '24hours'
+      timePeriod: '24hours',
+      preferredCategories: ['business', 'product', 'technology']
     });
     setCustomFeeds(settings.rssFeeds?.custom || []);
     
@@ -217,9 +219,10 @@ export default function SettingsPage() {
       generateTime: '09:00',
       emailNotifications: true,
       llmPreference: 'cohere',
-      maxArticles: 7,
+      maxArticles: 3,
       language: 'english',
-      timePeriod: '24hours'
+      timePeriod: '24hours',
+      preferredCategories: ['business', 'product', 'technology']
     });
     setCustomFeeds([]);
     
@@ -728,12 +731,12 @@ export default function SettingsPage() {
                     <input
                       type="range"
                       min="1"
-                      max="20"
+                      max="3"
                       value={preferences.maxArticles}
                       onChange={(e) => setPreferences({...preferences, maxArticles: parseInt(e.target.value)})}
                       className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer"
                       style={{
-                        background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${((preferences.maxArticles - 1) / 19) * 100}%, #374151 ${((preferences.maxArticles - 1) / 19) * 100}%, #374151 100%)`
+                        background: `linear-gradient(to right, #8b5cf6 0%, #8b5cf6 ${((preferences.maxArticles - 1) / 2) * 100}%, #374151 ${((preferences.maxArticles - 1) / 2) * 100}%, #374151 100%)`
                       }}
                     />
                     <style jsx>{`
@@ -767,8 +770,8 @@ export default function SettingsPage() {
                   </div>
                   <div className="flex justify-between text-xs text-gray-400">
                     <span>1</span>
-                    <span>10</span>
-                    <span>20</span>
+                    <span>2</span>
+                    <span>3</span>
                   </div>
                   <p className="text-xs text-gray-500">
                     Number of topics to include in each generated newsletter
@@ -830,6 +833,83 @@ export default function SettingsPage() {
                   </Select>
                   <p className="text-xs text-gray-500">
                     Choose how far back to fetch articles from RSS feeds
+                  </p>
+                </div>
+
+                {/* Category Selection */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-white">Preferred Categories</Label>
+                    <span className="text-purple-400 text-sm font-medium">
+                      {preferences.preferredCategories.length}/3 selected
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-400">
+                    Select 1-3 categories that interest you. Only articles from these categories will appear in your newsletters.
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {([
+                      { value: 'business', label: 'Business', emoji: '💼' },
+                      { value: 'product', label: 'Product', emoji: '🚀' },
+                      { value: 'policy', label: 'Policy', emoji: '📋' },
+                      { value: 'security', label: 'Security', emoji: '🔒' },
+                      { value: 'research', label: 'Research', emoji: '🔬' },
+                      { value: 'technology', label: 'Technology', emoji: '⚡' },
+                      { value: 'ai', label: 'AI', emoji: '🤖' },
+                      { value: 'analysis', label: 'Analysis', emoji: '📊' },
+                      { value: 'enterprise', label: 'Enterprise', emoji: '🏢' },
+                      { value: 'consumer', label: 'Consumer', emoji: '🛍️' },
+                      { value: 'development', label: 'Development', emoji: '⚙️' },
+                      { value: 'innovation', label: 'Innovation', emoji: '💡' },
+                      { value: 'news', label: 'News', emoji: '📰' }
+                    ] as const).map((category) => {
+                      const isSelected = preferences.preferredCategories.includes(category.value as NewsletterCategory);
+                      const isDisabled = !isSelected && preferences.preferredCategories.length >= 3;
+                      
+                      return (
+                        <button
+                          key={category.value}
+                          onClick={() => {
+                            if (isSelected) {
+                              setPreferences({
+                                ...preferences,
+                                preferredCategories: preferences.preferredCategories.filter(c => c !== category.value)
+                              });
+                            } else if (!isDisabled) {
+                              setPreferences({
+                                ...preferences,
+                                preferredCategories: [...preferences.preferredCategories, category.value as NewsletterCategory]
+                              });
+                            }
+                          }}
+                          disabled={isDisabled}
+                          className={`
+                            relative p-3 rounded-lg border transition-all duration-200 text-left
+                            ${isSelected 
+                              ? 'bg-purple-600/20 border-purple-500 text-white' 
+                              : isDisabled
+                                ? 'bg-gray-800/30 border-gray-700 text-gray-500 cursor-not-allowed'
+                                : 'bg-gray-800/50 border-gray-600 text-gray-300 hover:bg-gray-700/50 hover:border-gray-500'
+                            }
+                          `}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{category.emoji}</span>
+                            <span className="text-sm font-medium">{category.label}</span>
+                          </div>
+                          {isSelected && (
+                            <div className="absolute -top-1 -right-1 w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center">
+                              <svg className="w-3 h-3 text-white" fill="none" strokeWidth="2" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"></path>
+                              </svg>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    You must select at least one category. Maximum 3 categories allowed per generation.
                   </p>
                 </div>
               </CardContent>

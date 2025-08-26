@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { fetchAllFeeds, deduplicateArticles, sortArticlesByDate, filterArticlesByTimePeriod } from '@/lib/rss-parser';
+import { fetchAllFeeds, deduplicateArticles, sortArticlesByDate, filterArticlesByTimePeriod, processAndValidateArticles } from '@/lib/rss-parser';
 import { generateNewsletterContent, checkRateLimit } from '@/lib/ai-processors';
 import { RSS_FEEDS } from '@/config/rss-feeds';
 import { createNewsletter, connectDB, getUserSettings } from '@/lib/db';
-import { APIResponse, NewsletterGenerationResponse, CustomRSSFeed } from '@/types';
+import { APIResponse, NewsletterGenerationResponse, CustomRSSFeed, NewsletterCategory } from '@/types';
 
 export async function POST(request: Request) {
   try {
@@ -22,8 +22,9 @@ export async function POST(request: Request) {
     // Fetch user settings for preferences
     const userSettings = await getUserSettings(userId);
     const llmProvider = requestedProvider || userSettings?.preferences?.llmPreference || 'cohere';
-    const maxTopics = userSettings?.preferences?.maxArticles || 7; // maxArticles now controls number of topics
+    const maxTopics = userSettings?.preferences?.maxArticles || 3; // maxArticles now controls number of topics
     const language = userSettings?.preferences?.language || 'english';
+    const preferredCategories = userSettings?.preferences?.preferredCategories || ['business', 'product', 'technology'];
 
     // Check rate limits
     const rateCheck = checkRateLimit();
@@ -37,22 +38,28 @@ export async function POST(request: Request) {
     const startTime = Date.now();
     console.log(`Starting newsletter generation for user ${userId} with ${llmProvider}`);
 
-    // Step 1: Get enabled RSS feeds based on user settings
+    // Step 1: Get enabled RSS feeds based on user settings and preferred categories
     const enabledFeedIds = userSettings?.rssFeeds?.enabled || [];
     const customFeeds = userSettings?.rssFeeds?.custom || [];
     
-    // Start with enabled feeds from user settings
-    let enabledFeeds = RSS_FEEDS.filter(feed => enabledFeedIds.includes(feed.id));
+    // Filter RSS feeds by preferred categories first
+    const categoryFilteredFeeds = RSS_FEEDS.filter(feed => 
+      preferredCategories.includes(feed.category as NewsletterCategory)
+    );
     
-    // Add enabled custom feeds
+    // Start with enabled feeds from user settings that match preferred categories
+    let enabledFeeds = categoryFilteredFeeds.filter(feed => enabledFeedIds.includes(feed.id));
+    
+    // Add enabled custom feeds (custom feeds can be from any category)
     enabledFeeds = [...enabledFeeds, ...customFeeds.filter((feed: CustomRSSFeed) => feed.enabled)];
     
-    // If no feeds are explicitly enabled (new user or no settings), fall back to using saved preferences
-    // or default behavior based on RSS_FEEDS default enabled status
+    // If no feeds are explicitly enabled (new user or no settings), use all feeds from preferred categories
     if (enabledFeeds.length === 0) {
-      console.log('No feeds explicitly enabled, using default RSS_FEEDS');
-      enabledFeeds = RSS_FEEDS.filter(feed => feed.enabled);
+      console.log('No feeds explicitly enabled, using category-filtered RSS_FEEDS');
+      enabledFeeds = categoryFilteredFeeds.filter(feed => feed.enabled);
     }
+    
+    console.log(`Filtered to ${enabledFeeds.length} feeds based on preferred categories:`, preferredCategories);
 
     console.log(`Fetching RSS feeds... (${enabledFeeds.length} enabled feeds)`);
     console.log('Final enabled feeds:', enabledFeeds.map(f => f.name));
@@ -73,8 +80,28 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
+    // Step 2.5: Validate URLs to ensure all articles have working links
+    console.log('Validating article URLs...');
+    const validatedArticles = await processAndValidateArticles(allArticles, {
+      validateURLs: true,
+      fixBrokenLinks: true,
+      batchSize: 10
+    });
+    
+    const removedArticles = allArticles.length - validatedArticles.length;
+    if (removedArticles > 0) {
+      console.log(`Removed ${removedArticles} articles with broken or invalid URLs`);
+    }
+
+    if (validatedArticles.length === 0) {
+      return NextResponse.json<APIResponse>({ 
+        success: false, 
+        error: 'No articles with valid URLs found' 
+      }, { status: 400 });
+    }
+
     // Step 3: Deduplicate and filter articles by time period
-    const uniqueArticles = deduplicateArticles(allArticles);
+    const uniqueArticles = deduplicateArticles(validatedArticles);
     const timePeriod = userSettings?.preferences?.timePeriod || '24hours';
     // Don't require a minimum - use whatever articles are found in the time period
     const filterResult = filterArticlesByTimePeriod(uniqueArticles, timePeriod, 1); // Minimum of 1 article to avoid completely empty results

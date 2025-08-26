@@ -11,6 +11,27 @@ import { Copy, Download, Send, Sparkles, ExternalLink, X, Mail, Loader2 } from '
 import { toast } from 'sonner';
 import { NewsletterPreviewProps } from '@/types';
 
+// Function to get emoji icon for each category
+function getCategoryIcon(category: string): string {
+  const categoryLower = category.toLowerCase();
+  
+  switch (categoryLower) {
+    case 'business': return '💼';
+    case 'product': return '🚀';
+    case 'policy': return '📋';
+    case 'security': return '🔒';
+    case 'research': return '🔬';
+    case 'technology': return '⚡';
+    case 'ai': return '🤖';
+    case 'analysis': return '📊';
+    case 'enterprise': return '🏢';
+    case 'consumer': return '🛍️';
+    case 'development': return '⚙️';
+    case 'innovation': return '💡';
+    default: return '📰';
+  }
+}
+
 export function NewsletterPreview({ data, onSave, onPublish, onClose }: NewsletterPreviewProps) {
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [emailAddress, setEmailAddress] = useState('');
@@ -236,7 +257,7 @@ export function NewsletterPreview({ data, onSave, onPublish, onClose }: Newslett
               >
                 {/* Category Badge */}
                 <span className="inline-block bg-purple-100 text-purple-800 text-xs font-semibold px-3 py-1 rounded-full mb-3">
-                  {topic.category?.toUpperCase() || 'NEWS'}
+                  {getCategoryIcon(topic.category || 'NEWS')} {topic.category?.toUpperCase() || 'NEWS'}
                 </span>
                 
                 <h2 className={`text-xl font-bold text-gray-800 mb-3 leading-tight ${isHebrewText(topic.headline) ? 'newsletter-article' : ''}`}>

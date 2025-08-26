@@ -59,6 +59,7 @@ export async function POST(request: Request) {
     enabledFeeds = [...enabledFeeds, ...customFeeds.filter((feed: CustomRSSFeed) => feed.enabled)];
     
     console.log(`Filtered to ${enabledFeeds.length} feeds based on preferred categories:`, preferredCategories);
+    console.log('User preferred categories for reference:', preferredCategories);
 
     console.log(`Fetching RSS feeds... (${enabledFeeds.length} enabled feeds)`);
     console.log('Final enabled feeds:', enabledFeeds.map(f => f.name));
@@ -173,35 +174,60 @@ export async function POST(request: Request) {
       newsletterData.topics = fixedTopics;
     }
 
-    // Step 4.6: Validate and fix categories to match user preferences
-    if (preferredCategories.length > 0) {
-      console.log('Validating categories match user preferences...');
-      const validCategories = new Set(preferredCategories.map((cat: string) => cat.toLowerCase()));
+    // Step 4.6: Map AI-generated categories to standard categories (but preserve diversity)
+    // Create a mapping from various category names to standard ones
+    type ValidCategory = 'research' | 'product' | 'business' | 'policy' | 'fun' | 'security' | 'technology' | 'development' | 'enterprise' | 'consumer' | 'analysis' | 'innovation' | 'ai';
+    const categoryMapping: Record<string, ValidCategory> = {
+      // Hebrew mappings
+      'פיתוח': 'development',
+      'אבטחה': 'security', 
+      'מוצר': 'product',
+      'מדיניות': 'policy',
+      'עסקים': 'business',
+      'טכנולוגיה': 'technology',
+      'מחקר': 'research',
+      'בינה מלאכותית': 'ai',
+      // English mappings (in case AI uses English)
+      'development': 'development',
+      'security': 'security',
+      'product': 'product', 
+      'policy': 'policy',
+      'business': 'business',
+      'technology': 'technology',
+      'research': 'research',
+      'enterprise': 'enterprise',
+      'consumer': 'consumer',
+      'analysis': 'analysis',
+      'innovation': 'innovation',
+      'ai': 'ai'
+    };
+
+    console.log('Mapping AI-generated categories to standard categories...');
+    let mappedCategories = 0;
+    const categoryMappedTopics = newsletterData.topics.map(topic => {
+      let topicCategory = topic.category.toLowerCase().trim();
       
-      let invalidCategories = 0;
-      const categoryFixedTopics = newsletterData.topics.map(topic => {
-        const topicCategory = topic.category.toLowerCase();
-        
-        // Check if category matches preferences (remove AI and handle multiple categories)
-        const cleanCategory = topicCategory.includes('|') ? topicCategory.split('|')[0] : topicCategory;
-        
-        if (!validCategories.has(cleanCategory) || cleanCategory === 'ai') {
-          console.warn(`Invalid category "${topic.category}" for topic "${topic.headline}"`);
-          invalidCategories++;
-          
-          // Assign the first preferred category as fallback
-          const fallbackCategory = preferredCategories[0];
-          console.log(`Fixed category for topic "${topic.headline}": ${topic.category} -> ${fallbackCategory}`);
-          return { ...topic, category: fallbackCategory };
-        }
-        
-        return { ...topic, category: cleanCategory };
-      });
-      
-      if (invalidCategories > 0) {
-        console.log(`Fixed ${invalidCategories} invalid categories in newsletter`);
-        newsletterData.topics = categoryFixedTopics;
+      // Handle multiple categories by taking the first one
+      if (topicCategory.includes('|')) {
+        topicCategory = topicCategory.split('|')[0].trim();
       }
+      
+      // Map to standard category if mapping exists
+      const mappedCategory = categoryMapping[topicCategory];
+      if (mappedCategory && mappedCategory !== topicCategory) {
+        console.log(`Mapped category for topic "${topic.headline}": ${topic.category} -> ${mappedCategory}`);
+        mappedCategories++;
+        return { ...topic, category: mappedCategory };
+      }
+      
+      // Keep original category if no mapping needed (ensure it's a valid category)
+      const validCategory: ValidCategory = mappedCategory || 'business'; // fallback to business if no mapping found
+      return { ...topic, category: validCategory };
+    });
+    
+    if (mappedCategories > 0) {
+      console.log(`Mapped ${mappedCategories} categories to standard format`);
+      newsletterData.topics = categoryMappedTopics;
     }
 
     // Step 5: Save to database

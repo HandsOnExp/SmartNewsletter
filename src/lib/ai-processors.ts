@@ -94,7 +94,7 @@ export interface NewsletterTopic {
   imagePrompt: string;
   imageUrl?: string;
   sourceUrl: string;
-  category: 'research' | 'product' | 'business' | 'policy' | 'fun';
+  category: 'research' | 'product' | 'business' | 'policy' | 'fun' | 'security' | 'technology' | 'development' | 'enterprise' | 'consumer' | 'analysis' | 'innovation' | 'ai';
 }
 
 export interface NewsletterData {

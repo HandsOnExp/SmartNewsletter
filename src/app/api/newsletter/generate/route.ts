@@ -44,21 +44,30 @@ export async function POST(request: Request) {
       console.log('Background cleanup failed:', error)
     );
 
-    // Step 1: Get enabled RSS feeds based on preferred categories
+    // Step 1: Get enabled RSS feeds based on both preferred categories AND user's individual feed settings
     const customFeeds = userSettings?.rssFeeds?.custom || [];
+    const userEnabledFeeds = userSettings?.rssFeeds?.enabled || [];
+    const userDisabledFeeds = userSettings?.rssFeeds?.disabled || [];
     
     // Filter RSS feeds by preferred categories first
     const categoryFilteredFeeds = RSS_FEEDS.filter(feed => 
       preferredCategories.includes(feed.category as NewsletterCategory)
     );
     
-    // When using preferred categories, use ALL feeds from those categories (ignore individual RSS feed settings)
-    let enabledFeeds = categoryFilteredFeeds.filter(feed => feed.enabled);
+    // Then filter by user's individual RSS feed settings (enabled/disabled toggles)
+    let enabledFeeds = categoryFilteredFeeds.filter(feed => {
+      // If user has explicitly enabled/disabled this feed, respect that choice
+      if (userEnabledFeeds.includes(feed.id)) return true;
+      if (userDisabledFeeds.includes(feed.id)) return false;
+      
+      // Otherwise, use the default enabled state from the feed configuration
+      return feed.enabled;
+    });
     
     // Add enabled custom feeds (custom feeds can be from any category)
     enabledFeeds = [...enabledFeeds, ...customFeeds.filter((feed: CustomRSSFeed) => feed.enabled)];
     
-    console.log(`Filtered to ${enabledFeeds.length} feeds based on preferred categories:`, preferredCategories);
+    console.log(`Filtered to ${enabledFeeds.length} feeds based on preferred categories and user settings:`, preferredCategories);
     console.log('User preferred categories for reference:', preferredCategories);
 
     console.log(`Fetching RSS feeds... (${enabledFeeds.length} enabled feeds)`);

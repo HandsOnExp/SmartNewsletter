@@ -18,6 +18,7 @@ An intelligent newsletter generation platform that leverages advanced AI algorit
 - **Smart Content Optimization**: AI automatically trims and optimizes content for maximum engagement
 - **Rich Media Integration**: Automatic image generation and placeholder integration
 - **Performance Optimized**: Advanced caching system for faster generation times
+- **URL Validation**: Comprehensive link verification prevents broken URLs in newsletters
 
 ### 🔧 **Developer-Friendly Architecture**
 - **Modern Tech Stack**: Built with Next.js 15, React 19, TypeScript, and TailwindCSS
@@ -208,6 +209,7 @@ The application uses TailwindCSS with custom color schemes:
 - **Secrets Detection**: Automated scanning with `detect-secrets`
 - **Authentication**: Secure session management with Clerk
 - **Input Validation**: Zod schema validation for API endpoints
+- **URL Validation**: HTTP health checks prevent malicious or broken links
 - **Rate Limiting**: Built-in rate limiting for API endpoints
 - **Environment Variables**: Secure configuration management
 

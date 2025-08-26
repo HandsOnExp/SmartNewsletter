@@ -131,7 +131,10 @@ export function buildPrompt(
     
     🔗 CRITICAL URL REQUIREMENT: For each topic, you MUST use the exact "link" field from one of the articles below. Do NOT create, modify, or generate any URLs. Only copy the exact URL from the "link" field of the articles provided.
     
-    📂 CRITICAL CATEGORY REQUIREMENT: ${preferredCategories.length > 0 ? `YOU MUST ONLY use these EXACT categories for the topics: ${preferredCategories.join(', ')}. FORBIDDEN: Any category not in this list. Each topic MUST use ONE of: ${preferredCategories.join(', ')}. Using any other category will cause system failure.` : 'Assign each topic ONE primary category (not multiple categories).'} NEVER use "ai" as a category since this is an AI newsletter.
+    📂 CRITICAL CATEGORY REQUIREMENT: ${preferredCategories.length > 0 ? `🚫 SYSTEM FAILURE WARNING 🚫: You can ONLY use these EXACT categories: ${preferredCategories.join(', ')}. 
+    ⚠️ FORBIDDEN CATEGORIES ⚠️: Any category NOT in this list will cause SYSTEM FAILURE.
+    ✅ ALLOWED CATEGORIES ONLY ✅: ${preferredCategories.join(', ')}
+    🔥 VIOLATION = SYSTEM CRASH 🔥: Each topic MUST use ONLY ONE of: ${preferredCategories.join(', ')}` : 'Assign each topic ONE primary category from the standard categories.'} NEVER use "ai" as a category since this is an AI newsletter.
     
     Articles to analyze:
     ${JSON.stringify(sortedArticles.map(a => ({

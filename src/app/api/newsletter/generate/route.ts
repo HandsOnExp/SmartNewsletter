@@ -67,8 +67,15 @@ export async function POST(request: Request) {
     // Add enabled custom feeds (custom feeds can be from any category)
     enabledFeeds = [...enabledFeeds, ...customFeeds.filter((feed: CustomRSSFeed) => feed.enabled)];
     
-    console.log(`Filtered to ${enabledFeeds.length} feeds based on preferred categories and user settings:`, preferredCategories);
-    console.log('User preferred categories for reference:', preferredCategories);
+    console.log(`🔍 DEBUGGING TOPIC SELECTION:`);
+    console.log(`User preferred categories:`, preferredCategories);
+    console.log(`Total RSS feeds available:`, RSS_FEEDS.length);
+    console.log(`Filtered to ${enabledFeeds.length} feeds based on preferred categories and user settings`);
+    console.log(`Enabled feeds by category:`, enabledFeeds.reduce((acc, feed) => {
+      acc[feed.category] = (acc[feed.category] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>));
+    console.log(`Final enabled feeds:`, enabledFeeds.map(f => `${f.name} (${f.category})`));
 
     console.log(`Fetching RSS feeds... (${enabledFeeds.length} enabled feeds)`);
     console.log('Final enabled feeds:', enabledFeeds.map(f => f.name));
@@ -133,6 +140,7 @@ export async function POST(request: Request) {
 
     // Step 4: Generate newsletter content
     console.log(`Generating ${maxArticles} newsletter articles with ${llmProvider} in ${language}...`);
+    console.log(`🎯 STRICT CATEGORY CONSTRAINT: Only allowing topics from categories:`, preferredCategories);
     const generationResult = await generateNewsletterContent(sortedArticles, llmProvider, {
       maxTopics: Math.min(maxArticles, sortedArticles.length), // Don't request more articles than we have
       language,
@@ -149,7 +157,32 @@ export async function POST(request: Request) {
 
     const newsletterData = generationResult.data;
 
-    // Step 4.5: Validate and fix URLs in newsletter topics
+    // Step 4.5: Strict category validation - filter out topics not in selected categories
+    if (preferredCategories.length > 0) {
+      const originalTopicCount = newsletterData.topics.length;
+      const validTopics = newsletterData.topics.filter(topic => {
+        const topicCategory = topic.category.toLowerCase();
+        const isValid = preferredCategories.some((cat: string) => cat.toLowerCase() === topicCategory);
+        if (!isValid) {
+          console.warn(`🚫 REMOVING INVALID TOPIC: "${topic.headline}" has category "${topic.category}" which is not in selected categories [${preferredCategories.join(', ')}]`);
+        }
+        return isValid;
+      });
+      
+      if (validTopics.length < originalTopicCount) {
+        console.log(`✅ FILTERED TOPICS: Removed ${originalTopicCount - validTopics.length} topics with invalid categories`);
+        newsletterData.topics = validTopics;
+      }
+      
+      if (validTopics.length === 0) {
+        return NextResponse.json<APIResponse>({ 
+          success: false, 
+          error: `AI generated topics outside selected categories. Please try again or select more categories.` 
+        }, { status: 400 });
+      }
+    }
+
+    // Step 4.6: Validate and fix URLs in newsletter topics
     console.log('Validating URLs in generated newsletter content...');
     const validArticleUrls = new Set(sortedArticles.map(article => article.link));
     
@@ -183,7 +216,7 @@ export async function POST(request: Request) {
       newsletterData.topics = fixedTopics;
     }
 
-    // Step 4.6: Map AI-generated categories to standard categories (but preserve diversity)
+    // Step 4.7: Map AI-generated categories to standard categories (but preserve diversity)
     // Create a mapping from various category names to standard ones
     type ValidCategory = 'business' | 'technology' | 'research' | 'product' | 'enterprise' | 'consumer' | 'security' | 'development';
     const categoryMapping: Record<string, ValidCategory> = {

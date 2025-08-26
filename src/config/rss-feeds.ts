@@ -290,14 +290,14 @@ export const RSS_FEEDS = [
 
   // Additional feeds for better category coverage
   
-  // More Business feeds
+  // More Business feeds (disabled to reduce AI content overload)
   {
     id: 'wsj-tech',
     name: 'Wall Street Journal Tech',
     url: 'https://feeds.a.dj.com/rss/RSSWSJD.xml',
     category: 'business',
     priority: 28,
-    enabled: true
+    enabled: false
   },
   {
     id: 'bloomberg-tech',
@@ -305,17 +305,17 @@ export const RSS_FEEDS = [
     url: 'https://feeds.bloomberg.com/technology/news.rss',
     category: 'business',
     priority: 29,
-    enabled: true
+    enabled: false
   },
 
-  // More Technology feeds
+  // More Technology feeds (keep Engadget, disable others to reduce AI overload)
   {
     id: 'engadget',
     name: 'Engadget',
     url: 'https://www.engadget.com/rss.xml',
     category: 'technology',
     priority: 30,
-    enabled: true
+    enabled: false
   },
   {
     id: 'ars-technica',
@@ -323,17 +323,17 @@ export const RSS_FEEDS = [
     url: 'https://feeds.arstechnica.com/arstechnica/index',
     category: 'technology',
     priority: 31,
-    enabled: true
+    enabled: false
   },
 
-  // More Research feeds
+  // More Research feeds (disabled to reduce AI content overload)
   {
     id: 'deepmind-blog',
     name: 'DeepMind Blog',
     url: 'https://deepmind.com/blog/feed/basic/',
     category: 'research',
     priority: 32,
-    enabled: true
+    enabled: false
   },
   {
     id: 'distill-pub',
@@ -341,17 +341,17 @@ export const RSS_FEEDS = [
     url: 'https://distill.pub/rss.xml',
     category: 'research',
     priority: 33,
-    enabled: true
+    enabled: false
   },
 
-  // More Product feeds
+  // More Product feeds (disabled to reduce AI content overload)
   {
     id: 'product-coalition',
     name: 'Product Coalition',
     url: 'https://productcoalition.com/feed',
     category: 'product',
     priority: 34,
-    enabled: true
+    enabled: false
   },
   {
     id: 'first-round-review',
@@ -359,17 +359,17 @@ export const RSS_FEEDS = [
     url: 'https://review.firstround.com/rss',
     category: 'product',
     priority: 35,
-    enabled: true
+    enabled: false
   },
 
-  // More Security feeds
+  // More Security feeds (disabled to reduce AI content overload)
   {
     id: 'krebs-security',
     name: 'Krebs on Security',
     url: 'https://krebsonsecurity.com/feed/',
     category: 'security',
     priority: 36,
-    enabled: true
+    enabled: false
   },
   {
     id: 'threatpost',
@@ -377,10 +377,10 @@ export const RSS_FEEDS = [
     url: 'https://threatpost.com/feed/',
     category: 'security',
     priority: 37,
-    enabled: true
+    enabled: false
   },
 
-  // More Development feeds
+  // More Development feeds (keep these active for user's selected category)
   {
     id: 'github-blog',
     name: 'GitHub Blog',
@@ -395,17 +395,17 @@ export const RSS_FEEDS = [
     url: 'https://stackoverflow.blog/feed/',
     category: 'development',
     priority: 39,
-    enabled: true
+    enabled: false
   },
 
-  // More Analysis feeds
+  // More Analysis feeds (disabled to reduce AI content overload)
   {
     id: 'a16z-future',
     name: 'Andreessen Horowitz Future',
     url: 'https://future.a16z.com/feed/',
     category: 'analysis',
     priority: 40,
-    enabled: true
+    enabled: false
   },
   {
     id: 'cb-insights',
@@ -413,17 +413,17 @@ export const RSS_FEEDS = [
     url: 'https://www.cbinsights.com/research/rss',
     category: 'analysis',
     priority: 41,
-    enabled: true
+    enabled: false
   },
 
-  // More Enterprise feeds
+  // More Enterprise feeds (disabled to reduce AI content overload)
   {
     id: 'harvard-business-review-tech',
     name: 'Harvard Business Review Tech',
     url: 'https://feeds.hbr.org/harvardbusiness/technology',
     category: 'enterprise',
     priority: 42,
-    enabled: true
+    enabled: false
   },
   {
     id: 'mit-sloan-tech',
@@ -431,17 +431,17 @@ export const RSS_FEEDS = [
     url: 'https://sloanreview.mit.edu/topic/technology/feed/',
     category: 'enterprise',
     priority: 43,
-    enabled: true
+    enabled: false
   },
 
-  // More Consumer feeds
+  // More Consumer feeds (disabled to reduce AI content overload)
   {
     id: 'pcworld',
     name: 'PCWorld',
     url: 'https://www.pcworld.com/index.rss',
     category: 'consumer',
     priority: 44,
-    enabled: true
+    enabled: false
   },
   {
     id: 'cnet',
@@ -449,10 +449,10 @@ export const RSS_FEEDS = [
     url: 'https://www.cnet.com/rss/news/',
     category: 'consumer',
     priority: 45,
-    enabled: true
+    enabled: false
   },
 
-  // More Innovation feeds
+  // More Innovation feeds (keep Digital Trends for user's selected category)
   {
     id: 'digital-trends',
     name: 'Digital Trends',
@@ -467,7 +467,7 @@ export const RSS_FEEDS = [
     url: 'https://www.nextbigfuture.com/feed',
     category: 'innovation',
     priority: 47,
-    enabled: true
+    enabled: false
   }
 ];
 

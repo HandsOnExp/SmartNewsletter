@@ -38,8 +38,7 @@ export async function POST(request: Request) {
     const startTime = Date.now();
     console.log(`Starting newsletter generation for user ${userId} with ${llmProvider}`);
 
-    // Step 1: Get enabled RSS feeds based on user settings and preferred categories
-    const enabledFeedIds = userSettings?.rssFeeds?.enabled || [];
+    // Step 1: Get enabled RSS feeds based on preferred categories
     const customFeeds = userSettings?.rssFeeds?.custom || [];
     
     // Filter RSS feeds by preferred categories first
@@ -47,17 +46,11 @@ export async function POST(request: Request) {
       preferredCategories.includes(feed.category as NewsletterCategory)
     );
     
-    // Start with enabled feeds from user settings that match preferred categories
-    let enabledFeeds = categoryFilteredFeeds.filter(feed => enabledFeedIds.includes(feed.id));
+    // When using preferred categories, use ALL feeds from those categories (ignore individual RSS feed settings)
+    let enabledFeeds = categoryFilteredFeeds.filter(feed => feed.enabled);
     
     // Add enabled custom feeds (custom feeds can be from any category)
     enabledFeeds = [...enabledFeeds, ...customFeeds.filter((feed: CustomRSSFeed) => feed.enabled)];
-    
-    // If no feeds are explicitly enabled (new user or no settings), use all feeds from preferred categories
-    if (enabledFeeds.length === 0) {
-      console.log('No feeds explicitly enabled, using category-filtered RSS_FEEDS');
-      enabledFeeds = categoryFilteredFeeds.filter(feed => feed.enabled);
-    }
     
     console.log(`Filtered to ${enabledFeeds.length} feeds based on preferred categories:`, preferredCategories);
 

@@ -131,7 +131,7 @@ export function buildPrompt(
     
     🔗 CRITICAL URL REQUIREMENT: For each topic, you MUST use the exact "link" field from one of the articles below. Do NOT create, modify, or generate any URLs. Only copy the exact URL from the "link" field of the articles provided.
     
-    📂 CATEGORY RESTRICTION: ${preferredCategories.length > 0 ? `ONLY select articles from these categories: ${preferredCategories.join(', ')}. You MUST assign each topic ONE category from ONLY these options: ${preferredCategories.join(', ')}. Do NOT use any other categories.` : 'Assign each topic ONE primary category (not multiple categories).'} NEVER use "ai" as a category since this is an AI newsletter.
+    📂 CRITICAL CATEGORY REQUIREMENT: ${preferredCategories.length > 0 ? `YOU MUST ONLY use these EXACT categories for the topics: ${preferredCategories.join(', ')}. FORBIDDEN: Any category not in this list. Each topic MUST use ONE of: ${preferredCategories.join(', ')}. Using any other category will cause system failure.` : 'Assign each topic ONE primary category (not multiple categories).'} NEVER use "ai" as a category since this is an AI newsletter.
     
     Articles to analyze:
     ${JSON.stringify(sortedArticles.map(a => ({
@@ -182,14 +182,26 @@ function getLanguageInstructions(language: string): string {
     english: '',
     hebrew: `
     
-    LANGUAGE REQUIREMENT: Write the entire newsletter in Hebrew.
+    🔴 CRITICAL LANGUAGE REQUIREMENT 🔴: WRITE EVERYTHING IN HEBREW ONLY!
+    
+    ⚠️ SYSTEM FAILURE WARNING ⚠️: Using any English text (except URL fields) will cause system failure!
+    
+    MANDATORY HEBREW REQUIREMENTS:
+    - newsletterTitle: MUST be in Hebrew
+    - introduction: MUST be in Hebrew  
+    - All topic headlines: MUST be in Hebrew
+    - All topic summaries: MUST be in Hebrew
+    - All keyTakeaway text: MUST be in Hebrew
+    - conclusion: MUST be in Hebrew
     - Use proper Hebrew grammar and syntax
     - Write from right-to-left as appropriate
-    - Use Hebrew tech terminology where available, with English terms in parentheses when needed
+    - Use Hebrew tech terminology with English terms in parentheses ONLY when absolutely necessary
     - Ensure cultural relevance for Hebrew-speaking audiences
     - CRITICAL: Ensure all Hebrew text is properly escaped in JSON strings
     - Do NOT use unescaped quotes (") within Hebrew text
-    - Use single quotes (') within Hebrew text if needed, or escape double quotes as \"`,
+    - Use single quotes (') within Hebrew text if needed, or escape double quotes as \"
+    
+    🚨 REMINDER: If any field contains English text, the system will reject the response! 🚨`,
     
     spanish: `
     

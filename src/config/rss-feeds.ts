@@ -10,9 +10,9 @@ export const RSS_FEEDS = [
     enabled: true
   },
   {
-    id: 'fortune-tech',
-    name: 'Fortune Technology',
-    url: 'https://fortune.com/section/tech/feed/',
+    id: 'axios-tech',
+    name: 'Axios Technology',
+    url: 'https://api.axios.com/feed/technology',
     category: 'business',
     priority: 4,
     enabled: true
@@ -220,9 +220,9 @@ export const RSS_FEEDS = [
     enabled: true
   },
   {
-    id: 'techradar-ai',
-    name: 'TechRadar AI',
-    url: 'https://www.techradar.com/rss/news/computing/artificial-intelligence',
+    id: 'tech-republic',
+    name: 'TechRepublic',
+    url: 'https://www.techrepublic.com/rssfeeds/articles/',
     category: 'innovation',
     priority: 23,
     enabled: true
@@ -318,9 +318,9 @@ export const RSS_FEEDS = [
     enabled: true
   },
   {
-    id: 'techspot',
-    name: 'TechSpot',
-    url: 'https://www.techspot.com/backend/headlines/rss/',
+    id: 'ars-technica',
+    name: 'Ars Technica',
+    url: 'https://feeds.arstechnica.com/arstechnica/index',
     category: 'technology',
     priority: 31,
     enabled: true
@@ -454,9 +454,9 @@ export const RSS_FEEDS = [
 
   // More Innovation feeds
   {
-    id: 'singularity-hub',
-    name: 'Singularity Hub',
-    url: 'https://singularityhub.com/feed/',
+    id: 'digital-trends',
+    name: 'Digital Trends',
+    url: 'https://www.digitaltrends.com/feed/',
     category: 'innovation',
     priority: 46,
     enabled: true

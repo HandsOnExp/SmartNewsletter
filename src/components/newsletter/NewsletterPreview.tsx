@@ -11,9 +11,18 @@ import { Copy, Download, Send, Sparkles, ExternalLink, X, Mail, Loader2 } from '
 import { toast } from 'sonner';
 import { NewsletterPreviewProps } from '@/types';
 
-// Function to get emoji icon for each category
+// Function to format category display
+function formatCategory(category: string): string {
+  // Handle multiple categories by taking the first one only
+  const firstCategory = category.includes('|') ? category.split('|')[0] : category;
+  return firstCategory.trim().toUpperCase();
+}
+
+// Function to get emoji icon for each category  
 function getCategoryIcon(category: string): string {
-  const categoryLower = category.toLowerCase();
+  // Handle multiple categories by taking the first one
+  const firstCategory = category.includes('|') ? category.split('|')[0] : category;
+  const categoryLower = firstCategory.toLowerCase().trim();
   
   switch (categoryLower) {
     case 'business': return '💼';
@@ -340,7 +349,7 @@ export function NewsletterPreview({ data, onSave, onPublish, onClose }: Newslett
                     </motion.div>
                     <span className="inline-flex items-center bg-gradient-to-r from-purple-100 to-blue-100 text-purple-800 text-xs font-semibold px-3 py-1.5 rounded-full border border-purple-200">
                       <span className="mr-1">{getCategoryIcon(topic.category || 'NEWS')}</span>
-                      {topic.category?.toUpperCase() || 'NEWS'}
+                      {formatCategory(topic.category || 'NEWS')}
                     </span>
                   </div>
                   <div className="w-2 h-2 bg-green-400 rounded-full opacity-60 group-hover:opacity-100 transition-opacity"></div>

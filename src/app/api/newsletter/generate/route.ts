@@ -125,7 +125,8 @@ export async function POST(request: Request) {
     console.log(`Generating ${maxArticles} newsletter articles with ${llmProvider} in ${language}...`);
     const generationResult = await generateNewsletterContent(sortedArticles, llmProvider, {
       maxTopics: Math.min(maxArticles, sortedArticles.length), // Don't request more articles than we have
-      language
+      language,
+      preferredCategories
     });
 
     if (!generationResult.success || !generationResult.data) {

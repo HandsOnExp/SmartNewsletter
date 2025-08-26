@@ -28,7 +28,7 @@ export const NEWSLETTER_PROMPTS = {
           "keyTakeaway": "One sentence 'bottom line' insight",
           "imagePrompt": "Detailed prompt for image generation",
           "sourceUrl": "MUST be the exact URL from one of the provided articles - never generate fake URLs",
-          "category": "business|product|policy|security|research|technology|ai|analysis|enterprise|consumer|development|innovation|news"
+          "category": "Choose ONE primary category from: business, product, policy, security, research, technology, analysis, enterprise, consumer, development, innovation, news"
         }
       ],
       "conclusion": "Witty sign-off message"
@@ -69,7 +69,7 @@ export const NEWSLETTER_PROMPTS = {
           "keyTakeaway": "One sentence 'bottom line' insight",
           "imagePrompt": "Detailed prompt for image generation",
           "sourceUrl": "MUST be the exact URL from one of the provided articles - never generate fake URLs",
-          "category": "business|product|policy|security|research|technology|ai|analysis|enterprise|consumer|development|innovation|news"
+          "category": "Choose ONE primary category from: business, product, policy, security, research, technology, analysis, enterprise, consumer, development, innovation, news"
         }
       ],
       "conclusion": "Witty sign-off message"
@@ -94,10 +94,12 @@ export function buildPrompt(
   options?: {
     maxTopics?: number;
     language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
+    preferredCategories?: string[];
   }
 ) {
   const maxTopics = options?.maxTopics || 7;
   const language = options?.language || 'english';
+  const preferredCategories = options?.preferredCategories || [];
   
   // Sort articles by date and take the most recent articles (use more articles for analysis)
   const sortedArticles = articles
@@ -128,6 +130,8 @@ export function buildPrompt(
     Analyze these recent AI developments and create a newsletter with EXACTLY ${maxTopics} topics.
     
     🔗 CRITICAL URL REQUIREMENT: For each topic, you MUST use the exact "link" field from one of the articles below. Do NOT create, modify, or generate any URLs. Only copy the exact URL from the "link" field of the articles provided.
+    
+    📂 CATEGORY FOCUS: ${preferredCategories.length > 0 ? `Focus on articles from these categories: ${preferredCategories.join(', ')}. Assign each topic ONE primary category from: ${preferredCategories.join(', ')}.` : 'Assign each topic ONE primary category (not multiple categories).'} Do NOT use "ai" as a category since this is an AI newsletter - choose more specific categories like business, research, product, etc.
     
     Articles to analyze:
     ${JSON.stringify(sortedArticles.map(a => ({

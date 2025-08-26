@@ -328,7 +328,11 @@ export async function generateImage(prompt: string): Promise<{ success: boolean;
 export async function generateNewsletterContent(
   articles: ParsedArticle[], 
   provider: 'cohere' | 'gemini' = 'cohere',
-  options?: { maxTopics?: number; language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese' }
+  options?: { 
+    maxTopics?: number; 
+    language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
+    preferredCategories?: string[];
+  }
 ): Promise<{ success: boolean; data?: NewsletterData; error?: string }> {
   const startTime = Date.now();
   const maxRetries = 3;

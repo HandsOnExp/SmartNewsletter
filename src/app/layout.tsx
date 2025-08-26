@@ -52,12 +52,12 @@ export default function RootLayout({
             <h1 className="text-xl font-bold text-white">Smart Newsletter</h1>
             <div className="flex gap-2">
               <SignedOut>
-                <SignInButton mode="modal">
+                <SignInButton>
                   <button className="px-4 py-2 text-sm font-medium text-white bg-transparent border border-gray-600 rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors cursor-pointer">
                     Sign In
                   </button>
                 </SignInButton>
-                <SignUpButton mode="modal">
+                <SignUpButton>
                   <button className="px-4 py-2 text-sm font-medium text-white bg-purple-600 border border-transparent rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors cursor-pointer">
                     Sign Up
                   </button>

@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     const llmProvider = requestedProvider || userSettings?.preferences?.llmPreference || 'cohere';
     const maxArticles = userSettings?.preferences?.maxArticles || 5; // maxArticles controls number of articles
     const language = userSettings?.preferences?.language || 'english';
-    const preferredCategories = userSettings?.preferences?.preferredCategories || ['business', 'product', 'technology'];
+    const preferredCategories = userSettings?.preferences?.preferredCategories || ['business', 'technology', 'development'];
 
     // Check rate limits
     const rateCheck = checkRateLimit();
@@ -185,28 +185,31 @@ export async function POST(request: Request) {
 
     // Step 4.6: Map AI-generated categories to standard categories (but preserve diversity)
     // Create a mapping from various category names to standard ones
-    type ValidCategory = 'research' | 'product' | 'business' | 'policy' | 'fun' | 'security' | 'technology' | 'development' | 'enterprise' | 'consumer' | 'analysis' | 'innovation';
+    type ValidCategory = 'business' | 'technology' | 'research' | 'product' | 'enterprise' | 'consumer' | 'security' | 'development';
     const categoryMapping: Record<string, ValidCategory> = {
       // Hebrew mappings
       'פיתוח': 'development',
       'אבטחה': 'security', 
       'מוצר': 'product',
-      'מדיניות': 'policy',
       'עסקים': 'business',
       'טכנולוגיה': 'technology',
       'מחקר': 'research',
+      'ארגונים': 'enterprise',
+      'צרכנים': 'consumer',
       // English mappings (in case AI uses English)
       'development': 'development',
       'security': 'security',
       'product': 'product', 
-      'policy': 'policy',
       'business': 'business',
       'technology': 'technology',
       'research': 'research',
       'enterprise': 'enterprise',
       'consumer': 'consumer',
-      'analysis': 'analysis',
-      'innovation': 'innovation',
+      // Legacy category mappings (redirect to closest match)
+      'policy': 'business',
+      'analysis': 'business',
+      'innovation': 'business',
+      'news': 'technology',
     };
 
     console.log('Mapping AI-generated categories to standard categories...');

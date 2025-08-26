@@ -92,16 +92,15 @@ export async function GET() {
         preferences: {
           autoGenerate: false,
           generateTime: '09:00',
-          emailNotifications: true,
           llmPreference: 'cohere' as const,
           maxArticles: 5,
           language: 'english' as const,
           timePeriod: '24hours' as const,
-          preferredCategories: ['business', 'product', 'technology'] as const
+          preferredCategories: [] as const
         },
         rssFeeds: {
-          enabled: [],
-          disabled: RSS_FEEDS.map(feed => feed.id),
+          enabled: RSS_FEEDS.map(feed => feed.id),
+          disabled: [],
           deleted: [],
           custom: []
         }
@@ -159,15 +158,14 @@ export async function POST(request: Request) {
       preferences: {
         autoGenerate: preferences?.autoGenerate || false,
         generateTime: preferences?.generateTime || '09:00',
-        emailNotifications: preferences?.emailNotifications !== false, // Default to true
         llmPreference: preferences?.llmPreference || 'cohere',
         maxArticles: preferences?.maxArticles || 5,
         language: preferences?.language || 'english',
         timePeriod: preferences?.timePeriod || '24hours',
-        preferredCategories: preferences?.preferredCategories || ['business', 'product', 'technology']
+        preferredCategories: preferences?.preferredCategories || []
       },
       rssFeeds: {
-        enabled: rssFeeds?.enabled || [],
+        enabled: rssFeeds?.enabled || RSS_FEEDS.map(feed => feed.id),
         disabled: rssFeeds?.disabled || [],
         deleted: rssFeeds?.deleted || [],
         custom: rssFeeds?.custom || []

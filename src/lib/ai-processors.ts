@@ -94,7 +94,7 @@ export interface NewsletterTopic {
   imagePrompt: string;
   imageUrl?: string;
   sourceUrl: string;
-  category: 'research' | 'product' | 'business' | 'policy' | 'fun' | 'security' | 'technology' | 'development' | 'enterprise' | 'consumer' | 'analysis' | 'innovation';
+  category: 'business' | 'technology' | 'research' | 'product' | 'enterprise' | 'consumer' | 'security' | 'development';
 }
 
 export interface NewsletterData {
@@ -772,7 +772,7 @@ function reconstructHebrewJSON(brokenJson: string): unknown | null {
                 keyTakeaway: (takeawayMatch?.[1] || '').replace(/\\"/g, '"').replace(/\\n/g, '\n').trim(),
                 imagePrompt: (imageMatch?.[1] || 'AI technology illustration').replace(/\\"/g, '"').trim(),
                 sourceUrl: (urlMatch?.[1] || '').replace(/\\"/g, '"').trim(),
-                category: (categoryMatch?.[1]?.replace(/\\"/g, '"').trim() || 'research') as 'research' | 'product' | 'business' | 'policy' | 'fun'
+                category: (categoryMatch?.[1]?.replace(/\\"/g, '"').trim() || 'business') as 'business' | 'technology' | 'research' | 'product' | 'enterprise' | 'consumer' | 'security' | 'development'
               });
               console.log(`Successfully extracted topic ${i}: "${cleanHeadline}"`);
             }
@@ -858,9 +858,11 @@ function calculateTopicScore(topic: NewsletterTopic, index: number): number {
     'research': 15,
     'product': 10,
     'business': 8,
-    'policy': 5,
     'security': 12,
-    'fun': 3
+    'technology': 10,
+    'development': 8,
+    'enterprise': 6,
+    'consumer': 5
   };
   score += categoryBonus[topic.category as keyof typeof categoryBonus] || 0;
   

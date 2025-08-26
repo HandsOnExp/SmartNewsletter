@@ -3,9 +3,5 @@
     "src/app/api/**/*": {
       "maxDuration": 60
     }
-  },
-  "env": {
-    "NEXT_TELEMETRY_DISABLED": "1",
-    "TELEMETRY_DISABLED": "1"
   }
 }

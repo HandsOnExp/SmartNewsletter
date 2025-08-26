@@ -58,7 +58,7 @@ export interface TimePeriodOption {
 }
 
 // User Settings Types
-export type NewsletterCategory = 'business' | 'product' | 'policy' | 'security' | 'research' | 'technology' | 'analysis' | 'enterprise' | 'consumer' | 'development' | 'innovation' | 'news';
+export type NewsletterCategory = 'business' | 'technology' | 'research' | 'product' | 'enterprise' | 'consumer' | 'security' | 'development';
 
 export interface UserSettings {
   userId: string;
@@ -69,7 +69,6 @@ export interface UserSettings {
   preferences: {
     autoGenerate: boolean;
     generateTime: string;
-    emailNotifications: boolean;
     llmPreference: 'cohere' | 'gemini' | 'auto';
     maxArticles: number;
     language: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
@@ -197,7 +196,6 @@ export interface SettingsForm {
   preferences: {
     autoGenerate: boolean;
     generateTime: string;
-    emailNotifications: boolean;
     llmPreference: 'cohere' | 'gemini' | 'auto';
     maxArticles: number;
     language: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';

@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { sanitizeURL } from '@/lib/url-validator';
-import { Rss, Settings, Key, Bell, Save, Plus, Trash2, ArrowLeft, ExternalLink, X, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { Rss, Settings, Key, Save, Plus, Trash2, ArrowLeft, ExternalLink, X, CheckCircle, Eye, EyeOff } from 'lucide-react';
 import { RSS_FEEDS, type RSSFeed } from '@/config/rss-feeds';
 import { UserSettings, CustomRSSFeed, TimePeriod, NewsletterCategory } from '@/types';
 import { TIME_PERIOD_OPTIONS } from '@/lib/rss-parser';
@@ -41,12 +41,11 @@ export default function SettingsPage() {
   const [preferences, setPreferences] = useState({
     autoGenerate: false,
     generateTime: '09:00',
-    emailNotifications: true,
     llmPreference: 'cohere' as 'cohere' | 'gemini' | 'auto',
     maxArticles: 5,
     language: 'english' as 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese',
     timePeriod: '24hours' as TimePeriod,
-    preferredCategories: ['business', 'product', 'technology'] as NewsletterCategory[]
+    preferredCategories: [] as NewsletterCategory[]
   });
 
   // API Key management functions
@@ -180,7 +179,19 @@ export default function SettingsPage() {
     if (user && typeof window !== 'undefined') {
       try {
         const stored = localStorage.getItem(getStorageKey(user.id));
-        return stored ? JSON.parse(stored) : null;
+        if (stored) {
+          const parsedSettings = JSON.parse(stored) as UserSettings;
+          
+          // Filter out invalid categories from localStorage as well
+          const validCategories: NewsletterCategory[] = ['business', 'technology', 'research', 'product', 'enterprise', 'consumer', 'security', 'development'];
+          if (parsedSettings.preferences?.preferredCategories) {
+            parsedSettings.preferences.preferredCategories = parsedSettings.preferences.preferredCategories
+              .filter((cat): cat is NewsletterCategory => validCategories.includes(cat as NewsletterCategory));
+          }
+          
+          return parsedSettings;
+        }
+        return null;
       } catch (error) {
         console.error('Failed to load from localStorage:', error);
         return null;
@@ -191,21 +202,28 @@ export default function SettingsPage() {
 
 
   const applySettings = (settings: UserSettings) => {
+    // Valid categories for filtering
+    const validCategories: NewsletterCategory[] = ['business', 'technology', 'research', 'product', 'enterprise', 'consumer', 'security', 'development'];
+    
+    // Filter out invalid categories from loaded preferences
+    const filteredCategories = (settings.preferences?.preferredCategories || [])
+      .filter((cat): cat is NewsletterCategory => validCategories.includes(cat as NewsletterCategory));
+    
     setApiKeys(settings.apiKeys || { cohere: '', gemini: '' });
-    setPreferences(settings.preferences || {
-      autoGenerate: false,
-      generateTime: '09:00',
-      emailNotifications: true,
-      llmPreference: 'cohere',
-      maxArticles: 5,
-      language: 'english',
-      timePeriod: '24hours',
-      preferredCategories: ['business', 'product', 'technology']
+    setPreferences({
+      ...(settings.preferences || {}),
+      autoGenerate: settings.preferences?.autoGenerate || false,
+      generateTime: settings.preferences?.generateTime || '09:00',
+      llmPreference: settings.preferences?.llmPreference || 'cohere',
+      maxArticles: settings.preferences?.maxArticles || 5,
+      language: settings.preferences?.language || 'english',
+      timePeriod: settings.preferences?.timePeriod || '24hours',
+      preferredCategories: filteredCategories
     });
     setCustomFeeds(settings.rssFeeds?.custom || []);
     
     // Update feed enabled/disabled status and filter out deleted feeds
-    const enabledIds = settings.rssFeeds?.enabled || [];
+    const enabledIds = settings.rssFeeds?.enabled || RSS_FEEDS.map(feed => feed.id);
     const deletedIds = settings.rssFeeds?.deleted || [];
     setDeletedFeeds(deletedIds);
     
@@ -218,25 +236,48 @@ export default function SettingsPage() {
     setFeeds(updatedFeeds);
   };
 
+
+  // Function to enable all RSS feeds
+  const enableAllFeeds = async () => {
+    try {
+      const response = await fetch('/api/feeds/enable-all', {
+        method: 'POST'
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success(result.message);
+        // Reload settings to reflect changes
+        await loadUserSettings();
+      } else {
+        toast.error(result.error || 'Failed to enable all feeds');
+      }
+    } catch (error) {
+      console.error('Enable all feeds error:', error);
+      toast.error('Failed to enable all feeds');
+    }
+  };
+
+
   const applyDefaultSettings = () => {
     setApiKeys({ cohere: '', gemini: '' });
     setPreferences({
       autoGenerate: false,
       generateTime: '09:00',
-      emailNotifications: true,
-      llmPreference: 'cohere',
+        llmPreference: 'cohere',
       maxArticles: 5,
       language: 'english',
       timePeriod: '24hours',
-      preferredCategories: ['business', 'product', 'technology']
+      preferredCategories: []
     });
     setCustomFeeds([]);
     setDeletedFeeds([]);
     
-    // All feeds disabled by default
+    // All feeds enabled by default
     const updatedFeeds = RSS_FEEDS.map(feed => ({
       ...feed,
-      enabled: false
+      enabled: true
     }));
     setFeeds(updatedFeeds);
   };
@@ -417,11 +458,10 @@ export default function SettingsPage() {
         </motion.div>
 
         <Tabs defaultValue="feeds" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4 bg-gray-800/50">
+          <TabsList className="grid w-full grid-cols-3 bg-gray-800/50">
             <TabsTrigger value="feeds" className="data-[state=active]:bg-purple-600">RSS Feeds</TabsTrigger>
             <TabsTrigger value="api" className="data-[state=active]:bg-purple-600">API Keys</TabsTrigger>
             <TabsTrigger value="preferences" className="data-[state=active]:bg-purple-600">Preferences</TabsTrigger>
-            <TabsTrigger value="notifications" className="data-[state=active]:bg-purple-600">Notifications</TabsTrigger>
           </TabsList>
 
           <TabsContent value="feeds">
@@ -429,13 +469,24 @@ export default function SettingsPage() {
               {/* Default RSS Feeds */}
               <Card className="bg-gray-900/90 backdrop-blur-xl border-gray-800">
                 <CardHeader>
-                  <CardTitle className="flex items-center text-white">
-                    <Rss className="mr-2 h-5 w-5" />
-                    RSS Feed Management
-                  </CardTitle>
-                  <CardDescription className="text-gray-400">
-                    Enable or disable RSS feeds for newsletter generation
-                  </CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center text-white">
+                        <Rss className="mr-2 h-5 w-5" />
+                        RSS Feed Management
+                      </CardTitle>
+                      <CardDescription className="text-gray-400">
+                        Enable or disable RSS feeds for newsletter generation
+                      </CardDescription>
+                    </div>
+                    <Button
+                      onClick={enableAllFeeds}
+                      variant="outline"
+                      className="border-green-600 text-green-600 hover:bg-green-600 hover:text-white px-4 py-2 text-sm"
+                    >
+                      Enable All Feeds
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {feeds.map((feed) => (
@@ -880,17 +931,13 @@ export default function SettingsPage() {
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {([
                       { value: 'business', label: 'Business', emoji: '💼' },
-                      { value: 'product', label: 'Product', emoji: '🚀' },
-                      { value: 'policy', label: 'Policy', emoji: '📋' },
-                      { value: 'security', label: 'Security', emoji: '🔒' },
-                      { value: 'research', label: 'Research', emoji: '🔬' },
                       { value: 'technology', label: 'Technology', emoji: '⚡' },
-                      { value: 'analysis', label: 'Analysis', emoji: '📊' },
+                      { value: 'research', label: 'Research', emoji: '🔬' },
+                      { value: 'product', label: 'Product', emoji: '🚀' },
                       { value: 'enterprise', label: 'Enterprise', emoji: '🏢' },
                       { value: 'consumer', label: 'Consumer', emoji: '🛍️' },
-                      { value: 'development', label: 'Development', emoji: '⚙️' },
-                      { value: 'innovation', label: 'Innovation', emoji: '💡' },
-                      { value: 'news', label: 'News', emoji: '📰' }
+                      { value: 'security', label: 'Security', emoji: '🔒' },
+                      { value: 'development', label: 'Development', emoji: '⚙️' }
                     ] as const).map((category) => {
                       const isSelected = preferences.preferredCategories.includes(category.value as NewsletterCategory);
                       const isDisabled = !isSelected && preferences.preferredCategories.length >= 3;
@@ -945,55 +992,6 @@ export default function SettingsPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="notifications">
-            <Card className="bg-gray-900/90 backdrop-blur-xl border-gray-800">
-              <CardHeader>
-                <CardTitle className="flex items-center text-white">
-                  <Bell className="mr-2 h-5 w-5" />
-                  Notification Settings
-                </CardTitle>
-                <CardDescription className="text-gray-400">
-                  Configure how you receive updates
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-white">Email Notifications</Label>
-                    <p className="text-sm text-gray-400">
-                      Receive email when newsletter is ready
-                    </p>
-                  </div>
-                  <Switch 
-                    checked={preferences.emailNotifications}
-                    onCheckedChange={(checked) => 
-                      setPreferences({...preferences, emailNotifications: checked})
-                    }
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-white">Generation Failures</Label>
-                    <p className="text-sm text-gray-400">
-                      Alert when generation fails
-                    </p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-white">Weekly Summary</Label>
-                    <p className="text-sm text-gray-400">
-                      Weekly stats and insights
-                    </p>
-                  </div>
-                  <Switch defaultChecked />
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
 
         {/* Save Button */}

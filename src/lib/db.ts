@@ -177,7 +177,6 @@ const UserSettingsSchema = new mongoose.Schema({
   preferences: {
     autoGenerate: { type: Boolean, default: false },
     generateTime: { type: String, default: '09:00' },
-    emailNotifications: { type: Boolean, default: true },
     llmPreference: { 
       type: String, 
       enum: ['cohere', 'gemini', 'auto'],
@@ -196,14 +195,14 @@ const UserSettingsSchema = new mongoose.Schema({
     },
     preferredCategories: {
       type: [String],
-      enum: ['business', 'product', 'policy', 'security', 'research', 'technology', 'ai', 'analysis', 'enterprise', 'consumer', 'development', 'innovation', 'news'],
-      default: ['business', 'product', 'technology']
+      enum: ['business', 'technology', 'research', 'product', 'enterprise', 'consumer', 'security', 'development'],
+      default: []
     }
   },
   rssFeeds: {
-    enabled: [{ type: String }], // Array of feed IDs
-    disabled: [{ type: String }],
-    deleted: [{ type: String }], // Array of permanently deleted feed IDs
+    enabled: { type: [String], default: undefined }, // Let API handle defaults
+    disabled: { type: [String], default: [] },
+    deleted: { type: [String], default: [] }, // Array of permanently deleted feed IDs
     custom: [{
       id: String,
       name: String,
@@ -295,22 +294,36 @@ export async function getUserSettings(userId: string) {
     settings = await UserSettings.create({ userId });
   }
   
+  // Convert to object for manipulation
+  const settingsObj = settings.toObject();
+  
+  // Ensure RSS feeds default to all enabled if undefined or empty
+  if (!settingsObj.rssFeeds || !settingsObj.rssFeeds.enabled || settingsObj.rssFeeds.enabled.length === 0) {
+    const { RSS_FEEDS } = await import('@/config/rss-feeds');
+    settingsObj.rssFeeds = {
+      ...settingsObj.rssFeeds,
+      enabled: RSS_FEEDS.map(feed => feed.id),
+      disabled: settingsObj.rssFeeds?.disabled || [],
+      deleted: settingsObj.rssFeeds?.deleted || [],
+      custom: settingsObj.rssFeeds?.custom || []
+    };
+  }
+  
   // Decrypt API keys before returning (handle both encrypted and unencrypted for backward compatibility)
-  if (settings && settings.apiKeys) {
+  if (settingsObj && settingsObj.apiKeys) {
     try {
-      const decryptedKeys = decryptApiKeys(settings.apiKeys);
-      settings = settings.toObject();
-      settings.apiKeys = decryptedKeys;
+      const decryptedKeys = decryptApiKeys(settingsObj.apiKeys);
+      settingsObj.apiKeys = decryptedKeys;
     } catch (error) {
       console.error('Failed to decrypt API keys for user:', userId, error);
       // If decryption fails, assume keys are already unencrypted (backward compatibility)
     }
   }
   
-  return settings;
+  return settingsObj;
 }
 
-export async function updateUserSettings(userId: string, updates: Partial<{ apiKeys: { cohere: string; gemini: string }; preferences: { autoGenerate: boolean; generateTime: string; emailNotifications: boolean; llmPreference: 'cohere' | 'gemini' | 'auto' }; rssFeeds: { enabled: string[]; disabled: string[]; custom: unknown[] } }>) {
+export async function updateUserSettings(userId: string, updates: Partial<{ apiKeys: { cohere: string; gemini: string }; preferences: { autoGenerate: boolean; generateTime: string; llmPreference: 'cohere' | 'gemini' | 'auto' }; rssFeeds: { enabled: string[]; disabled: string[]; custom: unknown[] } }>) {
   await connectDB();
   
   // Encrypt API keys before storing

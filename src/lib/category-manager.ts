@@ -3,25 +3,14 @@ import mongoose from 'mongoose';
 
 // Known categories with their display information
 export const KNOWN_CATEGORIES = {
+  'business': { label: 'Business', emoji: '💼' },
+  'technology': { label: 'Technology', emoji: '💻' },
   'research': { label: 'Research', emoji: '🔬' },
   'product': { label: 'Product', emoji: '📦' },
-  'business': { label: 'Business', emoji: '💼' },
-  'policy': { label: 'Policy', emoji: '🏛️' },
-  'security': { label: 'Security', emoji: '🔒' },
-  'fun': { label: 'Fun', emoji: '🎉' },
-  'health': { label: 'Health', emoji: '🏥' },
-  'healthcare': { label: 'Healthcare', emoji: '⚕️' },
-  'technology': { label: 'Technology', emoji: '💻' },
-  'science': { label: 'Science', emoji: '🧪' },
-  'innovation': { label: 'Innovation', emoji: '💡' },
-  'ai': { label: 'AI', emoji: '🤖' },
-  'machine-learning': { label: 'Machine Learning', emoji: '🧠' },
-  'analysis': { label: 'Analysis', emoji: '📊' },
   'enterprise': { label: 'Enterprise', emoji: '🏢' },
   'consumer': { label: 'Consumer', emoji: '🛍️' },
-  'development': { label: 'Development', emoji: '⚙️' },
-  'news': { label: 'News', emoji: '📰' },
-  'education': { label: 'Education', emoji: '🎓' }
+  'security': { label: 'Security', emoji: '🔒' },
+  'development': { label: 'Development', emoji: '⚙️' }
 };
 
 // Dynamic Categories Schema - stores newly discovered categories

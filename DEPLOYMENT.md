@@ -40,8 +40,6 @@ GEMINI_TIER=free
 ### Security & Configuration
 ```
 ENCRYPTION_KEY=your_secure_32_character_encryption_key
-NEXT_TELEMETRY_DISABLED=1
-TELEMETRY_DISABLED=1
 NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
 ```
 

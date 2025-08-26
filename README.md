@@ -2,6 +2,9 @@
 
 > **Transform RSS feeds into stunning AI-powered newsletters in seconds**
 
+## 🚀 **[LIVE DEMO](https://your-app-name.vercel.app)** 
+> Experience the full app functionality with pre-configured API keys. Generate up to 5 demo newsletters to explore all features!
+
 An intelligent newsletter generation platform that leverages advanced AI algorithms to curate, analyze, and format RSS content into beautiful, engaging newsletters. Never miss important AI developments again with our automated content curation system.
 
 ## ✨ Features

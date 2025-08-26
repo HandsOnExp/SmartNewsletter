@@ -131,7 +131,7 @@ export function buildPrompt(
     
     🔗 CRITICAL URL REQUIREMENT: For each topic, you MUST use the exact "link" field from one of the articles below. Do NOT create, modify, or generate any URLs. Only copy the exact URL from the "link" field of the articles provided.
     
-    📂 CATEGORY FOCUS: ${preferredCategories.length > 0 ? `Focus on articles from these categories: ${preferredCategories.join(', ')}. Assign each topic ONE primary category from: ${preferredCategories.join(', ')}.` : 'Assign each topic ONE primary category (not multiple categories).'} Do NOT use "ai" as a category since this is an AI newsletter - choose more specific categories like business, research, product, etc.
+    📂 CATEGORY RESTRICTION: ${preferredCategories.length > 0 ? `ONLY select articles from these categories: ${preferredCategories.join(', ')}. You MUST assign each topic ONE category from ONLY these options: ${preferredCategories.join(', ')}. Do NOT use any other categories.` : 'Assign each topic ONE primary category (not multiple categories).'} NEVER use "ai" as a category since this is an AI newsletter.
     
     Articles to analyze:
     ${JSON.stringify(sortedArticles.map(a => ({

@@ -173,6 +173,37 @@ export async function POST(request: Request) {
       newsletterData.topics = fixedTopics;
     }
 
+    // Step 4.6: Validate and fix categories to match user preferences
+    if (preferredCategories.length > 0) {
+      console.log('Validating categories match user preferences...');
+      const validCategories = new Set(preferredCategories.map((cat: string) => cat.toLowerCase()));
+      
+      let invalidCategories = 0;
+      const categoryFixedTopics = newsletterData.topics.map(topic => {
+        const topicCategory = topic.category.toLowerCase();
+        
+        // Check if category matches preferences (remove AI and handle multiple categories)
+        const cleanCategory = topicCategory.includes('|') ? topicCategory.split('|')[0] : topicCategory;
+        
+        if (!validCategories.has(cleanCategory) || cleanCategory === 'ai') {
+          console.warn(`Invalid category "${topic.category}" for topic "${topic.headline}"`);
+          invalidCategories++;
+          
+          // Assign the first preferred category as fallback
+          const fallbackCategory = preferredCategories[0];
+          console.log(`Fixed category for topic "${topic.headline}": ${topic.category} -> ${fallbackCategory}`);
+          return { ...topic, category: fallbackCategory };
+        }
+        
+        return { ...topic, category: cleanCategory };
+      });
+      
+      if (invalidCategories > 0) {
+        console.log(`Fixed ${invalidCategories} invalid categories in newsletter`);
+        newsletterData.topics = categoryFixedTopics;
+      }
+    }
+
     // Step 5: Save to database
     try {
       await connectDB();

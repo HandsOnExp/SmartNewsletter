@@ -89,7 +89,7 @@ export async function POST(request: Request) {
       setTimeout(() => reject(new Error('Feed fetching timeout')), 25000) // 25 second timeout
     );
     
-    const feedResults = await Promise.race([feedFetchPromise, timeoutPromise]) as any;
+    const feedResults = await Promise.race([feedFetchPromise, timeoutPromise]) as Awaited<ReturnType<typeof fetchAllFeeds>>;
     
     // Step 2: Aggregate and process articles
     const allArticles = feedResults
@@ -124,8 +124,6 @@ export async function POST(request: Request) {
       validateURLs: true,
       fixBrokenLinks: false, // Skip fixing to save time
       batchSize: 20, // Larger batches for speed
-      timeout: 200, // 200ms per URL (very fast)
-      maxValidationTime: 5000, // Total max 5 seconds for all validation
       skipValidationPatterns: [
         'technologyreview\\.com/\\d{4}/\\d{2}/\\d{2}/[^/]+/$'
       ]

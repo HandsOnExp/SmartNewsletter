@@ -335,38 +335,38 @@ export async function getUserSettings(userId: string) {
         return await getDefaultUserSettings(userId);
       }
     }
+
+    // Convert to object for manipulation
+    const settingsObj = settings.toObject();
+  
+    // Ensure RSS feeds default to all enabled if undefined or empty
+    if (!settingsObj.rssFeeds || !settingsObj.rssFeeds.enabled || settingsObj.rssFeeds.enabled.length === 0) {
+      const { RSS_FEEDS } = await import('@/config/rss-feeds');
+      settingsObj.rssFeeds = {
+        ...settingsObj.rssFeeds,
+        enabled: RSS_FEEDS.map(feed => feed.id),
+        disabled: settingsObj.rssFeeds?.disabled || [],
+        deleted: settingsObj.rssFeeds?.deleted || [],
+        custom: settingsObj.rssFeeds?.custom || []
+      };
+    }
+    
+    // Decrypt API keys before returning (handle both encrypted and unencrypted for backward compatibility)
+    if (settingsObj && settingsObj.apiKeys) {
+      try {
+        const decryptedKeys = decryptApiKeys(settingsObj.apiKeys);
+        settingsObj.apiKeys = decryptedKeys;
+      } catch (error) {
+        console.error('Failed to decrypt API keys for user:', userId, error);
+        // If decryption fails, assume keys are already unencrypted (backward compatibility)
+      }
+    }
+    
+    return settingsObj;
   } catch (dbError) {
     console.error('Database error in getUserSettings:', dbError);
     return await getDefaultUserSettings(userId);
   }
-  
-  // Convert to object for manipulation
-  const settingsObj = settings.toObject();
-  
-  // Ensure RSS feeds default to all enabled if undefined or empty
-  if (!settingsObj.rssFeeds || !settingsObj.rssFeeds.enabled || settingsObj.rssFeeds.enabled.length === 0) {
-    const { RSS_FEEDS } = await import('@/config/rss-feeds');
-    settingsObj.rssFeeds = {
-      ...settingsObj.rssFeeds,
-      enabled: RSS_FEEDS.map(feed => feed.id),
-      disabled: settingsObj.rssFeeds?.disabled || [],
-      deleted: settingsObj.rssFeeds?.deleted || [],
-      custom: settingsObj.rssFeeds?.custom || []
-    };
-  }
-  
-  // Decrypt API keys before returning (handle both encrypted and unencrypted for backward compatibility)
-  if (settingsObj && settingsObj.apiKeys) {
-    try {
-      const decryptedKeys = decryptApiKeys(settingsObj.apiKeys);
-      settingsObj.apiKeys = decryptedKeys;
-    } catch (error) {
-      console.error('Failed to decrypt API keys for user:', userId, error);
-      // If decryption fails, assume keys are already unencrypted (backward compatibility)
-    }
-  }
-  
-  return settingsObj;
 }
 
 export async function updateUserSettings(userId: string, updates: Partial<{ apiKeys: { cohere: string; gemini: string }; preferences: { autoGenerate: boolean; generateTime: string; llmPreference: 'cohere' | 'gemini' | 'auto' }; rssFeeds: { enabled: string[]; disabled: string[]; custom: unknown[] } }>) {

@@ -3,7 +3,8 @@ import { auth } from '@clerk/nextjs/server';
 
 export const maxDuration = 300; // 5 minutes for background processing
 
-export async function POST(request: Request) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function POST(_request: Request) {
   try {
     const { userId } = await auth();
     if (!userId) {

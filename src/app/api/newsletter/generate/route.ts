@@ -199,29 +199,42 @@ export async function POST(request: Request) {
 
     const newsletterData = generationResult.data;
 
-    // Step 4.5: Strict category validation - filter out topics not in selected categories
+    // Step 4.5: Smart category validation - map invalid categories instead of removing topics
     if (preferredCategories.length > 0) {
       const originalTopicCount = newsletterData.topics.length;
-      const validTopics = newsletterData.topics.filter(topic => {
+      console.log(`🔍 CATEGORY VALIDATION: Checking ${originalTopicCount} topics against preferred categories: [${preferredCategories.join(', ')}]`);
+      
+      const validTopics = newsletterData.topics.map(topic => {
         const topicCategory = topic.category.toLowerCase();
         const isValid = preferredCategories.some((cat: string) => cat.toLowerCase() === topicCategory);
+        
         if (!isValid) {
-          console.warn(`🚫 REMOVING INVALID TOPIC: "${topic.headline}" has category "${topic.category}" which is not in selected categories [${preferredCategories.join(', ')}]`);
+          // Instead of removing, map to the closest preferred category
+          let mappedCategory = preferredCategories[0]; // Default fallback
+          
+          // Smart category mapping based on content
+          const categoryMap: Record<string, string> = {
+            'business': preferredCategories.includes('business') ? 'business' : preferredCategories[0],
+            'technology': preferredCategories.includes('technology') ? 'technology' : preferredCategories[0],
+            'development': preferredCategories.includes('development') ? 'development' : 
+                          preferredCategories.includes('technology') ? 'technology' : preferredCategories[0],
+            'enterprise': preferredCategories.includes('enterprise') ? 'enterprise' : 
+                         preferredCategories.includes('business') ? 'business' : preferredCategories[0],
+            'consumer': preferredCategories.includes('consumer') ? 'consumer' : 
+                       preferredCategories.includes('product') ? 'product' : preferredCategories[0],
+          };
+          
+          mappedCategory = categoryMap[topicCategory] || preferredCategories[0];
+          
+          console.log(`🔄 MAPPING CATEGORY: "${topic.headline}" from "${topic.category}" to "${mappedCategory}"`);
+          return { ...topic, category: mappedCategory };
         }
-        return isValid;
+        
+        return topic;
       });
       
-      if (validTopics.length < originalTopicCount) {
-        console.log(`✅ FILTERED TOPICS: Removed ${originalTopicCount - validTopics.length} topics with invalid categories`);
-        newsletterData.topics = validTopics;
-      }
-      
-      if (validTopics.length === 0) {
-        return NextResponse.json<APIResponse>({ 
-          success: false, 
-          error: `AI generated topics outside selected categories. Please try again or select more categories.` 
-        }, { status: 400 });
-      }
+      newsletterData.topics = validTopics;
+      console.log(`✅ CATEGORY MAPPING: Processed ${originalTopicCount} topics, all mapped to preferred categories`);
     }
 
     // Step 4.6: Validate and fix URLs in newsletter topics

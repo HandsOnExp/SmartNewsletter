@@ -120,8 +120,9 @@ export function buildPrompt(
   const languageInstructions = getLanguageInstructions(language);
   
   return `
-    ${basePrompt}
     ${languageInstructions}
+    
+    ${basePrompt}
     
     Today's date: ${currentDate}
     
@@ -131,10 +132,19 @@ export function buildPrompt(
     
     🔗 CRITICAL URL REQUIREMENT: For each topic, you MUST use the exact "link" field from one of the articles below. Do NOT create, modify, or generate any URLs. Only copy the exact URL from the "link" field of the articles provided.
     
-    📂 CRITICAL CATEGORY REQUIREMENT: ${preferredCategories.length > 0 ? `🚫 SYSTEM FAILURE WARNING 🚫: You can ONLY use these EXACT categories: ${preferredCategories.join(', ')}. 
-    ⚠️ FORBIDDEN CATEGORIES ⚠️: Any category NOT in this list will cause SYSTEM FAILURE.
-    ✅ ALLOWED CATEGORIES ONLY ✅: ${preferredCategories.join(', ')}
-    🔥 VIOLATION = SYSTEM CRASH 🔥: Each topic MUST use ONLY ONE of: ${preferredCategories.join(', ')}` : 'Assign each topic ONE primary category from the standard categories.'} NEVER use "ai" as a category since this is an AI newsletter.
+    📂 CRITICAL CATEGORY REQUIREMENT: ${preferredCategories.length > 0 ? `
+    ⚡ MANDATORY CATEGORIES ⚡: You MUST use ONLY these categories: ${preferredCategories.join(', ')}
+    
+    📝 CATEGORY ASSIGNMENT RULES:
+    - Each topic MUST have "category": "<one of: ${preferredCategories.join(', ')}>"
+    - Do NOT create new categories
+    - Do NOT use: "business", "technology", "ai", or any other category
+    - ONLY use the exact category names: ${preferredCategories.join(', ')}
+    
+    ✅ VALID CATEGORY VALUES: ${preferredCategories.map(c => `"${c}"`).join(', ')}
+    ❌ INVALID CATEGORIES: Any category not in the above list will be rejected
+    
+    Example: "category": "${preferredCategories[0]}"` : 'Assign each topic ONE primary category from the standard categories.'} NEVER use "ai" as a category since this is an AI newsletter.
     
     Articles to analyze:
     ${JSON.stringify(sortedArticles.map(a => ({
@@ -185,31 +195,45 @@ function getLanguageInstructions(language: string): string {
     english: '',
     hebrew: `
     
-    🔴 כתוב הכל בעברית בלבד! WRITE EVERYTHING IN HEBREW ONLY! 🔴
+    ████████████████████████████████████████████████████████████
+    █                                                          █
+    █   🇮🇱 עברית בלבד! HEBREW ONLY! עברית בלבד! 🇮🇱            █
+    █                                                          █
+    ████████████████████████████████████████████████████████████
     
-    דוגמה לפורמט הנדרש (Required format example):
+    ⚠️ CRITICAL REQUIREMENT: ENTIRE RESPONSE MUST BE IN HEBREW ⚠️
+    
+    📖 HEBREW TEMPLATE (copy this structure exactly):
     {
-      "newsletterTitle": "🤖 חדשות בינה מלאכותית: 7 סיפורים שיפתיעו אתכם",
-      "introduction": "שלום לכולם! השבוע אנו מביאים לכם עדכונים מרתקים מעולם הבינה המלאכותית...",
+      "newsletterTitle": "🤖 חדשות בינה מלאכותית: סיפורים מרתקים מהשבוע",
+      "introduction": "שלום חברים! השבוע הביא עימו פיתוחים מרשימים בעולם הבינה המלאכותית...",
       "topics": [
         {
-          "headline": "פריצת דרך חדשה במודלי שפה",
-          "summary": "חוקרים פיתחו מודל שפה חדש שמציג יכולות מרשימות בהבנת טקסט עברי. המחקר מראה שיפורים משמעותיים בהבנה ויצירת תוכן בעברית. הטכנולוגיה החדשה צפויה לשפר משמעותית את השירותים הדיגיטליים בעברית.",
-          "keyTakeaway": "טכנולוגיה חדשה תשפר את השירותים הדיגיטליים בעברית",
+          "headline": "פריצת דרך חדשה בעולם הבינה המלאכותית",
+          "summary": "חוקרים מאוניברסיטת סטנפורד פיתחו טכנולוגיה חדשנית שמאפשרת לבינה המלאכותית להבין טקסט עברי ברמה חסרת תקדים. המחקר מראה שיפורים דרמטיים ביכולות ההבנה וההפקה של תוכן בעברית, כולל הבנת דקדוק מורכב וביטויים תרבותיים. הטכנולוגיה החדשה עשויה לחולל מהפכה בשירותים הדיגיטליים הישראליים ולשפר את הנגישות לטכנולוגיה מתקדמת בעברית. החוקרים מעריכים שהטכנולוגיה תהיה זמינה לשימוש מסחרי בתוך שנתיים.",
+          "keyTakeaway": "בינה מלאכותית חדשה תשנה את השירותים הדיגיטליים בישראל",
+          "imagePrompt": "Modern AI brain with Hebrew letters flowing around it, blue and white tech design",
+          "sourceUrl": "[use exact URL from articles]",
           "category": "research"
         }
       ],
-      "conclusion": "זה היה עדכון השבוע בעולם הבינה המלאכותית. נתראה בשבוע הבא עם עוד חדשות מרתקות!"
+      "conclusion": "זה היה עדכון השבוע מעולם הבינה המלאכותית. נתראה בשבוע הבא עם חדשות נוספות!"
     }
     
-    חובה לכתוב בעברית (Must write in Hebrew):
-    - כותרת הניוזלטר - Hebrew title  
-    - מבוא - Hebrew introduction
-    - כותרות נושאים - Hebrew headlines
-    - תקצירים - Hebrew summaries  
-    - מסקנות - Hebrew conclusions
+    🎯 HEBREW CONTENT REQUIREMENTS:
+    ✅ newsletterTitle - כותרת ניוזלטר בעברית
+    ✅ introduction - מבוא בעברית  
+    ✅ headline - כותרת הנושא בעברית
+    ✅ summary - תקציר מלא בעברית (4-6 משפטים)
+    ✅ keyTakeaway - מסקנה חשובה בעברית
+    ✅ conclusion - סיכום בעברית
     
-    השתמש במונחי טכנולוגיה בעברית: בינה מלאכותית, למידת מכונה, רשתות נוירונים
+    🔤 USE HEBREW TECH TERMS:
+    - AI = בינה מלאכותית
+    - Machine Learning = למידת מכונה  
+    - Neural Networks = רשתות נוירונים
+    - Algorithm = אלגוריתם
+    - Data = נתונים
     `,
     
     spanish: `

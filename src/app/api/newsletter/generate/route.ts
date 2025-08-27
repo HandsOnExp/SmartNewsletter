@@ -7,8 +7,8 @@ import { createNewsletter, connectDB, getUserSettings } from '@/lib/db';
 import { autoCleanupIfNeeded } from '@/lib/database-cleanup';
 import { APIResponse, NewsletterGenerationResponse, CustomRSSFeed, NewsletterCategory } from '@/types';
 
-// Configure runtime for longer timeout (Pro plan: up to 60s, Enterprise: up to 900s)
-export const maxDuration = 60; // seconds
+// Configure runtime for Free plan (10 seconds max)
+export const maxDuration = 10; // seconds
 
 export async function POST(request: Request) {
   try {
@@ -83,10 +83,10 @@ export async function POST(request: Request) {
     console.log(`Fetching RSS feeds... (${enabledFeeds.length} enabled feeds)`);
     console.log('Final enabled feeds:', enabledFeeds.map(f => f.name));
     
-    // Add timeout for feed fetching to prevent hanging
+    // Add timeout for feed fetching (Free plan: must complete in under 8 seconds)
     const feedFetchPromise = fetchAllFeeds(enabledFeeds);
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Feed fetching timeout')), 45000) // 45 second timeout
+      setTimeout(() => reject(new Error('Feed fetching timeout')), 8000) // 8 second timeout for Free plan
     );
     
     const feedResults = await Promise.race([feedFetchPromise, timeoutPromise]) as any;

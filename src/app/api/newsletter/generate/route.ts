@@ -118,9 +118,18 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Step 2.5: Skip URL validation to save time (60s timeout constraint)
-    console.log('Skipping URL validation for faster generation...');
-    const validatedArticles = allArticles; // Skip validation entirely
+    // Step 2.5: Fast URL validation with aggressive timeout
+    console.log('Fast URL validation with 5-second timeout...');
+    const validatedArticles = await processAndValidateArticles(allArticles, {
+      validateURLs: true,
+      fixBrokenLinks: false, // Skip fixing to save time
+      batchSize: 20, // Larger batches for speed
+      timeout: 200, // 200ms per URL (very fast)
+      maxValidationTime: 5000, // Total max 5 seconds for all validation
+      skipValidationPatterns: [
+        'technologyreview\\.com/\\d{4}/\\d{2}/\\d{2}/[^/]+/$'
+      ]
+    });
     
     const removedArticles = allArticles.length - validatedArticles.length;
     if (removedArticles > 0) {

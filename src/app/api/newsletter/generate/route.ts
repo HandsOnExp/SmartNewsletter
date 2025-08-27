@@ -118,17 +118,9 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Step 2.5: Validate URLs to ensure all articles have working links
-    console.log('Validating article URLs...');
-    const validatedArticles = await processAndValidateArticles(allArticles, {
-      validateURLs: true,
-      fixBrokenLinks: true,
-      batchSize: 10,
-      skipValidationPatterns: [
-        // MIT Technology Review problematic URL patterns
-        'technologyreview\\.com/\\d{4}/\\d{2}/\\d{2}/[^/]+/$'
-      ]
-    });
+    // Step 2.5: Skip URL validation to save time (60s timeout constraint)
+    console.log('Skipping URL validation for faster generation...');
+    const validatedArticles = allArticles; // Skip validation entirely
     
     const removedArticles = allArticles.length - validatedArticles.length;
     if (removedArticles > 0) {

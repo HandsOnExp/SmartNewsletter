@@ -154,7 +154,7 @@ export default function Home() {
           className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center"
         >
           {[
-            { label: "RSS Sources", value: "7+" },
+            { label: "RSS Sources", value: "24+" },
             { label: "AI Models", value: "2" },
             { label: "Generation Time", value: "<30s" },
             { label: "Export Formats", value: "HTML" }

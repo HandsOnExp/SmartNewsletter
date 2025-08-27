@@ -2,8 +2,8 @@
 
 > **Transform RSS feeds into stunning AI-powered newsletters in seconds**
 
-## 🚀 **[LIVE DEMO](https://your-app-name.vercel.app)** 
-> Experience the full app functionality with pre-configured API keys. Generate up to 5 demo newsletters to explore all features!
+## 🚀 **[LIVE DEMO](https://smart-news-letter.vercel.app)** 
+> Experience the full app functionality with pre-configured API keys. Generate demo newsletters to explore all features!
 
 An intelligent newsletter generation platform that leverages advanced AI algorithms to curate, analyze, and format RSS content into beautiful, engaging newsletters. Never miss important AI developments again with our automated content curation system.
 
@@ -31,10 +31,11 @@ An intelligent newsletter generation platform that leverages advanced AI algorit
 - **Performance**: Optimized with Turbopack and advanced caching strategies
 
 ### 📊 **Analytics & Management**
-- **Dashboard Interface**: Clean, intuitive dashboard for newsletter management
+- **Dashboard Interface**: Clean, intuitive dashboard for newsletter management with demo banner
 - **Generation Statistics**: Track sources analyzed, generation time, and AI model usage
-- **RSS Feed Management**: Curated list of top AI publications with custom feed support
+- **RSS Feed Management**: Curated list of 24+ top AI publications across 8 categories
 - **Content Preview**: Review and edit newsletters before export
+- **Newsletter History**: View and manage previously generated newsletters with delete functionality
 
 ## 🚀 Quick Start
 
@@ -48,7 +49,7 @@ An intelligent newsletter generation platform that leverages advanced AI algorit
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-username/smart-news-letter.git
+   git clone https://github.com/HandsOnExp/SmartNewsletter.git
    cd smart-news-letter
    ```
 

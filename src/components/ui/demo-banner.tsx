@@ -12,8 +12,8 @@ export function DemoBanner() {
             🚀 Demo Mode - Try Smart Newsletter
           </h3>
           <p className="text-sm text-gray-300 mt-1">
-            This is a live demo using free API keys. Generate up to 5 newsletters to test all features. 
-            For production use, add your own API keys in Settings.
+            This is a live demo using the developer free API keys. Generate newsletters to test all features. 
+            For less restricted number of generation, add your own API keys in Settings.
           </p>
         </div>
         <div className="text-xs text-gray-400 bg-gray-800/50 px-2 py-1 rounded">

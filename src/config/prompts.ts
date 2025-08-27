@@ -185,26 +185,32 @@ function getLanguageInstructions(language: string): string {
     english: '',
     hebrew: `
     
-    🔴 CRITICAL LANGUAGE REQUIREMENT 🔴: WRITE EVERYTHING IN HEBREW ONLY!
+    🔴 כתוב הכל בעברית בלבד! WRITE EVERYTHING IN HEBREW ONLY! 🔴
     
-    ⚠️ SYSTEM FAILURE WARNING ⚠️: Using any English text (except URL fields) will cause system failure!
+    דוגמה לפורמט הנדרש (Required format example):
+    {
+      "newsletterTitle": "🤖 חדשות בינה מלאכותית: 7 סיפורים שיפתיעו אתכם",
+      "introduction": "שלום לכולם! השבוע אנו מביאים לכם עדכונים מרתקים מעולם הבינה המלאכותית...",
+      "topics": [
+        {
+          "headline": "פריצת דרך חדשה במודלי שפה",
+          "summary": "חוקרים פיתחו מודל שפה חדש שמציג יכולות מרשימות בהבנת טקסט עברי. המחקר מראה שיפורים משמעותיים בהבנה ויצירת תוכן בעברית. הטכנולוגיה החדשה צפויה לשפר משמעותית את השירותים הדיגיטליים בעברית.",
+          "keyTakeaway": "טכנולוגיה חדשה תשפר את השירותים הדיגיטליים בעברית",
+          "category": "research"
+        }
+      ],
+      "conclusion": "זה היה עדכון השבוע בעולם הבינה המלאכותית. נתראה בשבוע הבא עם עוד חדשות מרתקות!"
+    }
     
-    MANDATORY HEBREW REQUIREMENTS:
-    - newsletterTitle: MUST be in Hebrew
-    - introduction: MUST be in Hebrew  
-    - All topic headlines: MUST be in Hebrew
-    - All topic summaries: MUST be in Hebrew
-    - All keyTakeaway text: MUST be in Hebrew
-    - conclusion: MUST be in Hebrew
-    - Use proper Hebrew grammar and syntax
-    - Write from right-to-left as appropriate
-    - Use Hebrew tech terminology with English terms in parentheses ONLY when absolutely necessary
-    - Ensure cultural relevance for Hebrew-speaking audiences
-    - CRITICAL: Ensure all Hebrew text is properly escaped in JSON strings
-    - Do NOT use unescaped quotes (") within Hebrew text
-    - Use single quotes (') within Hebrew text if needed, or escape double quotes as \"
+    חובה לכתוב בעברית (Must write in Hebrew):
+    - כותרת הניוזלטר - Hebrew title  
+    - מבוא - Hebrew introduction
+    - כותרות נושאים - Hebrew headlines
+    - תקצירים - Hebrew summaries  
+    - מסקנות - Hebrew conclusions
     
-    🚨 REMINDER: If any field contains English text, the system will reject the response! 🚨`,
+    השתמש במונחי טכנולוגיה בעברית: בינה מלאכותית, למידת מכונה, רשתות נוירונים
+    `,
     
     spanish: `
     

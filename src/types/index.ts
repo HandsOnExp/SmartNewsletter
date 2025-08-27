@@ -47,8 +47,8 @@ export interface Newsletter {
   updatedAt: Date;
 }
 
-// Time period options for article filtering
-export type TimePeriod = '1hour' | '6hours' | '12hours' | '24hours' | '3days' | '1week' | '1month';
+// Time period options for article filtering  
+export type TimePeriod = '24hours' | '3days' | '1week';
 
 export interface TimePeriodOption {
   value: TimePeriod;

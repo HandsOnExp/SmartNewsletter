@@ -190,7 +190,7 @@ const UserSettingsSchema = new mongoose.Schema({
     },
     timePeriod: {
       type: String,
-      enum: ['1hour', '6hours', '12hours', '24hours', '3days', '1week', '1month'],
+      enum: ['24hours', '3days', '1week'],
       default: '24hours'
     },
     preferredCategories: {

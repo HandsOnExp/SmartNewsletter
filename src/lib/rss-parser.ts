@@ -18,13 +18,9 @@ const parser = new Parser({
 
 // Time period options with their corresponding durations in hours
 export const TIME_PERIOD_OPTIONS: TimePeriodOption[] = [
-  { value: '1hour', label: 'Last Hour', description: 'Very recent articles', hours: 1 },
-  { value: '6hours', label: 'Last 6 Hours', description: 'Latest updates', hours: 6 },
-  { value: '12hours', label: 'Last 12 Hours', description: 'Half-day updates', hours: 12 },
   { value: '24hours', label: 'Last 24 Hours', description: 'Daily digest', hours: 24 },
   { value: '3days', label: 'Last 3 Days', description: 'Recent stories', hours: 72 },
-  { value: '1week', label: 'Last Week', description: 'Weekly summary', hours: 168 },
-  { value: '1month', label: 'Last Month', description: 'Monthly overview', hours: 720 }
+  { value: '1week', label: 'Last Week', description: 'Weekly summary', hours: 168 }
 ];
 
 export interface ParsedArticle {

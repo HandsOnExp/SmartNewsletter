@@ -160,6 +160,14 @@ export default function Dashboard() {
           });
         }
         
+        // Check if fewer articles were generated than requested
+        if (data.topicCountNotification) {
+          toast.info(data.topicCountNotification.message, {
+            duration: 6000, // Show for 6 seconds
+            position: 'top-center',
+          });
+        }
+        
         toast.success(`Newsletter generated successfully! (${data.stats?.generationTime})`);
         fetchDashboardStats(); // Refresh stats
         fetchRecentNewsletters(); // Refresh recent newsletters

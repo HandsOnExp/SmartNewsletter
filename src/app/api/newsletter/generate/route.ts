@@ -135,8 +135,8 @@ export async function POST(request: Request) {
     // Step 3: Deduplicate and filter articles by time period
     const uniqueArticles = deduplicateArticles(validatedArticles);
     const timePeriod = userSettings?.preferences?.timePeriod || '24hours';
-    // Require at least half the requested articles to use the strict time filter, otherwise fallback to longer periods
-    const minArticlesForStrict = Math.max(3, Math.ceil(maxArticles * 0.5)); // At least 3 articles or half of requested amount
+    // Require enough articles to generate the requested newsletter size
+    const minArticlesForStrict = Math.max(maxArticles * 2, 10); // Need at least 2x the requested articles for better selection
     const filterResult = filterArticlesByTimePeriod(uniqueArticles, timePeriod, minArticlesForStrict);
     
     const sortedArticles = sortArticlesByDate(filterResult.articles);
@@ -150,20 +150,50 @@ export async function POST(request: Request) {
 
     console.log(`Processing ${sortedArticles.length} articles (filtered by ${timePeriod}) to generate ${maxArticles} articles in ${language}`);
 
-    // Step 4: Generate newsletter content
+    // Step 4: Generate newsletter content with retry logic for category filtering
     console.log(`Generating ${maxArticles} newsletter articles with ${llmProvider} in ${language}...`);
     console.log(`🎯 STRICT CATEGORY CONSTRAINT: Only allowing topics from categories:`, preferredCategories);
-    const generationResult = await generateNewsletterContent(sortedArticles, llmProvider, {
-      maxTopics: Math.min(maxArticles, sortedArticles.length), // Don't request more articles than we have
-      language,
-      preferredCategories
-    });
+    
+    let generationResult;
+    let topicsToRequest = Math.min(maxArticles, sortedArticles.length);
+    let generationAttempt = 0;
+    const maxGenerationAttempts = 2;
+    
+    // Try generating with increasing topic count to compensate for category filtering
+    while (generationAttempt < maxGenerationAttempts) {
+      generationAttempt++;
+      console.log(`Generation attempt ${generationAttempt}/${maxGenerationAttempts}, requesting ${topicsToRequest} topics`);
+      
+      generationResult = await generateNewsletterContent(sortedArticles, llmProvider, {
+        maxTopics: topicsToRequest,
+        language,
+        preferredCategories
+      });
+      
+      // If generation successful, check if we need to retry due to category filtering
+      if (generationResult.success && generationResult.data) {
+        const generatedTopics = generationResult.data.topics.length;
+        console.log(`AI generated ${generatedTopics} topics before category filtering`);
+        
+        // Estimate how many will be filtered out and break if we have enough or this is the last attempt
+        if (generatedTopics >= maxArticles * 0.8 || generationAttempt === maxGenerationAttempts) {
+          break;
+        }
+        
+        // Request more topics for next attempt to compensate for expected filtering
+        const expectedFilteredCount = Math.max(1, Math.ceil(generatedTopics * 0.3)); // Estimate 30% might be filtered
+        topicsToRequest = Math.min(maxArticles + expectedFilteredCount, sortedArticles.length, 10); // Cap at 10 topics max
+        console.log(`Planning to request ${topicsToRequest} topics next time to compensate for category filtering`);
+      } else {
+        break; // If generation fails, no point in retrying
+      }
+    }
 
-    if (!generationResult.success || !generationResult.data) {
-      console.error('Newsletter generation failed:', generationResult.error);
+    if (!generationResult || !generationResult.success || !generationResult.data) {
+      console.error('Newsletter generation failed:', generationResult?.error);
       return NextResponse.json<APIResponse>({ 
         success: false, 
-        error: generationResult.error || 'Failed to generate newsletter content' 
+        error: generationResult?.error || 'Failed to generate newsletter content' 
       }, { status: 500 });
     }
 

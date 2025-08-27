@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     // Fetch user settings for preferences
     const userSettings = await getUserSettings(userId);
     const llmProvider = requestedProvider || userSettings?.preferences?.llmPreference || 'cohere';
-    const maxArticles = userSettings?.preferences?.maxArticles || 5; // maxArticles controls number of articles
+    const maxArticles = Math.min(userSettings?.preferences?.maxArticles || 5, 3); // Limit to 3 articles for faster generation
     const language = userSettings?.preferences?.language || 'english';
     const preferredCategories = userSettings?.preferences?.preferredCategories || ['business', 'technology', 'development'];
 
@@ -83,10 +83,10 @@ export async function POST(request: Request) {
     console.log(`Fetching RSS feeds... (${enabledFeeds.length} enabled feeds)`);
     console.log('Final enabled feeds:', enabledFeeds.map(f => f.name));
     
-    // Add timeout for feed fetching to prevent hanging
-    const feedFetchPromise = fetchAllFeeds(enabledFeeds);
+    // Add timeout for feed fetching to prevent hanging (shorter for faster generation)
+    const feedFetchPromise = fetchAllFeeds(enabledFeeds.slice(0, 8)); // Limit to 8 feeds max
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Feed fetching timeout')), 45000) // 45 second timeout
+      setTimeout(() => reject(new Error('Feed fetching timeout')), 25000) // 25 second timeout
     );
     
     const feedResults = await Promise.race([feedFetchPromise, timeoutPromise]) as any;

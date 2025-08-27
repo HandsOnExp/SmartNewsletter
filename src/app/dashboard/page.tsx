@@ -147,7 +147,20 @@ export default function Dashboard() {
         }),
       });
 
-      const data: NewsletterGenerationResponse = await response.json();
+      // Handle non-JSON responses (HTML error pages)
+      let data: NewsletterGenerationResponse;
+      try {
+        const contentType = response.headers.get('content-type');
+        if (!contentType?.includes('application/json')) {
+          const text = await response.text();
+          console.error('Received non-JSON response:', text);
+          throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+        }
+        data = await response.json();
+      } catch (jsonError) {
+        console.error('Failed to parse JSON response:', jsonError);
+        throw new Error(`Server error: ${response.status} ${response.statusText}`);
+      }
 
       if (data.success && data.newsletter) {
         setNewsletter(data.newsletter);

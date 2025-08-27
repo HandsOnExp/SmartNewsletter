@@ -71,7 +71,11 @@
       "WebFetch(domain:www.brookings.edu)",
       "WebFetch(domain:www.fhi.ox.ac.uk)",
       "WebFetch(domain:www.reuters.com)",
-      "WebFetch(domain:feeds.bbci.co.uk)"
+      "WebFetch(domain:feeds.bbci.co.uk)",
+      "WebFetch(domain:feeds.reuters.com)",
+      "WebFetch(domain:marktechpost.com)",
+      "WebFetch(domain:aibusiness.com)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

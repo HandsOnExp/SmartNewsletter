@@ -9,9 +9,9 @@ export const RSS_FEEDS = [
     enabled: true
   },
   {
-    id: 'business-insider',
-    name: 'Business Insider AI',
-    url: 'https://www.businessinsider.com/artificial-intelligence',
+    id: 'marktech-post',
+    name: 'MarkTechPost AI',
+    url: 'https://marktechpost.com/feed',
     category: 'business',
     priority: 2,
     enabled: true

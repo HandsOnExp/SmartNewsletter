@@ -254,6 +254,31 @@ export const UserSettings = mongoose.models.UserSettings || mongoose.model('User
 export const FeedAnalytics = mongoose.models.FeedAnalytics || mongoose.model('FeedAnalytics', FeedAnalyticsSchema);
 
 // Helper functions
+async function getDefaultUserSettings(userId: string) {
+  // Import RSS_FEEDS to populate default enabled feeds
+  const { RSS_FEEDS } = await import('@/config/rss-feeds');
+  
+  return {
+    userId,
+    apiKeys: { cohere: '', gemini: '' },
+    preferences: {
+      autoGenerate: false,
+      generateTime: '09:00',
+      llmPreference: 'cohere' as const,
+      maxArticles: 7,
+      language: 'english' as const,
+      timePeriod: '24hours' as const,
+      preferredCategories: ['business', 'technology', 'development'] as const
+    },
+    rssFeeds: {
+      enabled: RSS_FEEDS.map(feed => feed.id),
+      disabled: [] as string[],
+      deleted: [] as string[],
+      custom: []
+    }
+  };
+}
+
 export async function createNewsletter(data: {
   userId: string;
   title: string;
@@ -286,12 +311,33 @@ export async function getUserNewsletters(userId: string, limit: number = 10) {
 }
 
 export async function getUserSettings(userId: string) {
-  await connectDB();
-  let settings = await UserSettings.findOne({ userId });
-  
-  if (!settings) {
-    // Create default settings for new user
-    settings = await UserSettings.create({ userId });
+  try {
+    const connection = await connectDB();
+    if (!connection) {
+      console.warn('MongoDB not available for getUserSettings, returning defaults');
+      return await getDefaultUserSettings(userId);
+    }
+
+    // Ensure mongoose connection is ready
+    if (mongoose.connection.readyState !== 1) {
+      console.warn('MongoDB connection not ready, returning defaults');
+      return await getDefaultUserSettings(userId);
+    }
+
+    let settings = await UserSettings.findOne({ userId });
+    
+    if (!settings) {
+      // Try to create default settings for new user
+      try {
+        settings = await UserSettings.create({ userId });
+      } catch (createError) {
+        console.error('Failed to create user settings:', createError);
+        return await getDefaultUserSettings(userId);
+      }
+    }
+  } catch (dbError) {
+    console.error('Database error in getUserSettings:', dbError);
+    return await getDefaultUserSettings(userId);
   }
   
   // Convert to object for manipulation

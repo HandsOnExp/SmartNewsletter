@@ -7,6 +7,9 @@ import { createNewsletter, connectDB, getUserSettings } from '@/lib/db';
 import { autoCleanupIfNeeded } from '@/lib/database-cleanup';
 import { APIResponse, NewsletterGenerationResponse, CustomRSSFeed, NewsletterCategory } from '@/types';
 
+// Configure runtime for longer timeout (Pro plan: up to 60s, Enterprise: up to 900s)
+export const maxDuration = 60; // seconds
+
 export async function POST(request: Request) {
   try {
     const { userId } = await auth();
@@ -79,7 +82,14 @@ export async function POST(request: Request) {
 
     console.log(`Fetching RSS feeds... (${enabledFeeds.length} enabled feeds)`);
     console.log('Final enabled feeds:', enabledFeeds.map(f => f.name));
-    const feedResults = await fetchAllFeeds(enabledFeeds);
+    
+    // Add timeout for feed fetching to prevent hanging
+    const feedFetchPromise = fetchAllFeeds(enabledFeeds);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Feed fetching timeout')), 45000) // 45 second timeout
+    );
+    
+    const feedResults = await Promise.race([feedFetchPromise, timeoutPromise]) as any;
     
     // Step 2: Aggregate and process articles
     const allArticles = feedResults

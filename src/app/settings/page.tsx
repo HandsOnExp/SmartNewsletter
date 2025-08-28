@@ -21,6 +21,7 @@ export default function SettingsPage() {
   const { user, isLoaded } = useUser();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [feedsLoading, setFeedsLoading] = useState(false);
   const [testingKey, setTestingKey] = useState<{ provider: string; testing: boolean }>({ provider: '', testing: false });
   const [showApiKeys, setShowApiKeys] = useState({
     gemini: false
@@ -99,17 +100,34 @@ export default function SettingsPage() {
 
   const loadUserSettings = async () => {
     try {
-      // First try to load from server
-      const response = await fetch('/api/settings');
+      // Add cache-busting parameter to prevent browser caching
+      const timestamp = Date.now();
+      const response = await fetch(`/api/settings?t=${timestamp}`);
       let settingsLoaded = false;
 
+      console.log('🔄 Loading settings from API, response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('📥 API response data:', {
+          success: data.success,
+          hasSettings: !!data.data?.settings,
+          rssFeeds: data.data?.settings?.rssFeeds
+        });
+        
         if (data.success && data.data?.settings) {
           const settings: UserSettings = data.data.settings;
+          console.log('✅ Settings loaded successfully, RSS feed counts:', {
+            enabled: settings.rssFeeds?.enabled?.length || 0,
+            disabled: settings.rssFeeds?.disabled?.length || 0,
+            custom: settings.rssFeeds?.custom?.length || 0,
+            deleted: settings.rssFeeds?.deleted?.length || 0
+          });
           applySettings(settings);
           settingsLoaded = true;
         }
+      } else {
+        console.error('❌ API response not ok:', response.status, response.statusText);
       }
 
       // If server failed, try localStorage as fallback
@@ -189,6 +207,13 @@ export default function SettingsPage() {
 
 
   const applySettings = (settings: UserSettings) => {
+    console.log('🔧 applySettings called with:', {
+      hasApiKeys: !!settings.apiKeys,
+      hasPreferences: !!settings.preferences,
+      hasRssFeeds: !!settings.rssFeeds,
+      rssFeeds: settings.rssFeeds
+    });
+
     // Valid categories for filtering
     const validCategories: NewsletterCategory[] = ['business', 'technology', 'research', 'product', 'enterprise', 'consumer', 'security', 'development'];
     
@@ -213,57 +238,97 @@ export default function SettingsPage() {
     const deletedIds = settings.rssFeeds?.deleted || [];
     setDeletedFeeds(deletedIds);
     
+    console.log('📊 Processing RSS feeds:', {
+      totalRssFeeds: RSS_FEEDS.length,
+      enabledIds: enabledIds,
+      enabledCount: enabledIds.length,
+      deletedIds: deletedIds,
+      deletedCount: deletedIds.length
+    });
+    
     const updatedFeeds = RSS_FEEDS
       .filter(feed => !deletedIds.includes(feed.id)) // Filter out deleted feeds
       .map(feed => ({
         ...feed,
         enabled: enabledIds.includes(feed.id)
       }));
+      
+    console.log('📋 Final feed states:', updatedFeeds.map(feed => ({
+      id: feed.id,
+      name: feed.name,
+      enabled: feed.enabled
+    })));
+    
     setFeeds(updatedFeeds);
+    console.log('✅ applySettings completed, feeds updated');
   };
 
 
   // Function to enable all RSS feeds
   const enableAllFeeds = async () => {
+    if (feedsLoading) return; // Prevent multiple simultaneous calls
+    
     try {
+      setFeedsLoading(true);
+      console.log('🟢 Enabling all RSS feeds...');
       const response = await fetch('/api/feeds/enable-all', {
-        method: 'POST'
+        method: 'POST',
+        headers: {
+          'Cache-Control': 'no-cache',
+        }
       });
       
       const result = await response.json();
+      console.log('🟢 Enable all feeds API response:', result);
       
       if (result.success) {
         toast.success(result.message);
+        console.log('🔄 Reloading settings after enable all...');
         // Reload settings to reflect changes
         await loadUserSettings();
       } else {
+        console.error('❌ Enable all feeds failed:', result.error);
         toast.error(result.error || 'Failed to enable all feeds');
       }
     } catch (error) {
       console.error('Enable all feeds error:', error);
       toast.error('Failed to enable all feeds');
+    } finally {
+      setFeedsLoading(false);
     }
   };
 
   // Function to disable all RSS feeds
   const disableAllFeeds = async () => {
+    if (feedsLoading) return; // Prevent multiple simultaneous calls
+    
     try {
+      setFeedsLoading(true);
+      console.log('🔴 Disabling all RSS feeds...');
       const response = await fetch('/api/feeds/disable-all', {
-        method: 'POST'
+        method: 'POST',
+        headers: {
+          'Cache-Control': 'no-cache',
+        }
       });
       
       const result = await response.json();
+      console.log('🔴 Disable all feeds API response:', result);
       
       if (result.success) {
         toast.success(result.message);
+        console.log('🔄 Reloading settings after disable all...');
         // Reload settings to reflect changes
         await loadUserSettings();
       } else {
+        console.error('❌ Disable all feeds failed:', result.error);
         toast.error(result.error || 'Failed to disable all feeds');
       }
     } catch (error) {
       console.error('Disable all feeds error:', error);
       toast.error('Failed to disable all feeds');
+    } finally {
+      setFeedsLoading(false);
     }
   };
 
@@ -489,17 +554,33 @@ export default function SettingsPage() {
                     <div className="flex gap-2">
                       <Button
                         onClick={enableAllFeeds}
+                        disabled={feedsLoading}
                         variant="outline"
-                        className="border-green-600 text-green-600 hover:bg-green-600 hover:text-white px-4 py-2 text-sm"
+                        className="border-green-600 text-green-600 hover:bg-green-600 hover:text-white px-4 py-2 text-sm disabled:opacity-50"
                       >
-                        Enable All
+                        {feedsLoading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current mr-2"></div>
+                            Enabling...
+                          </>
+                        ) : (
+                          'Enable All'
+                        )}
                       </Button>
                       <Button
                         onClick={disableAllFeeds}
+                        disabled={feedsLoading}
                         variant="outline"
-                        className="border-red-600 text-red-600 hover:bg-red-600 hover:text-white px-4 py-2 text-sm"
+                        className="border-red-600 text-red-600 hover:bg-red-600 hover:text-white px-4 py-2 text-sm disabled:opacity-50"
                       >
-                        Disable All
+                        {feedsLoading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current mr-2"></div>
+                            Disabling...
+                          </>
+                        ) : (
+                          'Disable All'
+                        )}
                       </Button>
                     </div>
                   </div>

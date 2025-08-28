@@ -11,6 +11,8 @@ An intelligent newsletter generation platform that leverages advanced AI algorit
 
 ### 🧠 **AI-Powered Content Curation**
 - **Dual AI Engine Support**: Choose between Cohere and Google Gemini for content analysis
+- **Performance-Optimized AI**: Automatic fallback from Cohere to Gemini on timeout, intelligent provider switching
+- **Background Processing**: Optional background generation for longer requests without timeout issues
 - **Intelligent Summarization**: Complex AI topics distilled into clear, engaging content
 - **Smart Topic Selection**: AI analyzes RSS feeds and intelligently selects 1-20 topics based on importance, relevance, and quality (recommended: 5-7 for optimal engagement)
 - **Multi-language Support**: Generate newsletters in English, Hebrew, Spanish, French, German, Italian, and Portuguese
@@ -19,9 +21,11 @@ An intelligent newsletter generation platform that leverages advanced AI algorit
 ### 📰 **Professional Newsletter Generation**
 - **Beautiful HTML Export**: Ready-to-send newsletter templates with responsive design
 - **Smart Content Optimization**: AI automatically trims and optimizes content for maximum engagement
+- **URL Deduplication**: Prevents duplicate URLs across topics, ensures content accuracy
 - **Rich Media Integration**: Automatic image generation and placeholder integration
-- **Performance Optimized**: Advanced caching system for faster generation times
+- **Performance Optimized**: Advanced caching system for faster generation times (sub-30s with Gemini, sub-50s with Cohere+fallback)
 - **URL Validation**: Comprehensive link verification prevents broken URLs in newsletters
+- **Fast Mode Processing**: Optimized prompts and processing for time-sensitive generation
 
 ### 🔧 **Developer-Friendly Architecture**
 - **Modern Tech Stack**: Built with Next.js 15, React 19, TypeScript, and TailwindCSS
@@ -32,10 +36,12 @@ An intelligent newsletter generation platform that leverages advanced AI algorit
 
 ### 📊 **Analytics & Management**
 - **Dashboard Interface**: Clean, intuitive dashboard for newsletter management with demo banner
+- **Performance Monitoring**: Real-time LLM performance tracking with automatic provider switching
 - **Generation Statistics**: Track sources analyzed, generation time, and AI model usage
-- **RSS Feed Management**: Curated list of 24+ top AI publications across 8 categories
+- **RSS Feed Management**: Curated list of 16 high-quality AI publications across 8 categories (Business, Technology, Research, Product, Enterprise, Consumer, Security, Development)
 - **Content Preview**: Review and edit newsletters before export
 - **Newsletter History**: View and manage previously generated newsletters with delete functionality
+- **Background Generation**: Real-time progress tracking for long-running newsletter generation
 
 ## 🚀 Quick Start
 
@@ -149,7 +155,9 @@ The AI doesn't just pick random articles - it uses a sophisticated scoring syste
 ## 📡 API Endpoints
 
 ### Newsletter Generation
-- `POST /api/newsletter/generate` - Generate newsletter content
+- `POST /api/newsletter/generate` - Generate newsletter content with automatic fallback
+- `POST /api/newsletter/generate-background` - Background newsletter generation with progress tracking
+- `GET /api/newsletter/generate-background?jobId=<id>` - Check background job status
 - `POST /api/newsletter/generate-html` - Export newsletter as HTML
 - `GET /api/newsletters` - List user newsletters
 - `GET /api/newsletters/[id]` - Get specific newsletter
@@ -166,6 +174,18 @@ The AI doesn't just pick random articles - it uses a sophisticated scoring syste
 
 ## 🎨 Customization
 
+### Current RSS Feed Sources
+The system includes 16 carefully curated, bot-friendly RSS feeds:
+
+**Business**: TechCrunch AI, Fast Company AI  
+**Technology**: The Verge, WIRED AI  
+**Research**: MIT Technology Review, arXiv AI Papers  
+**Product**: OpenAI Blog, MarkTechPost  
+**Enterprise**: NVIDIA AI Blog, InfoWorld AI  
+**Consumer**: The Verge AI, CNET AI  
+**Security**: Dark Reading, Security Week  
+**Development**: Hacker News, DEV Community  
+
 ### Adding RSS Feeds
 Edit `src/config/rss-feeds.ts` to add new RSS sources:
 
@@ -179,6 +199,8 @@ Edit `src/config/rss-feeds.ts` to add new RSS sources:
   enabled: true
 }
 ```
+
+**Note**: All feeds are tested for bot accessibility and content quality to prevent 403 errors and parsing failures.
 
 ### Customizing AI Prompts
 Modify `src/config/prompts.ts` to adjust AI behavior:
@@ -285,11 +307,16 @@ vercel
 - **Smart Batching**: Optimized API calls to reduce latency
 
 ### Performance Metrics
-- **Newsletter Generation**: < 30 seconds average
-- **RSS Parsing**: Supports 100+ articles per feed
-- **Memory Usage**: Optimized for serverless environments
+- **Newsletter Generation**: 
+  - Gemini: 15-25 seconds average
+  - Cohere: 25-35 seconds average (with 30s timeout + automatic Gemini fallback)
+  - Background Mode: No timeout limitations
+- **RSS Parsing**: Supports 115+ articles per session with intelligent batching (20 URLs per batch)
+- **Memory Usage**: Optimized for serverless environments with LazyContent loading
 - **Cache Hit Rate**: ~80% for repeated content requests
 - **Topic Selection**: Processes and scores articles in under 5 seconds
+- **URL Validation**: Fast batch processing with 5-second timeout per URL
+- **Performance Monitoring**: Real-time LLM success rates and response time tracking
 
 ## 🤝 Contributing
 
@@ -326,6 +353,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Build Failures**: Ensure all environment variables are set
 - **Authentication Issues**: Verify Clerk configuration
 - **Topic Selection**: Check RSS feeds are returning recent articles
+- **Timeout Issues**: Use background generation for Cohere, or let automatic fallback handle it
+- **RSS Feed Errors**: System automatically handles 403/timeout errors from problematic feeds
+- **Duplicate URLs**: Automatic deduplication ensures unique sources per topic
 
 ---
 

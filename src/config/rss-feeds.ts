@@ -86,7 +86,7 @@ export const RSS_FEEDS = [
     url: 'https://www.infoworld.com/category/artificial-intelligence/rss.xml',
     category: 'enterprise', 
     priority: 10,
-    enabled: true
+    enabled: false // Disabled due to malformed XML parsing errors
   },
 
   // Consumer Category - 2 highest quality, most frequently updated feeds

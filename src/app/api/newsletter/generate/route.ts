@@ -26,7 +26,7 @@ export async function POST(request: Request) {
 
     // Fetch user settings for preferences
     const userSettings = await getUserSettings(userId);
-    const userPreferredProvider = requestedProvider || userSettings?.preferences?.llmPreference || 'cohere';
+    const userPreferredProvider = requestedProvider || userSettings?.preferences?.llmPreference || 'gemini'; // Default to Gemini for reliability
     
     // Get performance-based recommendation
     const providerRecommendation = getBestProvider(userPreferredProvider as 'cohere' | 'gemini');
@@ -140,11 +140,11 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Step 3: Deduplicate and filter articles by time period
+    // Step 3: Deduplicate and filter articles by time period (EMERGENCY FAST MODE)
     const uniqueArticles = deduplicateArticles(validatedArticles);
-    const timePeriod = userSettings?.preferences?.timePeriod || '24hours';
-    // Require enough articles to generate the requested newsletter size
-    const minArticlesForStrict = Math.max(maxArticles * 2, 10); // Need at least 2x the requested articles for better selection
+    const timePeriod = '3days'; // Force 3-day period for more articles
+    // Reduce filtering requirements for emergency fast mode
+    const minArticlesForStrict = Math.max(maxArticles, 5); // Relaxed requirements
     const filterResult = filterArticlesByTimePeriod(uniqueArticles, timePeriod, minArticlesForStrict);
     
     let sortedArticles = sortArticlesByDate(filterResult.articles);
@@ -156,22 +156,22 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Limit to 30 most recent articles for faster processing
-    if (sortedArticles.length > 30) {
-      console.log(`Limiting from ${sortedArticles.length} to 30 articles for faster processing`);
-      sortedArticles = sortedArticles.slice(0, 30);
+    // Emergency mode: Limit to 15 most recent articles for maximum speed
+    if (sortedArticles.length > 15) {
+      console.log(`EMERGENCY MODE: Limiting from ${sortedArticles.length} to 15 articles for maximum speed`);
+      sortedArticles = sortedArticles.slice(0, 15);
     }
 
     console.log(`Processing ${sortedArticles.length} articles (filtered by ${timePeriod}) to generate ${maxArticles} articles in ${language}`);
 
-    // Step 4: Generate newsletter content with retry logic for category filtering
-    console.log(`Generating ${maxArticles} newsletter articles with ${llmProvider} in ${language}...`);
-    console.log(`🎯 STRICT CATEGORY CONSTRAINT: Only allowing topics from categories:`, preferredCategories);
+    // Step 4: Generate newsletter content with EMERGENCY SINGLE ATTEMPT
+    console.log(`EMERGENCY MODE: Single attempt generation with ${llmProvider} in ${language}...`);
+    console.log(`🎯 CATEGORY CONSTRAINT: Only allowing topics from categories:`, preferredCategories);
     
     let generationResult;
     let topicsToRequest = Math.min(maxArticles, sortedArticles.length);
     let generationAttempt = 0;
-    const maxGenerationAttempts = 2;
+    const maxGenerationAttempts = 1; // Emergency mode: single attempt only
     
     // Try generating with increasing topic count to compensate for category filtering
     while (generationAttempt < maxGenerationAttempts) {
@@ -187,7 +187,7 @@ export async function POST(request: Request) {
             language,
             preferredCategories,
             fastMode: true, // Enable fast mode for all main route requests
-            timeout: llmProvider === 'cohere' ? 20000 : 15000 // Realistic timeouts: Cohere 20s, others 15s
+            timeout: llmProvider === 'cohere' ? 15000 : 10000 // Emergency timeouts: Cohere 15s, Gemini 10s
           })
         );
       } catch (error) {
@@ -215,7 +215,7 @@ export async function POST(request: Request) {
                 language,
                 preferredCategories,
                 fastMode: true, // Use fast mode for fallback
-                timeout: 12000 // Fast 12s timeout for fallback
+                timeout: 8000 // Emergency 8s timeout for fallback
               })
             );
             break; // Success with fallback

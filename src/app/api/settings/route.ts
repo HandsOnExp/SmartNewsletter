@@ -86,13 +86,11 @@ export async function GET() {
       settings = fallbackSettings || {
         userId,
         apiKeys: {
-          cohere: '',
           gemini: ''
         },
         preferences: {
           autoGenerate: false,
           generateTime: '09:00',
-          llmPreference: 'cohere' as const,
           maxArticles: 5,
           language: 'english' as const,
           timePeriod: '24hours' as const,
@@ -152,13 +150,11 @@ export async function POST(request: Request) {
     const updatedSettings: UserSettings = {
       userId,
       apiKeys: {
-        cohere: apiKeys?.cohere || '',
         gemini: apiKeys?.gemini || ''
       },
       preferences: {
         autoGenerate: preferences?.autoGenerate || false,
         generateTime: preferences?.generateTime || '09:00',
-        llmPreference: preferences?.llmPreference || 'cohere',
         maxArticles: preferences?.maxArticles || 5,
         language: preferences?.language || 'english',
         timePeriod: preferences?.timePeriod || '24hours',

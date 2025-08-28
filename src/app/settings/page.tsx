@@ -23,7 +23,6 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [testingKey, setTestingKey] = useState<{ provider: string; testing: boolean }>({ provider: '', testing: false });
   const [showApiKeys, setShowApiKeys] = useState({
-    cohere: false,
     gemini: false
   });
   
@@ -34,52 +33,40 @@ export default function SettingsPage() {
   const [newFeedName, setNewFeedName] = useState('');
   
   const [apiKeys, setApiKeys] = useState({
-    cohere: '',
     gemini: ''
   });
   
   const [preferences, setPreferences] = useState({
     autoGenerate: false,
     generateTime: '09:00',
-    llmPreference: 'cohere' as 'cohere' | 'gemini' | 'auto',
     maxArticles: 5,
     language: 'english' as 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese',
     timePeriod: '24hours' as TimePeriod,
     preferredCategories: [] as NewsletterCategory[]
   });
 
-  // API Key management functions
-  const openAPIKeyDashboard = (provider: 'cohere' | 'gemini') => {
-    const urls = {
-      cohere: 'https://dashboard.cohere.com/api-keys',
-      gemini: 'https://makersuite.google.com/app/apikey'
-    };
-    window.open(urls[provider], '_blank');
+  // API Key management functions (Gemini only)
+  const openAPIKeyDashboard = () => {
+    window.open('https://makersuite.google.com/app/apikey', '_blank');
   };
 
-  const clearAPIKey = (provider: 'cohere' | 'gemini') => {
-    setApiKeys(prev => ({
-      ...prev,
-      [provider]: ''
-    }));
-    toast.success(`${provider.charAt(0).toUpperCase() + provider.slice(1)} API key cleared`);
+  const clearAPIKey = () => {
+    setApiKeys({ gemini: '' });
+    toast.success('Gemini API key cleared');
   };
 
-  const toggleApiKeyVisibility = (provider: 'cohere' | 'gemini') => {
-    setShowApiKeys(prev => ({
-      ...prev,
-      [provider]: !prev[provider]
-    }));
+  const toggleApiKeyVisibility = () => {
+    setShowApiKeys(prev => ({ gemini: !prev.gemini }));
   };
 
-  const testAPIKey = async (provider: 'cohere' | 'gemini') => {
-    const apiKey = apiKeys[provider];
+  const testAPIKey = async () => {
+    const apiKey = apiKeys.gemini;
     if (!apiKey) {
-      toast.error(`Please enter ${provider} API key first`);
+      toast.error('Please enter Gemini API key first');
       return;
     }
 
-    setTestingKey({ provider, testing: true });
+    setTestingKey({ provider: 'gemini', testing: true });
     
     try {
       const response = await fetch('/api/test-key', {
@@ -87,17 +74,17 @@ export default function SettingsPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ provider, apiKey }),
+        body: JSON.stringify({ provider: 'gemini', apiKey }),
       });
 
       const data = await response.json();
       
       if (data.success) {
-        toast.success(`${provider.charAt(0).toUpperCase() + provider.slice(1)} API key is working!`, {
+        toast.success('Gemini API key is working!', {
           description: data.message
         });
       } else {
-        toast.error(`${provider.charAt(0).toUpperCase() + provider.slice(1)} API key test failed`, {
+        toast.error('Gemini API key test failed', {
           description: data.error
         });
       }
@@ -209,12 +196,11 @@ export default function SettingsPage() {
     const filteredCategories = (settings.preferences?.preferredCategories || [])
       .filter((cat): cat is NewsletterCategory => validCategories.includes(cat as NewsletterCategory));
     
-    setApiKeys(settings.apiKeys || { cohere: '', gemini: '' });
+    setApiKeys({ gemini: settings.apiKeys?.gemini || '' });
     setPreferences({
       ...(settings.preferences || {}),
       autoGenerate: settings.preferences?.autoGenerate || false,
       generateTime: settings.preferences?.generateTime || '09:00',
-      llmPreference: settings.preferences?.llmPreference || 'cohere',
       maxArticles: settings.preferences?.maxArticles || 5,
       language: settings.preferences?.language || 'english',
       timePeriod: settings.preferences?.timePeriod || '24hours',
@@ -261,11 +247,10 @@ export default function SettingsPage() {
 
 
   const applyDefaultSettings = () => {
-    setApiKeys({ cohere: '', gemini: '' });
+    setApiKeys({ gemini: '' });
     setPreferences({
       autoGenerate: false,
       generateTime: '09:00',
-        llmPreference: 'cohere',
       maxArticles: 5,
       language: 'english',
       timePeriod: '24hours',
@@ -583,83 +568,13 @@ export default function SettingsPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="cohere-key" className="text-white">Cohere API Key (Free Tier)</Label>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => openAPIKeyDashboard('cohere')}
-                        variant="outline"
-                        size="sm"
-                        className="bg-blue-500/20 border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white transition-colors"
-                      >
-                        <ExternalLink className="h-4 w-4 mr-1" />
-                        Get Key
-                      </Button>
-                      {apiKeys.cohere && (
-                        <Button
-                          onClick={() => testAPIKey('cohere')}
-                          variant="outline"
-                          size="sm"
-                          disabled={testingKey.testing && testingKey.provider === 'cohere'}
-                          className="bg-green-500/20 border-green-500 text-green-400 hover:bg-green-500 hover:text-white transition-colors disabled:opacity-50"
-                        >
-                          {testingKey.testing && testingKey.provider === 'cohere' ? (
-                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-transparent border-t-current mr-1" />
-                          ) : (
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                          )}
-                          Test Key
-                        </Button>
-                      )}
-                      {apiKeys.cohere && (
-                        <Button
-                          onClick={() => clearAPIKey('cohere')}
-                          variant="outline"
-                          size="sm"
-                          className="bg-red-500/20 border-red-500 text-red-400 hover:bg-red-500 hover:text-white transition-colors"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="relative">
-                    <Input
-                      id="cohere-key"
-                      type={showApiKeys.cohere ? "text" : "password"}
-                      placeholder="Enter your Cohere API key"
-                      value={apiKeys.cohere}
-                      onChange={(e) => setApiKeys({...apiKeys, cohere: e.target.value})}
-                      className="bg-gray-800 border-gray-600 text-white pr-10"
-                    />
-                    {apiKeys.cohere && (
-                      <Button
-                        type="button"
-                        onClick={() => toggleApiKeyVisibility('cohere')}
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-gray-400 hover:text-white"
-                      >
-                        {showApiKeys.cohere ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Get your free key at dashboard.cohere.com • 1000 calls/month
-                  </p>
-                </div>
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="gemini-key" className="text-white">Google Gemini API Key</Label>
                     <div className="flex gap-2">
                       <Button
-                        onClick={() => openAPIKeyDashboard('gemini')}
+                        onClick={() => openAPIKeyDashboard()}
                         variant="outline"
                         size="sm"
                         className="bg-blue-500/20 border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white transition-colors"
@@ -669,7 +584,7 @@ export default function SettingsPage() {
                       </Button>
                       {apiKeys.gemini && (
                         <Button
-                          onClick={() => testAPIKey('gemini')}
+                          onClick={() => testAPIKey()}
                           variant="outline"
                           size="sm"
                           disabled={testingKey.testing && testingKey.provider === 'gemini'}
@@ -685,7 +600,7 @@ export default function SettingsPage() {
                       )}
                       {apiKeys.gemini && (
                         <Button
-                          onClick={() => clearAPIKey('gemini')}
+                          onClick={() => clearAPIKey()}
                           variant="outline"
                           size="sm"
                           className="bg-red-500/20 border-red-500 text-red-400 hover:bg-red-500 hover:text-white transition-colors"
@@ -707,7 +622,7 @@ export default function SettingsPage() {
                     {apiKeys.gemini && (
                       <Button
                         type="button"
-                        onClick={() => toggleApiKeyVisibility('gemini')}
+                        onClick={() => toggleApiKeyVisibility()}
                         variant="ghost"
                         size="sm"
                         className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent text-gray-400 hover:text-white"
@@ -769,22 +684,12 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-white">Default LLM Provider</Label>
-                  <Select 
-                    value={preferences.llmPreference}
-                    onValueChange={(value: 'cohere' | 'gemini' | 'auto') => 
-                      setPreferences({...preferences, llmPreference: value})
-                    }
-                  >
-                    <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cohere">Cohere (Fast, Free)</SelectItem>
-                      <SelectItem value="gemini">Gemini</SelectItem>
-                      <SelectItem value="auto">Auto-select based on limits</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label className="text-white">AI Provider</Label>
+                  <div className="flex items-center justify-between p-3 bg-gray-800 rounded-md border border-gray-600">
+                    <span className="text-white">Google Gemini</span>
+                    <span className="text-green-400 text-sm">Active</span>
+                  </div>
+                  <p className="text-xs text-gray-400">Powered by Google&apos;s Gemini AI for reliable newsletter generation</p>
                 </div>
               </CardContent>
             </Card>

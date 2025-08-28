@@ -249,13 +249,12 @@ async function processNewsletterInBackground(jobId: string, userId: string, requ
     job.progress = 80;
 
     // Generate newsletter with optimized settings
-    const generationResult = await generateNewsletterContent(sortedArticles, llmProvider, {
+    const generationResult = await generateNewsletterContent(sortedArticles, {
       maxTopics: maxArticles,
       language,
       preferredCategories,
-      // Add background-specific optimizations
-      fastMode: true,  // This will be a new parameter to enable faster processing
-      timeout: llmProvider === 'cohere' ? 40000 : 20000 // Cohere gets 40s, others get 20s
+      fastMode: true,
+      timeout: 15000 // Gemini timeout: 15 seconds
     });
 
     if (!generationResult || !generationResult.success || !generationResult.data) {

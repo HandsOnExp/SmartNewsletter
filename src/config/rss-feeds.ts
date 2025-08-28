@@ -81,12 +81,12 @@ export const RSS_FEEDS = [
     enabled: true
   },
   {
-    id: 'infoworld-ai',
-    name: 'InfoWorld AI',
-    url: 'https://www.infoworld.com/category/artificial-intelligence/rss.xml',
+    id: 'ai-business',
+    name: 'AI Business',
+    url: 'https://aibusiness.com/rss.xml',
     category: 'enterprise', 
     priority: 10,
-    enabled: false // Disabled due to malformed XML parsing errors
+    enabled: true
   },
 
   // Consumer Category - 2 highest quality, most frequently updated feeds
@@ -99,9 +99,9 @@ export const RSS_FEEDS = [
     enabled: true
   },
   {
-    id: 'cnet-ai',
-    name: 'CNET AI',
-    url: 'https://www.cnet.com/rss/news/',
+    id: 'venturebeat-ai',
+    name: 'VentureBeat AI',
+    url: 'https://venturebeat.com/ai/feed/',
     category: 'consumer',
     priority: 12,
     enabled: true

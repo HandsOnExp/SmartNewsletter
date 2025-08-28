@@ -260,11 +260,10 @@ async function getDefaultUserSettings(userId: string) {
   
   return {
     userId,
-    apiKeys: { cohere: '', gemini: '' },
+    apiKeys: { gemini: '' },
     preferences: {
       autoGenerate: false,
       generateTime: '09:00',
-      llmPreference: 'cohere' as const,
       maxArticles: 7,
       language: 'english' as const,
       timePeriod: '24hours' as const,
@@ -369,7 +368,7 @@ export async function getUserSettings(userId: string) {
   }
 }
 
-export async function updateUserSettings(userId: string, updates: Partial<{ apiKeys: { cohere: string; gemini: string }; preferences: { autoGenerate: boolean; generateTime: string; llmPreference: 'cohere' | 'gemini' | 'auto' }; rssFeeds: { enabled: string[]; disabled: string[]; custom: unknown[] } }>) {
+export async function updateUserSettings(userId: string, updates: Partial<{ apiKeys: { gemini: string }; preferences: { autoGenerate: boolean; generateTime: string }; rssFeeds: { enabled: string[]; disabled: string[]; custom: unknown[] } }>) {
   await connectDB();
   
   // Encrypt API keys before storing

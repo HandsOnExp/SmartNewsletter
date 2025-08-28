@@ -30,7 +30,7 @@ export interface Newsletter {
   introduction?: string;
   topics: NewsletterTopic[];
   conclusion?: string;
-  llmUsed: 'cohere' | 'gemini';
+  llmUsed: 'gemini';
   status: 'draft' | 'published';
   rawContent?: string;
   formattedHtml?: string;
@@ -63,13 +63,11 @@ export type NewsletterCategory = 'business' | 'technology' | 'research' | 'produ
 export interface UserSettings {
   userId: string;
   apiKeys: {
-    cohere: string;
     gemini: string;
   };
   preferences: {
     autoGenerate: boolean;
     generateTime: string;
-    llmPreference: 'cohere' | 'gemini' | 'auto';
     maxArticles: number;
     language: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
     timePeriod: TimePeriod;
@@ -190,13 +188,11 @@ export interface NewsletterGenerationForm {
 
 export interface SettingsForm {
   apiKeys: {
-    cohere: string;
     gemini: string;
   };
   preferences: {
     autoGenerate: boolean;
     generateTime: string;
-    llmPreference: 'cohere' | 'gemini' | 'auto';
     maxArticles: number;
     language: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
   };

@@ -1,4 +1,3 @@
-import { CohereClient } from 'cohere-ai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { ParsedArticle } from './rss-parser';
 import { buildPrompt, buildGeminiImagePrompt } from '@/config/prompts';
@@ -68,21 +67,12 @@ export function chunkArticlesForProcessing(articles: ParsedArticle[], maxTokensP
   return chunks;
 }
 
-// Initialize AI clients with better error handling
-const cohereApiKey = process.env.COHERE_API_KEY;
+// Initialize Gemini AI client
 const geminiApiKey = process.env.GEMINI_API_KEY;
-
-if (!cohereApiKey) {
-  console.warn('COHERE_API_KEY not found in environment variables');
-}
 
 if (!geminiApiKey) {
   console.warn('GEMINI_API_KEY not found in environment variables');
 }
-
-const cohere = cohereApiKey ? new CohereClient({
-  token: cohereApiKey,
-}) : null;
 
 const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
 
@@ -106,116 +96,10 @@ export interface NewsletterData {
   stats: {
     sourcesAnalyzed: number;
     generationTime: number;
-    llmUsed: 'cohere' | 'gemini';
+    llmUsed: 'gemini';
   };
 }
 
-// Cohere integration
-export async function analyzeWithCohere(
-  articles: ParsedArticle[],
-  options?: { 
-    maxTopics?: number; 
-    language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
-    fastMode?: boolean;
-    timeout?: number;
-  }
-): Promise<{ success: boolean; content?: string; error?: string }> {
-  // Optimize retries for fast mode
-  const maxRetries = options?.fastMode ? 1 : 2;
-  
-  // Resolve any lazy content first
-  const resolvedArticles = await resolveArticleContent(articles);
-  
-  // Check cache first
-  const prompt = buildPrompt(resolvedArticles, 'cohere', options);
-  const cacheKey = createContentHash(prompt);
-  const cachedResponse = getCachedAIResponse(cacheKey);
-  
-  if (cachedResponse) {
-    console.log('Using cached Cohere response');
-    return { success: true, content: cachedResponse };
-  }
-  
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      if (!cohere) {
-        return {
-          success: false,
-          error: 'Cohere API key not configured. Please add COHERE_API_KEY to your .env.local file.'
-        };
-      }
-      
-      console.log(`Cohere attempt ${attempt}/${maxRetries}`);
-      
-      // Optimize for speed in fast mode
-      const chatPromise = cohere.chat({
-        model: options?.fastMode ? 'command-r' : 'command-r', // Always use command-r for speed
-        message: prompt,
-        temperature: options?.fastMode ? 0.05 : (attempt === 1 ? 0.1 : 0.05), // Very low temp for speed
-        maxTokens: options?.fastMode ? 2000 : 2500, // Fewer tokens for speed
-        presencePenalty: 0, // Remove penalties for speed
-        frequencyPenalty: 0, // Remove penalties for speed
-      });
-
-      // Apply timeout if specified
-      const response = options?.timeout ? 
-        await Promise.race([
-          chatPromise,
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Cohere timeout')), options.timeout)
-          )
-        ]) as Awaited<ReturnType<typeof cohere.chat>> :
-        await chatPromise;
-      
-      // Quick validation to see if response looks like JSON
-      const content = response.text.trim();
-      if (!content.includes('{') || !content.includes('}')) {
-        if (attempt < maxRetries) {
-          console.log(`Attempt ${attempt} returned non-JSON content, retrying...`);
-          continue;
-        }
-        return {
-          success: false,
-          error: 'Cohere returned non-JSON response after multiple attempts. Please try Gemini instead.'
-        };
-      }
-      
-      // Use shared processing function
-      const processResult = processAIResponse(response.text, options?.language, maxRetries, attempt);
-      if (processResult.success) {
-        // Cache successful response
-        cacheAIResponse(cacheKey, processResult.content!);
-        return {
-          success: true,
-          content: processResult.content
-        };
-      } else if (attempt < maxRetries && processResult.error === 'No JSON found in response') {
-        console.log(`Attempt ${attempt}: ${processResult.error}, retrying...`);
-        continue;
-      } else {
-        return {
-          success: false,
-          error: processResult.error
-        };
-      }
-    } catch (error) {
-      console.error(`Cohere API error on attempt ${attempt}:`, error);
-      if (attempt === maxRetries) {
-        return { 
-          success: false, 
-          error: error instanceof Error ? error.message : 'Unknown Cohere error' 
-        };
-      }
-      // Wait a bit before retrying
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-  }
-  
-  return { 
-    success: false, 
-    error: 'All Cohere attempts failed' 
-  };
-}
 
 // Gemini integration
 export async function analyzeWithGemini(
@@ -344,7 +228,6 @@ export async function generateImage(prompt: string): Promise<{ success: boolean;
 // Main newsletter generation function
 export async function generateNewsletterContent(
   articles: ParsedArticle[], 
-  provider: 'cohere' | 'gemini' = 'cohere',
   options?: { 
     maxTopics?: number; 
     language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
@@ -354,26 +237,16 @@ export async function generateNewsletterContent(
   }
 ): Promise<{ success: boolean; data?: NewsletterData; error?: string }> {
   const startTime = Date.now();
-  const maxRetries = 3;
+  const maxRetries = 1; // Single attempt for reliability
   
   // Resolve any lazy content first
   const resolvedArticles = await resolveArticleContent(articles);
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`Newsletter generation attempt ${attempt}/${maxRetries}`);
+      console.log(`Newsletter generation with Gemini (attempt ${attempt}/${maxRetries})`);
       
-      let response;
-      
-      if (provider === 'gemini') {
-        response = await analyzeWithGemini(resolvedArticles, options);
-      } else {
-        response = await analyzeWithCohere(resolvedArticles, {
-          ...options,
-          fastMode: options?.fastMode,
-          timeout: options?.timeout
-        });
-      }
+      const response = await analyzeWithGemini(resolvedArticles, options);
       
       if (!response.success) {
         if (attempt === maxRetries) {
@@ -454,24 +327,19 @@ export async function generateNewsletterContent(
         }
       }
       
-      // Generate images for topics if using Gemini
-      if (provider === 'gemini') {
-        for (const topic of newsletterData.topics) {
-          if (topic.imagePrompt) {
-            const imageResult = await generateImage(topic.imagePrompt);
-            if (imageResult.success) {
-              topic.imageUrl = imageResult.imageUrl;
-            }
+      // Generate images for topics using Gemini
+      for (const topic of newsletterData.topics) {
+        if (topic.imagePrompt) {
+          const imageResult = await generateImage(topic.imagePrompt);
+          if (imageResult.success) {
+            topic.imageUrl = imageResult.imageUrl;
           }
         }
-      } else {
-        // Add placeholder images for Cohere
-        newsletterData.topics.forEach((topic: NewsletterTopic) => {
-          if (!topic.imageUrl) {
-            const encodedHeadline = encodeURIComponent(topic.headline.slice(0, 30));
-            topic.imageUrl = `https://placehold.co/800x400/667eea/ffffff?text=${encodedHeadline}`;
-          }
-        });
+        // Add placeholder if no image URL
+        if (!topic.imageUrl) {
+          const encodedHeadline = encodeURIComponent(topic.headline.slice(0, 30));
+          topic.imageUrl = `https://placehold.co/800x400/667eea/ffffff?text=${encodedHeadline}`;
+        }
       }
       
       // Add stats
@@ -480,7 +348,7 @@ export async function generateNewsletterContent(
         stats: {
           sourcesAnalyzed: resolvedArticles.length,
           generationTime: Date.now() - startTime,
-          llmUsed: provider
+          llmUsed: 'gemini'
         }
       };
       

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { fetchAllFeeds, deduplicateArticles, sortArticlesByDate, filterArticlesByTimePeriod } from '@/lib/rss-parser';
 import { generateNewsletterContent, checkRateLimit } from '@/lib/ai-processors';
-import { monitoredGeneration, getBestProvider, getFallbackSuggestion } from '@/lib/performance-monitor';
+import { monitoredGeneration } from '@/lib/performance-monitor';
 import { RSS_FEEDS } from '@/config/rss-feeds';
 import { createNewsletter, connectDB, getUserSettings } from '@/lib/db';
 import { autoCleanupIfNeeded } from '@/lib/database-cleanup';
@@ -11,7 +11,7 @@ import { APIResponse, NewsletterGenerationResponse, CustomRSSFeed, NewsletterCat
 // Configure runtime for longer timeout (Free plan: up to 60s)
 export const maxDuration = 60; // seconds
 
-export async function POST(request: Request) {
+export async function POST() {
   try {
     const { userId } = await auth();
     if (!userId) {
@@ -21,20 +21,13 @@ export async function POST(request: Request) {
       }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { llmProvider: requestedProvider } = body;
+    // Always use Gemini - single provider for reliability
 
     // Fetch user settings for preferences
     const userSettings = await getUserSettings(userId);
-    const userPreferredProvider = requestedProvider || userSettings?.preferences?.llmPreference || 'gemini'; // Default to Gemini for reliability
-    
-    // Get performance-based recommendation
-    const providerRecommendation = getBestProvider(userPreferredProvider as 'cohere' | 'gemini');
-    const llmProvider = providerRecommendation.provider;
-    
-    if (llmProvider !== userPreferredProvider) {
-      console.log(`📊 PROVIDER SWITCH: ${userPreferredProvider} → ${llmProvider} (${providerRecommendation.reason})`);
-    }
+    // Always use Gemini - single provider for reliability
+    const llmProvider = 'gemini';
+    console.log(`📊 USING GEMINI: Reliable AI provider for newsletter generation`);
     const maxArticles = userSettings?.preferences?.maxArticles || 5; // Use user preference or default to 5
     const language = userSettings?.preferences?.language || 'english';
     const preferredCategories = userSettings?.preferences?.preferredCategories || ['business', 'technology', 'development'];
@@ -156,22 +149,22 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Emergency mode: Limit to 15 most recent articles for maximum speed
-    if (sortedArticles.length > 15) {
-      console.log(`EMERGENCY MODE: Limiting from ${sortedArticles.length} to 15 articles for maximum speed`);
-      sortedArticles = sortedArticles.slice(0, 15);
+    // Gemini Optimized: Limit to 10 most recent articles for optimal reliability
+    if (sortedArticles.length > 10) {
+      console.log(`GEMINI OPTIMIZED: Limiting from ${sortedArticles.length} to 10 articles for reliability`);
+      sortedArticles = sortedArticles.slice(0, 10);
     }
 
     console.log(`Processing ${sortedArticles.length} articles (filtered by ${timePeriod}) to generate ${maxArticles} articles in ${language}`);
 
-    // Step 4: Generate newsletter content with EMERGENCY SINGLE ATTEMPT
-    console.log(`EMERGENCY MODE: Single attempt generation with ${llmProvider} in ${language}...`);
+    // Step 4: Generate newsletter content with Gemini (Single Reliable Attempt)
+    console.log(`GEMINI GENERATION: Single reliable attempt in ${language}...`);
     console.log(`🎯 CATEGORY CONSTRAINT: Only allowing topics from categories:`, preferredCategories);
     
     let generationResult;
     let topicsToRequest = Math.min(maxArticles, sortedArticles.length);
     let generationAttempt = 0;
-    const maxGenerationAttempts = 1; // Emergency mode: single attempt only
+    const maxGenerationAttempts = 1; // Single attempt for reliability
     
     // Try generating with increasing topic count to compensate for category filtering
     while (generationAttempt < maxGenerationAttempts) {
@@ -180,52 +173,19 @@ export async function POST(request: Request) {
       
       try {
         generationResult = await monitoredGeneration(
-          llmProvider as 'cohere' | 'gemini',
+          'gemini',
           userId,
-          () => generateNewsletterContent(sortedArticles, llmProvider, {
+          () => generateNewsletterContent(sortedArticles, {
             maxTopics: topicsToRequest,
             language,
             preferredCategories,
-            fastMode: true, // Enable fast mode for all main route requests
-            timeout: llmProvider === 'cohere' ? 15000 : 10000 // Emergency timeouts: Cohere 15s, Gemini 10s
+            fastMode: true,
+            timeout: 15000 // Gemini timeout: 15 seconds for reliability
           })
         );
       } catch (error) {
-        console.error(`Generation attempt ${generationAttempt} failed:`, error);
-        
-        // Check if we should try fallback provider
-        const fallbackSuggestion = getFallbackSuggestion(
-          llmProvider as 'cohere' | 'gemini', 
-          error instanceof Error ? error.message : undefined
-        );
-        
-        // Try fallback immediately on timeout or ANY failure if using Cohere
-        const isTimeoutError = error instanceof Error && error.message.includes('timeout');
-        const shouldTryFallback = llmProvider === 'cohere' || isTimeoutError || generationAttempt === maxGenerationAttempts;
-        
-        if (fallbackSuggestion.shouldFallback && shouldTryFallback) {
-          console.log(`🔄 IMMEDIATE FALLBACK: ${fallbackSuggestion.reason}`);
-          
-          try {
-            generationResult = await monitoredGeneration(
-              fallbackSuggestion.fallbackProvider!,
-              userId,
-              () => generateNewsletterContent(sortedArticles, fallbackSuggestion.fallbackProvider!, {
-                maxTopics: topicsToRequest,
-                language,
-                preferredCategories,
-                fastMode: true, // Use fast mode for fallback
-                timeout: 8000 // Emergency 8s timeout for fallback
-              })
-            );
-            break; // Success with fallback
-          } catch (fallbackError) {
-            console.error('Fallback generation also failed:', fallbackError);
-            generationResult = { success: false, error: `Both ${llmProvider} and ${fallbackSuggestion.fallbackProvider} failed` };
-          }
-        } else {
-          generationResult = { success: false, error: error instanceof Error ? error.message : 'Generation failed' };
-        }
+        console.error(`Gemini generation attempt ${generationAttempt} failed:`, error);
+        generationResult = { success: false, error: error instanceof Error ? error.message : 'Gemini generation failed' };
       }
       
       // If generation successful, check if we need to retry due to category filtering
@@ -426,7 +386,7 @@ export async function POST(request: Request) {
         userId,
         title: newsletterData.newsletterTitle,
         topics: newsletterData.topics,
-        llmUsed: llmProvider,
+        llmUsed: 'gemini',
         introduction: newsletterData.introduction,
         conclusion: newsletterData.conclusion,
         stats: {
@@ -500,7 +460,7 @@ export async function POST(request: Request) {
             userId,
             title: newsletterData.newsletterTitle,
             topics: normalizedTopics,
-            llmUsed: llmProvider,
+            llmUsed: 'gemini',
             introduction: newsletterData.introduction,
             conclusion: newsletterData.conclusion,
             stats: {

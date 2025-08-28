@@ -14,7 +14,7 @@ An intelligent newsletter generation platform that leverages advanced AI algorit
 - **Performance-Optimized AI**: Automatic fallback from Cohere to Gemini on timeout, intelligent provider switching
 - **Background Processing**: Optional background generation for longer requests without timeout issues
 - **Intelligent Summarization**: Complex AI topics distilled into clear, engaging content
-- **Smart Topic Selection**: AI analyzes RSS feeds and intelligently selects 1-20 topics based on importance, relevance, and quality (recommended: 5-7 for optimal engagement)
+- **Smart Topic Selection**: AI analyzes RSS feeds and intelligently selects 1-8 topics based on importance, relevance, and quality (recommended: 5-7 for optimal engagement)
 - **Multi-language Support**: Generate newsletters in English, Hebrew, Spanish, French, German, Italian, and Portuguese
 - **Quality Scoring Algorithm**: Advanced topic ranking system that prioritizes breakthrough announcements, model releases, and practical applications
 
@@ -148,9 +148,9 @@ The AI doesn't just pick random articles - it uses a sophisticated scoring syste
 
 ### Topic Count Recommendations
 - **1-3 topics**: Perfect for focused, daily updates
-- **5-7 topics**: Optimal for weekly comprehensive newsletters (recommended)
-- **10-15 topics**: Suitable for research digests or industry roundups
-- **16-20 topics**: Best for comprehensive coverage or less frequent publications
+- **4-5 topics**: Ideal for regular digest newsletters
+- **6-7 topics**: Optimal for weekly comprehensive newsletters (recommended)
+- **8 topics**: Maximum coverage for comprehensive industry roundups
 
 ## 📡 API Endpoints
 

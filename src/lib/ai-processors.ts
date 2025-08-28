@@ -113,9 +113,15 @@ export interface NewsletterData {
 // Cohere integration
 export async function analyzeWithCohere(
   articles: ParsedArticle[],
-  options?: { maxTopics?: number; language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese' }
+  options?: { 
+    maxTopics?: number; 
+    language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
+    fastMode?: boolean;
+    timeout?: number;
+  }
 ): Promise<{ success: boolean; content?: string; error?: string }> {
-  const maxRetries = 2;
+  // Optimize retries for fast mode
+  const maxRetries = options?.fastMode ? 1 : 2;
   
   // Resolve any lazy content first
   const resolvedArticles = await resolveArticleContent(articles);
@@ -141,14 +147,25 @@ export async function analyzeWithCohere(
       
       console.log(`Cohere attempt ${attempt}/${maxRetries}`);
       
-      const response = await cohere.chat({
-        model: 'command-r', // Free tier model
+      // Add timeout for fast mode
+      const chatPromise = cohere.chat({
+        model: options?.fastMode ? 'command-r-plus' : 'command-r', // Use faster model in fast mode
         message: prompt,
-        temperature: attempt === 1 ? 0.2 : 0.05, // Much lower temperature to force compliance
-        maxTokens: 3000, // Increased for longer responses
-        presencePenalty: attempt > 1 ? 0.5 : 0, // Add presence penalty on retry to vary output
-        frequencyPenalty: attempt > 1 ? 0.3 : 0, // Add frequency penalty to break patterns
+        temperature: options?.fastMode ? 0.1 : (attempt === 1 ? 0.2 : 0.05), // Lower temp for fast mode
+        maxTokens: options?.fastMode ? 2500 : 3000, // Slightly fewer tokens for speed
+        presencePenalty: attempt > 1 && !options?.fastMode ? 0.5 : 0,
+        frequencyPenalty: attempt > 1 && !options?.fastMode ? 0.3 : 0,
       });
+
+      // Apply timeout if specified
+      const response = options?.timeout ? 
+        await Promise.race([
+          chatPromise,
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Cohere timeout')), options.timeout)
+          )
+        ]) as Awaited<ReturnType<typeof cohere.chat>> :
+        await chatPromise;
       
       // Quick validation to see if response looks like JSON
       const content = response.text.trim();
@@ -332,6 +349,8 @@ export async function generateNewsletterContent(
     maxTopics?: number; 
     language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
     preferredCategories?: string[];
+    fastMode?: boolean;
+    timeout?: number;
   }
 ): Promise<{ success: boolean; data?: NewsletterData; error?: string }> {
   const startTime = Date.now();
@@ -349,7 +368,11 @@ export async function generateNewsletterContent(
       if (provider === 'gemini') {
         response = await analyzeWithGemini(resolvedArticles, options);
       } else {
-        response = await analyzeWithCohere(resolvedArticles, options);
+        response = await analyzeWithCohere(resolvedArticles, {
+          ...options,
+          fastMode: options?.fastMode,
+          timeout: options?.timeout
+        });
       }
       
       if (!response.success) {

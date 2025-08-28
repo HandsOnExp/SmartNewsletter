@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { fetchAllFeeds, deduplicateArticles, sortArticlesByDate, filterArticlesByTimePeriod, processAndValidateArticles } from '@/lib/rss-parser';
 import { generateNewsletterContent, checkRateLimit } from '@/lib/ai-processors';
+import { monitoredGeneration, getBestProvider, getFallbackSuggestion } from '@/lib/performance-monitor';
 import { RSS_FEEDS } from '@/config/rss-feeds';
 import { createNewsletter, connectDB, getUserSettings } from '@/lib/db';
 import { autoCleanupIfNeeded } from '@/lib/database-cleanup';
@@ -25,7 +26,15 @@ export async function POST(request: Request) {
 
     // Fetch user settings for preferences
     const userSettings = await getUserSettings(userId);
-    const llmProvider = requestedProvider || userSettings?.preferences?.llmPreference || 'cohere';
+    const userPreferredProvider = requestedProvider || userSettings?.preferences?.llmPreference || 'cohere';
+    
+    // Get performance-based recommendation
+    const providerRecommendation = getBestProvider(userPreferredProvider as 'cohere' | 'gemini');
+    const llmProvider = providerRecommendation.provider;
+    
+    if (llmProvider !== userPreferredProvider) {
+      console.log(`📊 PROVIDER SWITCH: ${userPreferredProvider} → ${llmProvider} (${providerRecommendation.reason})`);
+    }
     const maxArticles = userSettings?.preferences?.maxArticles || 5; // Use user preference or default to 5
     const language = userSettings?.preferences?.language || 'english';
     const preferredCategories = userSettings?.preferences?.preferredCategories || ['business', 'technology', 'development'];
@@ -173,11 +182,51 @@ export async function POST(request: Request) {
       generationAttempt++;
       console.log(`Generation attempt ${generationAttempt}/${maxGenerationAttempts}, requesting ${topicsToRequest} topics`);
       
-      generationResult = await generateNewsletterContent(sortedArticles, llmProvider, {
-        maxTopics: topicsToRequest,
-        language,
-        preferredCategories
-      });
+      try {
+        generationResult = await monitoredGeneration(
+          llmProvider as 'cohere' | 'gemini',
+          userId,
+          () => generateNewsletterContent(sortedArticles, llmProvider, {
+            maxTopics: topicsToRequest,
+            language,
+            preferredCategories,
+            fastMode: false, // Regular mode for main route
+            timeout: llmProvider === 'cohere' ? 45000 : 25000 // Cohere gets 45s, others get 25s
+          })
+        );
+      } catch (error) {
+        console.error(`Generation attempt ${generationAttempt} failed:`, error);
+        
+        // Check if we should try fallback provider
+        const fallbackSuggestion = getFallbackSuggestion(
+          llmProvider as 'cohere' | 'gemini', 
+          error instanceof Error ? error.message : undefined
+        );
+        
+        if (fallbackSuggestion.shouldFallback && generationAttempt === maxGenerationAttempts) {
+          console.log(`🔄 FALLBACK: ${fallbackSuggestion.reason}`);
+          
+          try {
+            generationResult = await monitoredGeneration(
+              fallbackSuggestion.fallbackProvider!,
+              userId,
+              () => generateNewsletterContent(sortedArticles, fallbackSuggestion.fallbackProvider!, {
+                maxTopics: topicsToRequest,
+                language,
+                preferredCategories,
+                fastMode: true, // Use fast mode for fallback
+                timeout: 30000 // 30s timeout for fallback
+              })
+            );
+            break; // Success with fallback
+          } catch (fallbackError) {
+            console.error('Fallback generation also failed:', fallbackError);
+            generationResult = { success: false, error: `Both ${llmProvider} and ${fallbackSuggestion.fallbackProvider} failed` };
+          }
+        } else {
+          generationResult = { success: false, error: error instanceof Error ? error.message : 'Generation failed' };
+        }
+      }
       
       // If generation successful, check if we need to retry due to category filtering
       if (generationResult.success && generationResult.data) {

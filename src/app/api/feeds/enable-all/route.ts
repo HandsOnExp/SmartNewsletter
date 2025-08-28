@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { connectDB, updateUserSettings } from '@/lib/db';
+import { connectDB, updateUserSettings, getUserSettings } from '@/lib/db';
 import { RSS_FEEDS } from '@/config/rss-feeds';
 
 export async function POST() {
@@ -12,6 +12,10 @@ export async function POST() {
 
     await connectDB();
     
+    // Get existing settings to preserve custom feeds
+    const existingSettings = await getUserSettings(userId);
+    const existingCustomFeeds = existingSettings?.rssFeeds?.custom || [];
+    
     // Enable all RSS feeds
     const allFeedIds = RSS_FEEDS.map(feed => feed.id);
     
@@ -19,7 +23,7 @@ export async function POST() {
       rssFeeds: {
         enabled: allFeedIds,
         disabled: [],
-        custom: []
+        custom: existingCustomFeeds
       }
     });
     

@@ -102,10 +102,19 @@ export async function fetchRSSFeed(url: string, feedName: string, timeoutMs: num
     
     return result;
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.error(`Error fetching RSS feed ${feedName}:`, error);
+    
+    // Handle specific XML parsing errors
+    if (errorMessage.includes('Invalid character in entity name') || 
+        errorMessage.includes('Line:') || 
+        errorMessage.includes('Column:')) {
+      console.log(`${feedName} has malformed XML, skipping feed`);
+    }
+    
     return { 
       success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage,
       data: [] as ParsedArticle[]
     };
   }
@@ -120,7 +129,7 @@ export async function fetchAllFeeds(feeds: RSSFeed[] = RSS_FEEDS) {
   // Use different timeouts based on feed priority
   const results = await Promise.allSettled(
     prioritizedFeeds.map(async (feed) => {
-      const timeoutMs = feed.priority >= 3 ? 6000 : feed.priority >= 2 ? 8000 : 12000;
+      const timeoutMs = feed.priority >= 3 ? 4000 : feed.priority >= 2 ? 5000 : 6000; // Faster timeouts for mobile
       const result = await fetchRSSFeed(feed.url, feed.name, timeoutMs);
       return {
         ...feed,

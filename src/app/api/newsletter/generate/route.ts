@@ -92,10 +92,10 @@ export async function POST(request: Request) {
     console.log(`Fetching RSS feeds... (${enabledFeeds.length} enabled feeds)`);
     console.log('Final enabled feeds:', enabledFeeds.map(f => f.name));
     
-    // Add timeout for feed fetching to prevent hanging
+    // Add timeout for feed fetching to prevent hanging (reduced for mobile)
     const feedFetchPromise = fetchAllFeeds(enabledFeeds); // Use all enabled feeds (now limited to 2 per category)
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Feed fetching timeout')), 25000) // 25 second timeout
+      setTimeout(() => reject(new Error('Feed fetching timeout')), 15000) // 15 second timeout for mobile
     );
     
     const feedResults = await Promise.race([feedFetchPromise, timeoutPromise]) as Awaited<ReturnType<typeof fetchAllFeeds>>;
@@ -134,7 +134,11 @@ export async function POST(request: Request) {
       fixBrokenLinks: false, // Skip fixing to save time
       batchSize: 20, // Larger batches for speed
       skipValidationPatterns: [
-        'technologyreview\\.com/\\d{4}/\\d{2}/\\d{2}/[^/]+/$'
+        'technologyreview\\.com/\\d{4}/\\d{2}/\\d{2}/[^/]+/$',
+        'darkreading\\.com/.*', // Dark Reading blocks validation requests
+        'securityweek\\.com/.*', // Security Week blocks validation requests
+        'wsj\\.com/.*', // WSJ has paywalls
+        'semafor\\.com/.*' // Semafor blocks some requests
       ]
     });
     
@@ -191,7 +195,7 @@ export async function POST(request: Request) {
             language,
             preferredCategories,
             fastMode: true, // Enable fast mode for all main route requests
-            timeout: llmProvider === 'cohere' ? 30000 : 20000 // Aggressive timeouts: Cohere 30s, others 20s
+            timeout: llmProvider === 'cohere' ? 12000 : 10000 // Mobile-friendly timeouts: Cohere 12s, others 10s
           })
         );
       } catch (error) {
@@ -218,7 +222,7 @@ export async function POST(request: Request) {
                 language,
                 preferredCategories,
                 fastMode: true, // Use fast mode for fallback
-                timeout: 20000 // Aggressive 20s timeout for fallback
+                timeout: 8000 // Ultra-fast 8s timeout for fallback
               })
             );
             break; // Success with fallback

@@ -139,7 +139,14 @@ export function buildPrompt(
     
     Analyze these recent AI developments and create a newsletter with EXACTLY ${maxTopics} topics.
     
-    🔗 CRITICAL URL REQUIREMENT: For each topic, you MUST use the exact "link" field from one of the articles below. Do NOT create, modify, or generate any URLs. Only copy the exact URL from the "link" field of the articles provided.
+    🔗 CRITICAL URL & CONTENT REQUIREMENT: For each topic, you MUST:
+    1. First read and understand the actual content of the article
+    2. Write headlines and summaries that accurately reflect the article's actual content
+    3. Use the exact "link" field from the article you're summarizing
+    4. Do NOT write creative or misleading headlines that don't match the article
+    5. Do NOT claim medical breakthroughs if the article is about movies
+    6. Do NOT claim health benefits if the article is about cooking recipes
+    7. Your headline and summary MUST accurately represent what the linked article actually discusses
     
     📂 CRITICAL CATEGORY REQUIREMENT: ${preferredCategories.length > 0 ? `
     ⚡ MANDATORY CATEGORIES ⚡: You MUST use ONLY these categories: ${preferredCategories.join(', ')}
@@ -204,6 +211,14 @@ export function buildPrompt(
     5. Policy or safety developments
     6. Surprising or entertaining AI behaviors
     7. Tools that developers/users can try today
+    
+    ⚠️ CONTENT ACCURACY REQUIREMENT ⚠️
+    - Read each article's content carefully before creating a topic
+    - Your headline must match what the article actually discusses
+    - Your summary must accurately reflect the article's main points
+    - Do NOT create imaginative or creative headlines that mislead readers
+    - Do NOT exaggerate or add claims not in the original article
+    - Readers will click the link and expect to find content matching your description
     
     🔍 MANDATORY FINAL CHECK: Count your topics array length. It must equal ${maxTopics}.
   `;

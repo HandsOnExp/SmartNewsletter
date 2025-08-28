@@ -315,15 +315,21 @@ export async function POST(request: Request) {
         console.warn(`Invalid URL detected in topic "${currentTopic.headline}": ${currentTopic.sourceUrl}`);
         invalidUrls++;
         
-        // Try to find a matching article by title similarity
-        const matchingArticle = sortedArticles.find(article => 
-          article.title.toLowerCase().includes(currentTopic.headline.toLowerCase().split(' ')[0]) ||
-          currentTopic.headline.toLowerCase().includes(article.title.toLowerCase().split(' ')[0])
-        );
+        // Try to find a matching article by title similarity (require minimum 3 words match)
+        const headlineWords = currentTopic.headline.toLowerCase().split(' ').filter(word => word.length > 2);
+        const matchingArticle = sortedArticles.find(article => {
+          const articleWords = article.title.toLowerCase().split(' ').filter(word => word.length > 2);
+          const matchingWords = headlineWords.filter(word => 
+            articleWords.some(articleWord => articleWord.includes(word) || word.includes(articleWord))
+          );
+          return matchingWords.length >= Math.min(3, Math.floor(headlineWords.length * 0.5)); // At least 3 words or 50% match
+        });
         
         if (matchingArticle && !usedUrls.has(matchingArticle.link)) {
           console.log(`Fixed URL for topic "${currentTopic.headline}": ${currentTopic.sourceUrl} -> ${matchingArticle.link}`);
           currentTopic = { ...currentTopic, sourceUrl: matchingArticle.link };
+        } else {
+          console.warn(`No matching article found for topic "${currentTopic.headline}" - this topic may have inaccurate content`);
         }
       }
       

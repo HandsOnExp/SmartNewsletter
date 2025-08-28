@@ -9,7 +9,6 @@ import { toast } from 'sonner';
 // UI Components (we'll create these)
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { NewsletterPreview } from '@/components/newsletter/NewsletterPreview';
 import { StatsCards } from '@/components/dashboard/StatsCards';
 import { DemoBanner } from '@/components/ui/demo-banner';
@@ -21,7 +20,7 @@ export default function Dashboard() {
   const { user } = useUser();
   const [isGenerating, setIsGenerating] = useState(false);
   const [newsletter, setNewsletter] = useState<NewsletterGenerationResponse['newsletter'] | null>(null);
-  const [selectedLLM, setSelectedLLM] = useState<'cohere' | 'gemini'>('cohere');
+  const selectedLLM = 'gemini';
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [refreshingFeeds, setRefreshingFeeds] = useState(false);
   const [recentNewsletters, setRecentNewsletters] = useState<{
@@ -324,48 +323,19 @@ export default function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs value={selectedLLM} onValueChange={(value) => setSelectedLLM(value as 'cohere' | 'gemini')}>
-              <TabsList className="grid w-full grid-cols-2 bg-gray-800">
-                <TabsTrigger 
-                  value="cohere" 
-                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500"
-                >
-                  Cohere (Free Tier)
-                </TabsTrigger>
-                <TabsTrigger 
-                  value="gemini" 
-                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-teal-500"
-                >
-                  Gemini
-                </TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="cohere" className="mt-6">
-                <div className="space-y-4">
-                  <div className="p-4 bg-gray-800 rounded-lg">
-                    <h3 className="text-lg font-semibold text-white mb-2">Cohere Command-R</h3>
-                    <p className="text-gray-400">Fast, reliable text generation • 1000 calls/month free</p>
-                    <div className="mt-3 flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-sm text-green-400">Ready to use</span>
-                    </div>
-                  </div>
+            <div className="space-y-4">
+              <div className="p-4 bg-gray-800 rounded-lg border-2 border-green-500/50">
+                <h3 className="text-lg font-semibold text-white mb-2 flex items-center">
+                  <span className="w-3 h-3 bg-green-500 rounded-full mr-3"></span>
+                  Gemini 2.0 Flash (Active)
+                </h3>
+                <p className="text-gray-400">Advanced generation with image support • 15 req/min free</p>
+                <div className="mt-3 flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-sm text-green-400">Ready to use</span>
                 </div>
-              </TabsContent>
-              
-              <TabsContent value="gemini" className="mt-6">
-                <div className="space-y-4">
-                  <div className="p-4 bg-gray-800 rounded-lg">
-                    <h3 className="text-lg font-semibold text-white mb-2">Gemini 2.0 Flash</h3>
-                    <p className="text-gray-400">Advanced generation with image support • 15 req/min free</p>
-                    <div className="mt-3 flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-sm text-green-400">Ready to use</span>
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-            </Tabs>
+              </div>
+            </div>
 
             <motion.div
               whileHover={{ scale: 1.02 }}

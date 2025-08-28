@@ -190,8 +190,8 @@ export async function POST(request: Request) {
             maxTopics: topicsToRequest,
             language,
             preferredCategories,
-            fastMode: false, // Regular mode for main route
-            timeout: llmProvider === 'cohere' ? 45000 : 25000 // Cohere gets 45s, others get 25s
+            fastMode: true, // Enable fast mode for all main route requests
+            timeout: llmProvider === 'cohere' ? 30000 : 20000 // Aggressive timeouts: Cohere 30s, others 20s
           })
         );
       } catch (error) {
@@ -203,8 +203,11 @@ export async function POST(request: Request) {
           error instanceof Error ? error.message : undefined
         );
         
-        if (fallbackSuggestion.shouldFallback && generationAttempt === maxGenerationAttempts) {
-          console.log(`🔄 FALLBACK: ${fallbackSuggestion.reason}`);
+        // Try fallback immediately on ANY failure if using Cohere, or on last attempt for others
+        const shouldTryFallback = llmProvider === 'cohere' || generationAttempt === maxGenerationAttempts;
+        
+        if (fallbackSuggestion.shouldFallback && shouldTryFallback) {
+          console.log(`🔄 IMMEDIATE FALLBACK: ${fallbackSuggestion.reason}`);
           
           try {
             generationResult = await monitoredGeneration(
@@ -215,7 +218,7 @@ export async function POST(request: Request) {
                 language,
                 preferredCategories,
                 fastMode: true, // Use fast mode for fallback
-                timeout: 30000 // 30s timeout for fallback
+                timeout: 20000 // Aggressive 20s timeout for fallback
               })
             );
             break; // Success with fallback

@@ -78,11 +78,29 @@ export function getBestProvider(userPreference?: 'cohere' | 'gemini'): {
   const cohereStats = getProviderStats('cohere');
   const geminiStats = getProviderStats('gemini');
   
+  // AGGRESSIVE: Auto-fallback from Cohere if it has recent failures or slow performance
+  if (userPreference === 'cohere') {
+    const recentCohereFailures = cohereStats.failureRate > 0.3; // More than 30% failure rate
+    const cohereTooSlow = cohereStats.avgDuration > 35000; // More than 35 seconds average
+    
+    if (recentCohereFailures || cohereTooSlow) {
+      return {
+        provider: 'gemini',
+        reason: `Switching from Cohere to Gemini due to recent ${recentCohereFailures ? 'failures' : 'slow performance'} (${cohereStats.failureRate.toFixed(1)} failure rate, ${(cohereStats.avgDuration/1000).toFixed(1)}s avg)`,
+        confidence: 'high'
+      };
+    }
+  }
+  
   // If user has a preference and that provider is performing well, use it
   if (userPreference) {
     const preferredStats = userPreference === 'cohere' ? cohereStats : geminiStats;
     
-    if (preferredStats.successRate >= 0.7 && preferredStats.avgDuration < 45000) {
+    // More stringent requirements for Cohere
+    const cohereThreshold = userPreference === 'cohere' ? { successRate: 0.8, maxDuration: 30000 } : { successRate: 0.7, maxDuration: 45000 };
+    const threshold = userPreference === 'cohere' ? cohereThreshold : { successRate: 0.7, maxDuration: 45000 };
+    
+    if (preferredStats.successRate >= threshold.successRate && preferredStats.avgDuration < threshold.maxDuration) {
       return {
         provider: userPreference,
         reason: `Using your preferred ${userPreference} (performing well)`,

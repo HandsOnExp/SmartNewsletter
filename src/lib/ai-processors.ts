@@ -147,14 +147,14 @@ export async function analyzeWithCohere(
       
       console.log(`Cohere attempt ${attempt}/${maxRetries}`);
       
-      // Add timeout for fast mode
+      // Optimize for speed in fast mode
       const chatPromise = cohere.chat({
-        model: options?.fastMode ? 'command-r-plus' : 'command-r', // Use faster model in fast mode
+        model: options?.fastMode ? 'command-r' : 'command-r', // Always use command-r for speed
         message: prompt,
-        temperature: options?.fastMode ? 0.1 : (attempt === 1 ? 0.2 : 0.05), // Lower temp for fast mode
-        maxTokens: options?.fastMode ? 2500 : 3000, // Slightly fewer tokens for speed
-        presencePenalty: attempt > 1 && !options?.fastMode ? 0.5 : 0,
-        frequencyPenalty: attempt > 1 && !options?.fastMode ? 0.3 : 0,
+        temperature: options?.fastMode ? 0.05 : (attempt === 1 ? 0.1 : 0.05), // Very low temp for speed
+        maxTokens: options?.fastMode ? 2000 : 2500, // Fewer tokens for speed
+        presencePenalty: 0, // Remove penalties for speed
+        frequencyPenalty: 0, // Remove penalties for speed
       });
 
       // Apply timeout if specified

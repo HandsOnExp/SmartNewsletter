@@ -95,6 +95,7 @@ export function buildPrompt(
     maxTopics?: number;
     language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
     preferredCategories?: string[];
+    fastMode?: boolean;
   }
 ) {
   const maxTopics = options?.maxTopics || 7;
@@ -106,8 +107,16 @@ export function buildPrompt(
     .sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime())
     .slice(0, Math.min(articles.length, 100)); // Analyze up to 100 articles to find the best topics
   
-  const basePrompt = NEWSLETTER_PROMPTS[provider].analysis;
-  const formatPrompt = NEWSLETTER_PROMPTS[provider].formatting;
+  const basePrompt = options?.fastMode ? 
+    // Simplified prompt for fast mode
+    `You are an AI newsletter curator. Create concise, accurate summaries for ${maxTopics} AI topics. Focus on clarity and brevity.` :
+    NEWSLETTER_PROMPTS[provider].analysis;
+    
+  const formatPrompt = options?.fastMode ?
+    // Simplified format for fast mode
+    `CRITICAL: Response must be ONLY valid JSON in this format:
+    {"newsletterTitle":"Title","topics":[{"headline":"Title","summary":"4-6 sentences","sourceUrl":"exact URL from articles","category":"category"}]}` :
+    NEWSLETTER_PROMPTS[provider].formatting;
   
   const currentDate = new Date().toLocaleDateString('en-US', {
     weekday: 'long',
@@ -147,13 +156,23 @@ export function buildPrompt(
     Example: "category": "${preferredCategories[0]}"` : 'Assign each topic ONE primary category from the standard categories.'} NEVER use "ai" as a category since this is an AI newsletter.
     
     Articles to analyze:
-    ${JSON.stringify(sortedArticles.map(a => ({
-      title: a.title,
-      content: a.contentSnippet || a.content,
-      date: a.pubDate,
-      link: a.link,
-      source: a.source
-    })))}
+    ${options?.fastMode ? 
+      // Minimal article data for fast mode
+      JSON.stringify(sortedArticles.slice(0, 30).map(a => ({
+        title: a.title,
+        snippet: (typeof a.content === 'string' ? a.content.slice(0, 200) : a.contentSnippet || '').slice(0, 200) + '...',
+        link: a.link,
+        source: a.source
+      }))) :
+      // Full article data for regular mode
+      JSON.stringify(sortedArticles.map(a => ({
+        title: a.title,
+        content: a.contentSnippet || a.content,
+        date: a.pubDate,
+        link: a.link,
+        source: a.source
+      })))
+    }
     
     ${formatPrompt}
     

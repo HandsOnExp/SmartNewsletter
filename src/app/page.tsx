@@ -151,11 +151,10 @@ export default function Home() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.8 }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center"
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center"
         >
           {[
             { label: "RSS Sources", value: "24+" },
-            { label: "AI Models", value: "2" },
             { label: "Generation Time", value: "<30s" },
             { label: "Export Formats", value: "HTML" }
           ].map((stat, index) => (

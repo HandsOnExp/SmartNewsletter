@@ -245,6 +245,28 @@ export default function SettingsPage() {
     }
   };
 
+  // Function to disable all RSS feeds
+  const disableAllFeeds = async () => {
+    try {
+      const response = await fetch('/api/feeds/disable-all', {
+        method: 'POST'
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success(result.message);
+        // Reload settings to reflect changes
+        await loadUserSettings();
+      } else {
+        toast.error(result.error || 'Failed to disable all feeds');
+      }
+    } catch (error) {
+      console.error('Disable all feeds error:', error);
+      toast.error('Failed to disable all feeds');
+    }
+  };
+
 
   const applyDefaultSettings = () => {
     setApiKeys({ gemini: '' });
@@ -464,13 +486,22 @@ export default function SettingsPage() {
                         Enable or disable RSS feeds for newsletter generation
                       </CardDescription>
                     </div>
-                    <Button
-                      onClick={enableAllFeeds}
-                      variant="outline"
-                      className="border-green-600 text-green-600 hover:bg-green-600 hover:text-white px-4 py-2 text-sm"
-                    >
-                      Enable All Feeds
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={enableAllFeeds}
+                        variant="outline"
+                        className="border-green-600 text-green-600 hover:bg-green-600 hover:text-white px-4 py-2 text-sm"
+                      >
+                        Enable All
+                      </Button>
+                      <Button
+                        onClick={disableAllFeeds}
+                        variant="outline"
+                        className="border-red-600 text-red-600 hover:bg-red-600 hover:text-white px-4 py-2 text-sm"
+                      >
+                        Disable All
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">

@@ -9,9 +9,9 @@ export const RSS_FEEDS = [
     enabled: true
   },
   {
-    id: 'venturebeat-ai',
-    name: 'VentureBeat AI',
-    url: 'https://venturebeat.com/category/ai/feed',
+    id: 'fastcompany-ai',
+    name: 'Fast Company AI',
+    url: 'https://www.fastcompany.com/section/ai/rss',
     category: 'business',
     priority: 2,
     enabled: true
@@ -63,9 +63,9 @@ export const RSS_FEEDS = [
     enabled: true
   },
   {
-    id: 'ai-tools',
-    name: 'AI News',
-    url: 'https://artificialintelligence-news.com/feed/',
+    id: 'marktechpost',
+    name: 'MarkTechPost',
+    url: 'https://marktechpost.com/feed/',
     category: 'product',
     priority: 8,
     enabled: true
@@ -73,20 +73,20 @@ export const RSS_FEEDS = [
 
   // Enterprise Category - 2 highest quality, most frequently updated feeds
   {
-    id: 'enterprise-ai-news',
-    name: 'AI Wire (Enterprise AI News)',
-    url: 'https://www.aiwire.net/feed/',
+    id: 'nvidia-ai-blog',
+    name: 'NVIDIA AI Blog',
+    url: 'https://blogs.nvidia.com/feed/',
     category: 'enterprise',
     priority: 9,
     enabled: true
   },
   {
-    id: 'ai-business',
-    name: 'AI Business',
-    url: 'https://aibusiness.com/feed',
-    category: 'enterprise',
+    id: 'infoworld-ai',
+    name: 'InfoWorld AI',
+    url: 'https://www.infoworld.com/category/artificial-intelligence/rss.xml',
+    category: 'enterprise', 
     priority: 10,
-    enabled: false // Temporarily disabled due to malformed XML
+    enabled: true
   },
 
   // Consumer Category - 2 highest quality, most frequently updated feeds

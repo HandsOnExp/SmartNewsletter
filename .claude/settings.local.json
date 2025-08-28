@@ -75,7 +75,8 @@
       "WebFetch(domain:feeds.reuters.com)",
       "WebFetch(domain:marktechpost.com)",
       "WebFetch(domain:aibusiness.com)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "WebFetch(domain:www.infoworld.com)"
     ],
     "deny": [],
     "ask": []

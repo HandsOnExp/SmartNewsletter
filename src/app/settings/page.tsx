@@ -22,6 +22,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedsLoading, setFeedsLoading] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [testingKey, setTestingKey] = useState<{ provider: string; testing: boolean }>({ provider: '', testing: false });
   const [showApiKeys, setShowApiKeys] = useState({
     gemini: false
@@ -260,7 +261,21 @@ export default function SettingsPage() {
     })));
     
     setFeeds(updatedFeeds);
+    
+    // Force component re-render to ensure UI updates
+    setRefreshKey(prev => prev + 1);
+    
     console.log('✅ applySettings completed, feeds updated');
+    
+    // Add a small delay and verify the state was actually updated
+    setTimeout(() => {
+      console.log('🔍 Post-update feed verification:', updatedFeeds.slice(0, 3).map(f => ({
+        id: f.id,
+        name: f.name,
+        enabled: f.enabled,
+        uiShouldShow: f.enabled ? 'ON' : 'OFF'
+      })));
+    }, 100);
   };
 
 
@@ -355,9 +370,22 @@ export default function SettingsPage() {
   };
 
   const toggleFeed = (feedId: string, enabled: boolean) => {
-    setFeeds(prev => prev.map(feed => 
-      feed.id === feedId ? { ...feed, enabled } : feed
-    ));
+    console.log(`🔄 toggleFeed called: ${feedId} -> ${enabled}`);
+    
+    setFeeds(prev => {
+      const updated = prev.map(feed => 
+        feed.id === feedId ? { ...feed, enabled } : feed
+      );
+      
+      console.log(`🔄 toggleFeed result for ${feedId}:`, 
+        updated.find(f => f.id === feedId)?.enabled
+      );
+      
+      return updated;
+    });
+    
+    // Force re-render
+    setRefreshKey(prev => prev + 1);
   };
 
   const addCustomFeed = () => {
@@ -587,7 +615,7 @@ export default function SettingsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {feeds.map((feed) => (
-                    <div key={feed.id} className="flex items-center justify-between p-4 border border-gray-700 rounded-lg bg-gray-800/50">
+                    <div key={`${feed.id}-${refreshKey}-${feed.enabled}`} className="flex items-center justify-between p-4 border border-gray-700 rounded-lg bg-gray-800/50">
                       <div>
                         <h3 className="font-semibold text-white">{feed.name}</h3>
                         <p className="text-sm text-gray-400 capitalize">{feed.category}</p>
@@ -596,8 +624,15 @@ export default function SettingsPage() {
                       <div className="flex items-center gap-2">
                         <Switch 
                           checked={feed.enabled}
-                          onCheckedChange={(checked) => toggleFeed(feed.id, checked)}
+                          onCheckedChange={(checked) => {
+                            console.log(`🔀 Switch toggled for ${feed.name}: ${feed.enabled} -> ${checked}`);
+                            toggleFeed(feed.id, checked);
+                          }}
                         />
+                        {/* Debug indicator */}
+                        <span className="text-xs text-gray-500 ml-2">
+                          {feed.enabled ? '🟢' : '🔴'}
+                        </span>
                         <Button
                           onClick={() => removeFeed(feed.id)}
                           variant="outline"

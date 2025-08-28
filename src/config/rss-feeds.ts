@@ -74,8 +74,8 @@ export const RSS_FEEDS = [
   // Enterprise Category - 2 highest quality, most frequently updated feeds
   {
     id: 'enterprise-ai-news',
-    name: 'Enterprise AI News',
-    url: 'https://www.enterpriseai.news/feed/',
+    name: 'AI Wire (Enterprise AI News)',
+    url: 'https://www.aiwire.net/feed/',
     category: 'enterprise',
     priority: 9,
     enabled: true
@@ -86,7 +86,7 @@ export const RSS_FEEDS = [
     url: 'https://aibusiness.com/feed',
     category: 'enterprise',
     priority: 10,
-    enabled: true
+    enabled: false // Temporarily disabled due to malformed XML
   },
 
   // Consumer Category - 2 highest quality, most frequently updated feeds

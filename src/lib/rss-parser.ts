@@ -164,7 +164,6 @@ export async function processAndValidateArticles(
   const { 
     validateURLs = true, 
     fixBrokenLinks = true, 
-    batchSize = 10,
     skipValidationPatterns = ['.pdf', 'mailto:', 'javascript:', '/amp/']
   } = options;
 
@@ -207,9 +206,9 @@ export async function processAndValidateArticles(
   console.log(`Validating ${urlsToValidate.length} unique URLs...`);
 
   const validationResults = await validateURLsBatch(urlsToValidate, {
-    batchSize,
-    timeout: 8000,
-    delayMs: 500, // Be gentle on servers
+    batchSize: 20, // Increase batch size for faster processing
+    timeout: 5000, // Reduce timeout to 5 seconds
+    delayMs: 300, // Reduce delay between batches
     allowedStatusCodes: [200, 201, 202, 301, 302, 307, 308]
   });
 

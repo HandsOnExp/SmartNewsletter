@@ -298,39 +298,66 @@ export async function POST(request: Request) {
       console.log(`✅ CATEGORY MAPPING: Processed ${originalTopicCount} topics, all mapped to preferred categories`);
     }
 
-    // Step 4.6: Validate and fix URLs in newsletter topics
-    console.log('Validating URLs in generated newsletter content...');
+    // Step 4.6: Validate and fix URLs in newsletter topics + Remove duplicates
+    console.log('Validating URLs and removing duplicates in generated newsletter content...');
     const validArticleUrls = new Set(sortedArticles.map(article => article.link));
+    const usedUrls = new Set<string>();
     
     // Check if any URLs in the newsletter don't exist in our original articles
     let invalidUrls = 0;
-    const fixedTopics = newsletterData.topics.map(topic => {
-      if (!validArticleUrls.has(topic.sourceUrl)) {
-        console.warn(`Invalid URL detected in topic "${topic.headline}": ${topic.sourceUrl}`);
+    let duplicateUrls = 0;
+    
+    const fixedTopics = newsletterData.topics.map((topic) => {
+      let currentTopic = { ...topic };
+      
+      // Step 1: Validate URL exists in source articles
+      if (!validArticleUrls.has(currentTopic.sourceUrl)) {
+        console.warn(`Invalid URL detected in topic "${currentTopic.headline}": ${currentTopic.sourceUrl}`);
         invalidUrls++;
         
         // Try to find a matching article by title similarity
         const matchingArticle = sortedArticles.find(article => 
-          article.title.toLowerCase().includes(topic.headline.toLowerCase().split(' ')[0]) ||
-          topic.headline.toLowerCase().includes(article.title.toLowerCase().split(' ')[0])
+          article.title.toLowerCase().includes(currentTopic.headline.toLowerCase().split(' ')[0]) ||
+          currentTopic.headline.toLowerCase().includes(article.title.toLowerCase().split(' ')[0])
         );
         
-        if (matchingArticle) {
-          console.log(`Fixed URL for topic "${topic.headline}": ${topic.sourceUrl} -> ${matchingArticle.link}`);
-          return { ...topic, sourceUrl: matchingArticle.link };
-        } else {
-          // Use the first available article as fallback
-          console.log(`Using fallback URL for topic "${topic.headline}": ${sortedArticles[0].link}`);
-          return { ...topic, sourceUrl: sortedArticles[0].link };
+        if (matchingArticle && !usedUrls.has(matchingArticle.link)) {
+          console.log(`Fixed URL for topic "${currentTopic.headline}": ${currentTopic.sourceUrl} -> ${matchingArticle.link}`);
+          currentTopic = { ...currentTopic, sourceUrl: matchingArticle.link };
         }
       }
-      return topic;
+      
+      // Step 2: Handle URL duplicates
+      if (usedUrls.has(currentTopic.sourceUrl)) {
+        console.warn(`Duplicate URL detected for topic "${currentTopic.headline}": ${currentTopic.sourceUrl}`);
+        duplicateUrls++;
+        
+        // Find an unused article from the same category or any category
+        const unusedArticle = sortedArticles.find(article => 
+          !usedUrls.has(article.link) && validArticleUrls.has(article.link)
+        );
+        
+        if (unusedArticle) {
+          console.log(`Replaced duplicate URL for topic "${currentTopic.headline}": ${currentTopic.sourceUrl} -> ${unusedArticle.link}`);
+          currentTopic = { ...currentTopic, sourceUrl: unusedArticle.link };
+        } else {
+          console.warn(`No unused URLs available, keeping duplicate for topic "${currentTopic.headline}"`);
+        }
+      }
+      
+      // Mark URL as used
+      usedUrls.add(currentTopic.sourceUrl);
+      return currentTopic;
     });
     
     if (invalidUrls > 0) {
       console.log(`Fixed ${invalidUrls} invalid URLs in newsletter`);
-      newsletterData.topics = fixedTopics;
     }
+    if (duplicateUrls > 0) {
+      console.log(`Fixed ${duplicateUrls} duplicate URLs in newsletter`);
+    }
+    
+    newsletterData.topics = fixedTopics;
 
     // Step 4.7: Map AI-generated categories to standard categories (but preserve diversity)
     // Create a mapping from various category names to standard ones

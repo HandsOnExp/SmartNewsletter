@@ -265,6 +265,40 @@ async function processNewsletterInBackground(jobId: string, userId: string, requ
     job.progress = 90;
 
     const newsletterData = generationResult.data;
+    
+    // URL deduplication and validation (same as main route)
+    console.log('Background: Validating URLs and removing duplicates in generated newsletter content...');
+    const validArticleUrls = new Set(sortedArticles.map(article => article.link));
+    const usedUrls = new Set<string>();
+    let duplicateUrls = 0;
+    
+    const fixedTopics = newsletterData.topics.map((topic) => {
+      let currentTopic = { ...topic };
+      
+      // Handle URL duplicates
+      if (usedUrls.has(currentTopic.sourceUrl)) {
+        console.warn(`Background: Duplicate URL detected for topic "${currentTopic.headline}": ${currentTopic.sourceUrl}`);
+        duplicateUrls++;
+        
+        // Find an unused article
+        const unusedArticle = sortedArticles.find(article => 
+          !usedUrls.has(article.link) && validArticleUrls.has(article.link)
+        );
+        
+        if (unusedArticle) {
+          console.log(`Background: Replaced duplicate URL for topic "${currentTopic.headline}": ${currentTopic.sourceUrl} -> ${unusedArticle.link}`);
+          currentTopic = { ...currentTopic, sourceUrl: unusedArticle.link };
+        }
+      }
+      
+      usedUrls.add(currentTopic.sourceUrl);
+      return currentTopic;
+    });
+    
+    if (duplicateUrls > 0) {
+      console.log(`Background: Fixed ${duplicateUrls} duplicate URLs in newsletter`);
+      newsletterData.topics = fixedTopics;
+    }
 
     // Save to database
     await connectDB();

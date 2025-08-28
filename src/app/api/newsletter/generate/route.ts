@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { fetchAllFeeds, deduplicateArticles, sortArticlesByDate, filterArticlesByTimePeriod, processAndValidateArticles } from '@/lib/rss-parser';
+import { fetchAllFeeds, deduplicateArticles, sortArticlesByDate, filterArticlesByTimePeriod } from '@/lib/rss-parser';
 import { generateNewsletterContent, checkRateLimit } from '@/lib/ai-processors';
 import { monitoredGeneration, getBestProvider, getFallbackSuggestion } from '@/lib/performance-monitor';
 import { RSS_FEEDS } from '@/config/rss-feeds';
@@ -127,25 +127,11 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    // Step 2.5: Fast URL validation with aggressive timeout
-    console.log('Fast URL validation with 5-second timeout...');
-    const validatedArticles = await processAndValidateArticles(allArticles, {
-      validateURLs: true,
-      fixBrokenLinks: false, // Skip fixing to save time
-      batchSize: 20, // Larger batches for speed
-      skipValidationPatterns: [
-        'technologyreview\\.com/\\d{4}/\\d{2}/\\d{2}/[^/]+/$',
-        'darkreading\\.com/.*', // Dark Reading blocks validation requests
-        'securityweek\\.com/.*', // Security Week blocks validation requests
-        'wsj\\.com/.*', // WSJ has paywalls
-        'semafor\\.com/.*' // Semafor blocks some requests
-      ]
-    });
+    // Step 2.5: Skip URL validation to save time (2-3 seconds)
+    console.log('Skipping URL validation for faster generation...');
+    const validatedArticles = allArticles; // Use all articles without validation
     
-    const removedArticles = allArticles.length - validatedArticles.length;
-    if (removedArticles > 0) {
-      console.log(`Removed ${removedArticles} articles with broken or invalid URLs`);
-    }
+    console.log(`Using all ${validatedArticles.length} articles without URL validation`);
 
     if (validatedArticles.length === 0) {
       return NextResponse.json<APIResponse>({ 
@@ -161,13 +147,19 @@ export async function POST(request: Request) {
     const minArticlesForStrict = Math.max(maxArticles * 2, 10); // Need at least 2x the requested articles for better selection
     const filterResult = filterArticlesByTimePeriod(uniqueArticles, timePeriod, minArticlesForStrict);
     
-    const sortedArticles = sortArticlesByDate(filterResult.articles);
+    let sortedArticles = sortArticlesByDate(filterResult.articles);
     
     if (sortedArticles.length === 0) {
       return NextResponse.json<APIResponse>({ 
         success: false, 
         error: 'No articles found after filtering' 
       }, { status: 400 });
+    }
+
+    // Limit to 30 most recent articles for faster processing
+    if (sortedArticles.length > 30) {
+      console.log(`Limiting from ${sortedArticles.length} to 30 articles for faster processing`);
+      sortedArticles = sortedArticles.slice(0, 30);
     }
 
     console.log(`Processing ${sortedArticles.length} articles (filtered by ${timePeriod}) to generate ${maxArticles} articles in ${language}`);
@@ -195,7 +187,7 @@ export async function POST(request: Request) {
             language,
             preferredCategories,
             fastMode: true, // Enable fast mode for all main route requests
-            timeout: llmProvider === 'cohere' ? 12000 : 10000 // Mobile-friendly timeouts: Cohere 12s, others 10s
+            timeout: llmProvider === 'cohere' ? 20000 : 15000 // Realistic timeouts: Cohere 20s, others 15s
           })
         );
       } catch (error) {
@@ -207,8 +199,9 @@ export async function POST(request: Request) {
           error instanceof Error ? error.message : undefined
         );
         
-        // Try fallback immediately on ANY failure if using Cohere, or on last attempt for others
-        const shouldTryFallback = llmProvider === 'cohere' || generationAttempt === maxGenerationAttempts;
+        // Try fallback immediately on timeout or ANY failure if using Cohere
+        const isTimeoutError = error instanceof Error && error.message.includes('timeout');
+        const shouldTryFallback = llmProvider === 'cohere' || isTimeoutError || generationAttempt === maxGenerationAttempts;
         
         if (fallbackSuggestion.shouldFallback && shouldTryFallback) {
           console.log(`🔄 IMMEDIATE FALLBACK: ${fallbackSuggestion.reason}`);
@@ -222,7 +215,7 @@ export async function POST(request: Request) {
                 language,
                 preferredCategories,
                 fastMode: true, // Use fast mode for fallback
-                timeout: 8000 // Ultra-fast 8s timeout for fallback
+                timeout: 12000 // Fast 12s timeout for fallback
               })
             );
             break; // Success with fallback

@@ -91,7 +91,7 @@ export async function POST() {
     const feedFetchPromise = fetchAllFeedsWithEnhancement(enabledFeeds, {
       enhanceContent: true, // Enable full content extraction
       maxArticlesPerFeed: 30, // Allow more articles per feed for better selection
-      qualityThreshold: 65, // Require good quality articles
+      qualityThreshold: 50, // Lowered threshold for more articles to pass
       parallelProcessing: true // Use parallel processing for speed
     });
     
@@ -128,9 +128,10 @@ export async function POST() {
       readingTime?: number;
     }> = [];
     let useEnhancedContent = false;
+    const minArticlesThreshold = Math.max(maxArticles, 5); // Need at least 5 articles for good generation
     
-    if (enhancedContent && enhancedContent.length > 0) {
-      // Use enhanced content with full article text and quality scores
+    if (enhancedContent && enhancedContent.length >= minArticlesThreshold) {
+      // Use enhanced content when we have enough high-quality articles
       allArticles = enhancedContent.map(enhanced => ({
         title: enhanced.title,
         link: enhanced.sourceUrl,
@@ -146,6 +147,52 @@ export async function POST() {
       }));
       useEnhancedContent = true;
       console.log(`🚀 USING ENHANCED CONTENT: ${allArticles.length} high-quality articles`);
+    } else if (enhancedContent && enhancedContent.length > 0) {
+      // Hybrid approach: Use enhanced content + supplement with standard RSS content
+      const enhancedArticles = enhancedContent.map(enhanced => ({
+        title: enhanced.title,
+        link: enhanced.sourceUrl,
+        pubDate: enhanced.publishedAt,
+        contentSnippet: enhanced.excerpt,
+        content: enhanced.content,
+        creator: enhanced.author || '',
+        categories: enhanced.topics,
+        source: 'Enhanced Processing',
+        qualityScore: enhanced.quality.score,
+        wordCount: enhanced.wordCount,
+        readingTime: enhanced.readingTime
+      }));
+      
+      // Get standard articles to supplement
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const standardArticles = (feedResults as any[])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .filter((result: any) => result.articles.success)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .flatMap((result: any) => result.articles.data)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .filter((article: any) => article.title && article.link)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((article: any) => ({
+          title: article.title,
+          link: article.link,
+          pubDate: article.pubDate,
+          contentSnippet: article.contentSnippet,
+          content: typeof article.content === 'string' ? article.content : article.contentSnippet,
+          creator: article.creator,
+          categories: article.categories,
+          source: article.source
+        }));
+      
+      // Filter out articles that are already enhanced
+      const enhancedUrls = new Set(enhancedArticles.map(a => a.link));
+      const supplementaryArticles = standardArticles
+        .filter(article => !enhancedUrls.has(article.link))
+        .slice(0, minArticlesThreshold - enhancedArticles.length);
+      
+      allArticles = [...enhancedArticles, ...supplementaryArticles];
+      useEnhancedContent = false; // Use standard processing mode since we have mixed content
+      console.log(`🔄 USING HYBRID CONTENT: ${enhancedArticles.length} enhanced + ${supplementaryArticles.length} standard = ${allArticles.length} total articles`);
     } else {
       // Fall back to regular RSS content
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -286,7 +333,8 @@ export async function POST() {
     console.log(`🎯 CATEGORY CONSTRAINT: Only allowing topics from categories:`, preferredCategories);
     
     let generationResult;
-    let topicsToRequest = Math.min(maxArticles, sortedArticles.length);
+    // Intelligent topic request calculation: don't limit by article count for better generation
+    let topicsToRequest = maxArticles; // Request the full amount needed
     let generationAttempt = 0;
     const maxGenerationAttempts = 1; // Single attempt for reliability
     
@@ -336,7 +384,7 @@ export async function POST() {
         
         // Request more topics for next attempt to compensate for expected filtering
         const expectedFilteredCount = Math.max(1, Math.ceil(generatedTopics * 0.3)); // Estimate 30% might be filtered
-        topicsToRequest = Math.min(maxArticles + expectedFilteredCount, sortedArticles.length, 10); // Cap at 10 topics max
+        topicsToRequest = Math.min(maxArticles + expectedFilteredCount, 15); // Cap at 15 topics max (increased from 10)
         console.log(`Planning to request ${topicsToRequest} topics next time to compensate for category filtering`);
       } else {
         break; // If generation fails, no point in retrying

@@ -42,9 +42,9 @@ export interface ContentExtractionOptions {
 
 const DEFAULT_OPTIONS: ContentExtractionOptions = {
   maxArticles: 20,
-  minWordCount: 200,
+  minWordCount: 150, // Lowered from 200
   maxAge: 72, // 3 days
-  qualityThreshold: 60,
+  qualityThreshold: 45, // Lowered from 60 to be more inclusive
   enhanceWithFullContent: true
 };
 
@@ -105,9 +105,9 @@ export async function extractAndEnhanceContent(
       }
     });
     
-    // Brief pause between batches
+    // Brief pause between batches to prevent overwhelming servers
     if (i + BATCH_SIZE < filteredArticles.length) {
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, 100)); // Reduced from 200ms to 100ms
     }
   }
   
@@ -200,7 +200,7 @@ async function enhanceArticle(article: ParsedArticle, options: ContentExtraction
  */
 async function fetchFullArticleContent(url: string): Promise<string> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+  const timeoutId = setTimeout(() => controller.abort(), 5000); // Reduced to 5 second timeout for faster processing
   
   try {
     const response = await fetch(url, {
@@ -223,6 +223,9 @@ async function fetchFullArticleContent(url: string): Promise<string> {
     }
     
     const html = await response.text();
+    if (!html || html.length === 0) {
+      throw new Error('Empty response body');
+    }
     return extractTextFromHtml(html);
   } catch (error) {
     clearTimeout(timeoutId);
@@ -234,6 +237,10 @@ async function fetchFullArticleContent(url: string): Promise<string> {
  * Extract readable text from HTML content
  */
 function extractTextFromHtml(html: string): string {
+  if (!html || typeof html !== 'string') {
+    throw new Error('Invalid HTML input');
+  }
+  
   // Remove script and style elements
   const cleaned = html
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
@@ -253,7 +260,7 @@ function extractTextFromHtml(html: string): string {
   let mainContent = '';
   for (const pattern of mainContentPatterns) {
     const match = cleaned.match(pattern);
-    if (match && match[1].length > mainContent.length) {
+    if (match && match[1] && match[1].length > mainContent.length) {
       mainContent = match[1];
     }
   }

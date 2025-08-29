@@ -37,9 +37,9 @@ export const RSS_FEEDS = [
 
   // Research Category - 2 highest quality, most frequently updated feeds
   {
-    id: 'mit-tech-review',
-    name: 'MIT Technology Review',
-    url: 'https://www.technologyreview.com/feed/',
+    id: 'google-ai-blog',
+    name: 'Google AI Blog',
+    url: 'http://feeds.feedburner.com/blogspot/gJZg',
     category: 'research',
     priority: 5,
     enabled: true
@@ -145,3 +145,19 @@ export const RSS_FEEDS = [
 ];
 
 export type RSSFeed = typeof RSS_FEEDS[0];
+
+export interface RSSFeedPerformance {
+  feedId: string;
+  averageResponseTime: number;
+  successRate: number;
+  lastChecked: Date;
+  contentQuality: number;
+  reliability: number; // 0-100
+}
+
+// Enhanced RSS feed interface
+export interface EnhancedRSSFeed extends RSSFeed {
+  performance?: RSSFeedPerformance;
+  adaptiveTimeout?: number;
+  qualityMultiplier?: number;
+}

@@ -1,6 +1,8 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { ParsedArticle } from './rss-parser';
 import { buildPrompt, buildGeminiImagePrompt } from '@/config/prompts';
+import { buildEnhancedPrompt } from '@/lib/enhanced-prompts';
+import { ExtractedContent } from '@/lib/content-extractor';
 import {
   cacheAIResponse,
   getCachedAIResponse,
@@ -101,10 +103,16 @@ export interface NewsletterData {
 }
 
 
-// Gemini integration
+// Enhanced Gemini integration with better prompts
 export async function analyzeWithGemini(
-  articles: ParsedArticle[],
-  options?: { maxTopics?: number; language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese' }
+  articles: ParsedArticle[] | ExtractedContent[],
+  options?: { 
+    maxTopics?: number; 
+    language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
+    preferredCategories?: string[];
+    useEnhancedContent?: boolean;
+    enhancedPrompts?: boolean;
+  }
 ): Promise<{ success: boolean; content?: string; error?: string }> {
   try {
     if (!geminiApiKey) {
@@ -121,10 +129,28 @@ export async function analyzeWithGemini(
       };
     }
     
-    // Resolve any lazy content first
-    const resolvedArticles = await resolveArticleContent(articles);
+    // Handle both article types
+    let resolvedArticles: ParsedArticle[] | ExtractedContent[];
+    if (options?.useEnhancedContent && articles.length > 0 && 'quality' in articles[0]) {
+      // Already enhanced content
+      resolvedArticles = articles as ExtractedContent[];
+    } else {
+      // Resolve lazy content for regular articles
+      resolvedArticles = await resolveArticleContent(articles as ParsedArticle[]);
+    }
     
-    const prompt = buildPrompt(resolvedArticles, 'gemini', options);
+    // Choose prompt strategy
+    const prompt = options?.enhancedPrompts 
+      ? buildEnhancedPrompt(resolvedArticles, {
+          maxTopics: options.maxTopics || 7,
+          language: options.language || 'english',
+          preferredCategories: options.preferredCategories,
+          useEnhancedContent: options.useEnhancedContent || false,
+          contextAnalysis: true,
+          factualAccuracyMode: true,
+          creativityLevel: 'balanced'
+        })
+      : buildPrompt(resolvedArticles as ParsedArticle[], 'gemini', options);
     
     // Check cache first
     const cacheKey = createContentHash(prompt);
@@ -225,28 +251,44 @@ export async function generateImage(prompt: string): Promise<{ success: boolean;
   }
 }
 
-// Main newsletter generation function
+// Enhanced newsletter generation function
 export async function generateNewsletterContent(
-  articles: ParsedArticle[], 
+  articles: ParsedArticle[] | ExtractedContent[], 
   options?: { 
     maxTopics?: number; 
     language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
     preferredCategories?: string[];
     fastMode?: boolean;
     timeout?: number;
+    useEnhancedContent?: boolean;
+    enhancedPrompts?: boolean;
   }
 ): Promise<{ success: boolean; data?: NewsletterData; error?: string }> {
   const startTime = Date.now();
   const maxRetries = 1; // Single attempt for reliability
   
-  // Resolve any lazy content first
-  const resolvedArticles = await resolveArticleContent(articles);
+  // Handle different article types
+  let processedArticles: ParsedArticle[] | ExtractedContent[];
+  if (options?.useEnhancedContent && articles.length > 0 && 'quality' in articles[0]) {
+    // Already enhanced content
+    processedArticles = articles as ExtractedContent[];
+    console.log(`Using ${processedArticles.length} enhanced articles for generation`);
+  } else {
+    // Resolve lazy content for regular articles
+    processedArticles = await resolveArticleContent(articles as ParsedArticle[]);
+    console.log(`Using ${processedArticles.length} standard articles for generation`);
+  }
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`Newsletter generation with Gemini (attempt ${attempt}/${maxRetries})`);
+      const generationMode = options?.enhancedPrompts ? 'Enhanced' : 'Standard';
+      console.log(`Newsletter generation with Gemini (${generationMode} mode, attempt ${attempt}/${maxRetries})`);
       
-      const response = await analyzeWithGemini(resolvedArticles, options);
+      const response = await analyzeWithGemini(processedArticles, {
+        ...options,
+        useEnhancedContent: options?.useEnhancedContent,
+        enhancedPrompts: options?.enhancedPrompts
+      });
       
       if (!response.success) {
         if (attempt === maxRetries) {
@@ -346,7 +388,7 @@ export async function generateNewsletterContent(
       const finalData: NewsletterData = {
         ...newsletterData,
         stats: {
-          sourcesAnalyzed: resolvedArticles.length,
+          sourcesAnalyzed: processedArticles.length,
           generationTime: Date.now() - startTime,
           llmUsed: 'gemini'
         }

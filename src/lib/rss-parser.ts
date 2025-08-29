@@ -8,6 +8,12 @@ import {
 } from '@/utils/cache-optimization';
 import { validateURLsBatch, sanitizeURL, getFallbackURL, filterValidURLs } from '@/lib/url-validator';
 import { TimePeriod, TimePeriodOption } from '@/types';
+import { extractAndEnhanceContent, ExtractedContent } from '@/lib/content-extractor';
+import { 
+  trackFeedPerformance, 
+  getFeedsByPerformancePriority,
+  getAdaptiveTimeout
+} from '@/lib/feed-performance-tracker';
 
 const parser = new Parser({
   timeout: 10000,
@@ -123,24 +129,43 @@ export async function fetchRSSFeed(url: string, feedName: string, timeoutMs: num
 export async function fetchAllFeeds(feeds: RSSFeed[] = RSS_FEEDS) {
   const enabledFeeds = feeds.filter(f => f.enabled);
   
-  // Sort feeds by priority (higher priority = faster expected response)
-  const prioritizedFeeds = enabledFeeds.sort((a, b) => b.priority - a.priority);
+  // Use performance-based prioritization instead of just priority
+  const performancePrioritizedFeeds = getFeedsByPerformancePriority(enabledFeeds);
   
-  // Use different timeouts based on feed priority
+  console.log(`Performance-prioritized feeds: ${performancePrioritizedFeeds.map(f => `${f.name}(rel:${f.performance?.reliability || 'N/A'})`).join(', ')}`);
+  
+  // Use adaptive timeouts based on feed performance
   const results = await Promise.allSettled(
-    prioritizedFeeds.map(async (feed) => {
-      const timeoutMs = feed.priority >= 3 ? 4000 : feed.priority >= 2 ? 5000 : 6000; // Faster timeouts for mobile
-      const result = await fetchRSSFeed(feed.url, feed.name, timeoutMs);
-      return {
-        ...feed,
-        articles: result
-      };
+    performancePrioritizedFeeds.map(async (feed) => {
+      const startTime = Date.now();
+      const timeoutMs = feed.adaptiveTimeout || getAdaptiveTimeout(feed.id);
+      
+      try {
+        const result = await fetchRSSFeed(feed.url, feed.name, timeoutMs);
+        const responseTime = Date.now() - startTime;
+        
+        // Track performance
+        trackFeedPerformance(feed.id, responseTime, result.success, undefined, result.error);
+        
+        return {
+          ...feed,
+          articles: result
+        };
+      } catch (error) {
+        const responseTime = Date.now() - startTime;
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        
+        // Track failed performance
+        trackFeedPerformance(feed.id, responseTime, false, undefined, errorMessage);
+        
+        throw error;
+      }
     })
   );
 
   // Restore original order based on input array
   const orderedResults = results.map((result, index) => ({
-    feed: prioritizedFeeds[index],
+    feed: performancePrioritizedFeeds[index],
     status: result.status,
     articles: result.status === 'fulfilled' ? result.value.articles : { success: false, error: 'Promise rejected', data: [] },
     responseTime: result.status === 'fulfilled' ? Date.now() : null
@@ -156,6 +181,120 @@ export async function fetchAllFeeds(feeds: RSSFeed[] = RSS_FEEDS) {
   }
 
   return orderedResults;
+}
+
+/**
+ * Enhanced RSS processing with smart content extraction and quality analysis
+ */
+export async function fetchAllFeedsWithEnhancement(
+  feeds: RSSFeed[] = RSS_FEEDS,
+  options: {
+    enhanceContent?: boolean;
+    maxArticlesPerFeed?: number;
+    qualityThreshold?: number;
+    parallelProcessing?: boolean;
+  } = {}
+): Promise<{
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  feeds: any[];
+  enhancedContent?: ExtractedContent[];
+  stats: {
+    totalFeeds: number;
+    successfulFeeds: number;
+    totalArticles: number;
+    enhancedArticles: number;
+    averageQuality: number;
+    processingTime: number;
+  };
+}> {
+  const startTime = Date.now();
+  const {
+    enhanceContent = true,
+    maxArticlesPerFeed = 25,
+    qualityThreshold = 60,
+    parallelProcessing = true
+  } = options;
+
+  console.log(`Starting enhanced RSS processing for ${feeds.length} feeds...`);
+
+  // Step 1: Fetch RSS feeds (existing logic with optimizations)
+  let orderedResults;
+  if (parallelProcessing) {
+    // Use existing fetchAllFeeds function for parallel processing
+    orderedResults = await fetchAllFeeds(feeds);
+  } else {
+    // Sequential processing for reliability if needed
+    const enabledFeeds = feeds.filter(f => f.enabled);
+    const results = [];
+    
+    for (const feed of enabledFeeds) {
+      const timeoutMs = 6000; // Consistent timeout
+      const result = await fetchRSSFeed(feed.url, feed.name, timeoutMs);
+      results.push({
+        feed,
+        status: result.success ? 'fulfilled' as const : 'rejected' as const,
+        articles: result,
+        responseTime: Date.now()
+      });
+    }
+    orderedResults = results;
+  }
+
+  // Step 2: Aggregate all articles
+  const allArticles = orderedResults
+    .filter(result => result.articles.success)
+    .flatMap(result => 
+      result.articles.data
+        .slice(0, maxArticlesPerFeed) // Limit per feed
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((article: any) => ({ ...article, feedName: result.feed.name }))
+    );
+
+  console.log(`Aggregated ${allArticles.length} articles from ${orderedResults.length} feeds`);
+
+  let enhancedContent: ExtractedContent[] = [];
+  let averageQuality = 0;
+
+  // Step 3: Enhanced content extraction (if enabled)
+  if (enhanceContent && allArticles.length > 0) {
+    try {
+      enhancedContent = await extractAndEnhanceContent(allArticles, {
+        maxArticles: Math.min(50, allArticles.length), // Process up to 50 articles
+        qualityThreshold,
+        enhanceWithFullContent: true,
+        minWordCount: 200
+      });
+
+      if (enhancedContent.length > 0) {
+        averageQuality = enhancedContent.reduce((sum, content) => sum + content.quality.score, 0) / enhancedContent.length;
+        console.log(`Enhanced ${enhancedContent.length} articles with average quality: ${averageQuality.toFixed(1)}`);
+      }
+    } catch (error) {
+      console.error('Content enhancement failed:', error);
+      // Continue without enhancement
+    }
+  }
+
+  const processingTime = Date.now() - startTime;
+
+  // Step 4: Calculate stats
+  const successfulFeeds = orderedResults.filter(r => r.articles.success).length;
+  const stats = {
+    totalFeeds: orderedResults.length,
+    successfulFeeds,
+    totalArticles: allArticles.length,
+    enhancedArticles: enhancedContent.length,
+    averageQuality,
+    processingTime
+  };
+
+  console.log(`RSS processing complete: ${stats.successfulFeeds}/${stats.totalFeeds} feeds, ${stats.enhancedArticles}/${stats.totalArticles} enhanced articles (${processingTime}ms)`);
+
+  return {
+    feeds: orderedResults,
+    enhancedContent: enhancedContent.length > 0 ? enhancedContent : undefined,
+    stats
+  };
 }
 
 /**

@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { fetchAllFeeds, deduplicateArticles, sortArticlesByDate, filterArticlesByTimePeriod } from '@/lib/rss-parser';
+import { fetchAllFeedsWithEnhancement, deduplicateArticles, sortArticlesByDate, filterArticlesByTimePeriod } from '@/lib/rss-parser';
 import { generateNewsletterContent, checkRateLimit } from '@/lib/ai-processors';
 import { monitoredGeneration } from '@/lib/performance-monitor';
 import { RSS_FEEDS } from '@/config/rss-feeds';
 import { createNewsletter, connectDB, getUserSettings } from '@/lib/db';
 import { autoCleanupIfNeeded } from '@/lib/database-cleanup';
+import { validateNewsletterQuality, autoFixTopicIssues } from '@/lib/selective-quality-validator';
+import { analyzeTrends, weightArticlesByQuality } from '@/lib/trend-analyzer';
 import { APIResponse, NewsletterGenerationResponse, CustomRSSFeed, NewsletterCategory } from '@/types';
 
 // Configure runtime for longer timeout (Free plan: up to 60s)
@@ -82,31 +84,124 @@ export async function POST() {
     }, {} as Record<string, number>));
     console.log(`Final enabled feeds:`, enabledFeeds.map(f => `${f.name} (${f.category})`));
 
-    console.log(`Fetching RSS feeds... (${enabledFeeds.length} enabled feeds)`);
+    console.log(`Fetching RSS feeds with enhancement... (${enabledFeeds.length} enabled feeds)`);
     console.log('Final enabled feeds:', enabledFeeds.map(f => f.name));
     
-    // Add timeout for feed fetching to prevent hanging (reduced for mobile)
-    const feedFetchPromise = fetchAllFeeds(enabledFeeds); // Use all enabled feeds (now limited to 2 per category)
+    // Use enhanced RSS processing with parallel optimizations and content quality analysis
+    const feedFetchPromise = fetchAllFeedsWithEnhancement(enabledFeeds, {
+      enhanceContent: true, // Enable full content extraction
+      maxArticlesPerFeed: 30, // Allow more articles per feed for better selection
+      qualityThreshold: 65, // Require good quality articles
+      parallelProcessing: true // Use parallel processing for speed
+    });
+    
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Feed fetching timeout')), 15000) // 15 second timeout for mobile
+      setTimeout(() => reject(new Error('Enhanced feed fetching timeout')), 20000) // 20 second timeout for enhanced processing
     );
     
-    const feedResults = await Promise.race([feedFetchPromise, timeoutPromise]) as Awaited<ReturnType<typeof fetchAllFeeds>>;
+    const enhancedResults = await Promise.race([feedFetchPromise, timeoutPromise]) as Awaited<ReturnType<typeof fetchAllFeedsWithEnhancement>>;
     
-    // Step 2: Aggregate and process articles
-    const allArticles = feedResults
-      .filter(result => result.articles.success)
-      .flatMap(result => result.articles.data)
-      .filter(article => article.title && article.link); // Filter out invalid articles
+    // Extract both regular feed results and enhanced content
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const feedResults: any[] = enhancedResults.feeds || [];
+    const enhancedContent = enhancedResults.enhancedContent;
+    
+    if (!feedResults || feedResults.length === 0) {
+      return NextResponse.json<APIResponse>({ 
+        success: false, 
+        error: 'Failed to fetch RSS feed results' 
+      }, { status: 500 });
+    }
+    
+    // Step 2: Aggregate and process articles (use enhanced content if available)
+    let allArticles: Array<{
+      title: string;
+      link: string;
+      pubDate: string;
+      contentSnippet: string;
+      content: string;
+      creator: string;
+      categories: string[];
+      source: string;
+      qualityScore?: number;
+      wordCount?: number;
+      readingTime?: number;
+    }> = [];
+    let useEnhancedContent = false;
+    
+    if (enhancedContent && enhancedContent.length > 0) {
+      // Use enhanced content with full article text and quality scores
+      allArticles = enhancedContent.map(enhanced => ({
+        title: enhanced.title,
+        link: enhanced.sourceUrl,
+        pubDate: enhanced.publishedAt,
+        contentSnippet: enhanced.excerpt,
+        content: enhanced.content, // Full article content
+        creator: enhanced.author || '',
+        categories: enhanced.topics,
+        source: 'Enhanced Processing',
+        qualityScore: enhanced.quality.score,
+        wordCount: enhanced.wordCount,
+        readingTime: enhanced.readingTime
+      }));
+      useEnhancedContent = true;
+      console.log(`🚀 USING ENHANCED CONTENT: ${allArticles.length} high-quality articles`);
+    } else {
+      // Fall back to regular RSS content
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const standardArticles = (feedResults as any[])
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .filter((result: any) => result.articles.success)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .flatMap((result: any) => result.articles.data)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .filter((article: any) => article.title && article.link)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((article: any) => ({
+          title: article.title,
+          link: article.link,
+          pubDate: article.pubDate,
+          contentSnippet: article.contentSnippet,
+          content: typeof article.content === 'string' ? article.content : article.contentSnippet,
+          creator: article.creator,
+          categories: article.categories,
+          source: article.source
+        }));
+      allArticles = standardArticles;
+      console.log(`📰 Using standard RSS content: ${allArticles.length} articles`);
+    }
 
     console.log(`📊 ARTICLE PROCESSING SUMMARY:`);
-    console.log(`Fetched ${allArticles.length} articles from ${feedResults.length} feeds`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    console.log(`Processing ${allArticles.length} articles from ${(feedResults as any[]).length} feeds`);
+    console.log(`Enhanced content: ${useEnhancedContent ? 'YES' : 'NO'}`);
+    console.log(`RSS Processing stats:`, enhancedResults.stats);
+    
+    if (useEnhancedContent) {
+      // Log quality distribution for enhanced content
+      const qualityScores = allArticles.map(a => a.qualityScore).filter((score): score is number => score !== undefined);
+      if (qualityScores.length > 0) {
+        const avgQuality = qualityScores.reduce((sum, score) => sum + score, 0) / qualityScores.length;
+        const minQuality = Math.min(...qualityScores);
+        const maxQuality = Math.max(...qualityScores);
+        console.log(`Quality distribution: avg=${avgQuality.toFixed(1)}, range=${minQuality}-${maxQuality}`);
+        
+        // Log word count statistics
+        const wordCounts = allArticles.map(a => a.wordCount).filter((count): count is number => count !== undefined);
+        if (wordCounts.length > 0) {
+          const avgWords = wordCounts.reduce((sum, count) => sum + count, 0) / wordCounts.length;
+          console.log(`Content depth: avg=${Math.round(avgWords)} words per article`);
+        }
+      }
+    }
     
     // Show articles per feed for debugging
-    const articlesPerFeed = feedResults.map(result => ({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const articlesPerFeed = feedResults.map((result: any) => ({
       name: result.feed.name,
       count: result.articles.success ? result.articles.data.length : 0,
-      success: result.articles.success
+      success: result.articles.success,
+      reliability: result.feed.performance?.reliability || 'N/A'
     }));
     
     console.log(`Articles per feed:`, articlesPerFeed);
@@ -133,14 +228,43 @@ export async function POST() {
       }, { status: 400 });
     }
 
-    // Step 3: Deduplicate and filter articles by time period (EMERGENCY FAST MODE)
+    // Step 3: Deduplicate and filter articles by time period
     const uniqueArticles = deduplicateArticles(validatedArticles);
     const timePeriod = '3days'; // Force 3-day period for more articles
-    // Reduce filtering requirements for emergency fast mode
-    const minArticlesForStrict = Math.max(maxArticles, 5); // Relaxed requirements
+    const minArticlesForStrict = Math.max(maxArticles, 5);
     const filterResult = filterArticlesByTimePeriod(uniqueArticles, timePeriod, minArticlesForStrict);
     
     let sortedArticles = sortArticlesByDate(filterResult.articles);
+
+    // Step 3.5: Advanced Analysis (when using enhanced content)
+    let trendAnalysis, weightedArticles;
+    if (useEnhancedContent && sortedArticles.length > 0) {
+      console.log('📊 Performing trend analysis and quality weighting...');
+      
+      // Use enhanced content or sorted articles for analysis
+      const articlesForAnalysis = useEnhancedContent && enhancedContent 
+        ? enhancedContent 
+        : sortedArticles;
+      
+      // Analyze trends across all articles
+      trendAnalysis = analyzeTrends(articlesForAnalysis, 72); // 72-hour window
+      
+      // Weight articles by quality factors
+      weightedArticles = weightArticlesByQuality(articlesForAnalysis, trendAnalysis);
+      
+      console.log('🔥 Trending topics:', trendAnalysis.emergingTopics.slice(0, 3).map(t => `${t.topic} (${t.frequency})`).join(', '));
+      console.log('🏆 Top entities:', trendAnalysis.topEntities.slice(0, 3).map(e => `${e.entity} (${e.mentions})`).join(', '));
+      console.log('📈 Quality metrics:', `Authority: ${trendAnalysis.qualityMetrics.averageAuthorityScore}/100, Freshness: ${trendAnalysis.temporalInsights.freshnessScore}/100`);
+      
+      // Use top-weighted articles for AI generation
+      const topWeightedArticles = weightedArticles.slice(0, 20).map(w => w.article);
+      console.log(`🎯 Selected top ${topWeightedArticles.length} weighted articles for AI analysis`);
+      
+      // Log reasoning for top articles
+      weightedArticles.slice(0, 5).forEach((weighted, i) => {
+        console.log(`${i + 1}. "${weighted.article.title}" (${weighted.weights.composite.toFixed(1)} pts): ${weighted.reasoning.join(', ')}`);
+      });
+    }
     
     if (sortedArticles.length === 0) {
       return NextResponse.json<APIResponse>({ 
@@ -166,22 +290,34 @@ export async function POST() {
     let generationAttempt = 0;
     const maxGenerationAttempts = 1; // Single attempt for reliability
     
+    // Prepare articles for AI generation (enhanced or standard) - define at higher scope
+    const articlesForGeneration = useEnhancedContent && enhancedContent 
+      ? enhancedContent 
+      : sortedArticles;
+    
     // Try generating with increasing topic count to compensate for category filtering
     while (generationAttempt < maxGenerationAttempts) {
       generationAttempt++;
       console.log(`Generation attempt ${generationAttempt}/${maxGenerationAttempts}, requesting ${topicsToRequest} topics`);
       
       try {
+        // Use enhanced generation if we have enhanced content
+        const generationOptions = {
+          maxTopics: topicsToRequest,
+          language,
+          preferredCategories,
+          fastMode: !useEnhancedContent, // Use detailed mode if we have enhanced content
+          timeout: useEnhancedContent ? 20000 : 15000, // More time for enhanced processing
+          useEnhancedContent,
+          enhancedPrompts: useEnhancedContent // Use enhanced prompts with enhanced content
+        };
+        
+        console.log(`🎯 Generation mode: ${useEnhancedContent ? 'Enhanced with full content analysis' : 'Standard fast mode'}`);
+        
         generationResult = await monitoredGeneration(
           'gemini',
           userId,
-          () => generateNewsletterContent(sortedArticles, {
-            maxTopics: topicsToRequest,
-            language,
-            preferredCategories,
-            fastMode: true,
-            timeout: 15000 // Gemini timeout: 15 seconds for reliability
-          })
+          () => generateNewsletterContent(articlesForGeneration, generationOptions)
         );
       } catch (error) {
         console.error(`Gemini generation attempt ${generationAttempt} failed:`, error);
@@ -322,6 +458,41 @@ export async function POST() {
     
     newsletterData.topics = fixedTopics;
 
+    // Step 4.6: Selective Quality Validation (only for final selected articles)
+    if (useEnhancedContent) {
+      console.log('🔍 Performing selective quality validation on final topics...');
+      try {
+        const validationResult = await validateNewsletterQuality(
+          newsletterData.topics,
+          articlesForGeneration,
+          {
+            validateUrls: true,
+            checkContentAlignment: true,
+            validateCategories: true,
+            allowedCategories: preferredCategories.length > 0 ? preferredCategories : undefined,
+            strictMode: false // Allow warnings, only block errors
+          }
+        );
+        
+        console.log(`✅ Quality validation: ${validationResult.validTopics.length}/${validationResult.validationStats.totalTopics} topics passed`);
+        
+        if (validationResult.invalidTopics.length > 0) {
+          const errorTopics = validationResult.invalidTopics.filter(t => t.severity === 'error');
+          if (errorTopics.length > 0) {
+            console.log(`🔧 Auto-fixing ${errorTopics.length} topics with errors...`);
+            newsletterData.topics = autoFixTopicIssues(newsletterData.topics, articlesForGeneration);
+          }
+        }
+        
+        // Log validation statistics
+        console.log(`📊 Validation stats: URLs: ${validationResult.validationStats.urlValidation.valid}✅/${validationResult.validationStats.urlValidation.invalid}❌, Content alignment: ${validationResult.validationStats.contentAlignment.aligned}✅/${validationResult.validationStats.contentAlignment.misaligned}❌`);
+        
+      } catch (validationError) {
+        console.error('Quality validation failed:', validationError);
+        // Continue without blocking - validation is enhancement, not requirement
+      }
+    }
+
     // Step 4.7: Map AI-generated categories to standard categories (but preserve diversity)
     // Create a mapping from various category names to standard ones
     type ValidCategory = 'business' | 'technology' | 'research' | 'product' | 'enterprise' | 'consumer' | 'security' | 'development';
@@ -412,7 +583,7 @@ export async function POST() {
         console.log(`Article count notification: Generated ${generatedArticles} articles instead of ${maxArticles} requested`);
       }
 
-      // Step 7: Return successful response
+      // Step 7: Return successful response with trend insights
       const response: NewsletterGenerationResponse = {
         success: true,
         newsletter: {
@@ -430,7 +601,18 @@ export async function POST() {
         stats: {
           articlesAnalyzed: sortedArticles.length,
           generationTime: `${((Date.now() - startTime) / 1000).toFixed(1)}s`,
-          id: savedNewsletter._id.toString()
+          id: savedNewsletter._id.toString(),
+          // Enhanced stats when using advanced processing
+          ...(useEnhancedContent && trendAnalysis && {
+            enhancedProcessing: {
+              contentAnalyzed: enhancedResults.stats.enhancedArticles,
+              averageQuality: enhancedResults.stats.averageQuality,
+              trendingTopics: trendAnalysis.emergingTopics.slice(0, 3).map(t => t.topic),
+              authorityScore: trendAnalysis.qualityMetrics.averageAuthorityScore,
+              freshnessScore: trendAnalysis.temporalInsights.freshnessScore,
+              processingMode: 'Enhanced with full content analysis'
+            }
+          })
         },
         fallbackNotification: filterResult.usedFallback ? {
           usedFallback: true,

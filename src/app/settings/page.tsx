@@ -242,13 +242,6 @@ export default function SettingsPage() {
     const deletedIds = settings.rssFeeds?.deleted || [];
     setDeletedFeeds(deletedIds);
     
-    console.log('📊 Processing RSS feeds:', {
-      totalRssFeeds: RSS_FEEDS.length,
-      enabledIds: enabledIds,
-      enabledCount: enabledIds.length,
-      deletedIds: deletedIds,
-      deletedCount: deletedIds.length
-    });
     
     const updatedFeeds = RSS_FEEDS
       .filter(feed => !deletedIds.includes(feed.id)) // Filter out deleted feeds
@@ -257,25 +250,11 @@ export default function SettingsPage() {
         enabled: enabledIds.includes(feed.id)
       }));
       
-    console.log('📋 Final feed states:', updatedFeeds.map(feed => ({
-      id: feed.id,
-      name: feed.name,
-      enabled: feed.enabled
-    })));
     
     setFeeds(updatedFeeds);
     
     console.log('✅ applySettings completed, feeds updated');
     
-    // Add a small delay and verify the state was actually updated
-    setTimeout(() => {
-      console.log('🔍 Post-update feed verification:', updatedFeeds.slice(0, 3).map(f => ({
-        id: f.id,
-        name: f.name,
-        enabled: f.enabled,
-        uiShouldShow: f.enabled ? 'ON' : 'OFF'
-      })));
-    }, 100);
   };
 
 
@@ -313,39 +292,6 @@ export default function SettingsPage() {
     }
   };
 
-  // Function to disable all RSS feeds
-  const disableAllFeeds = async () => {
-    if (feedsLoading) return; // Prevent multiple simultaneous calls
-    
-    try {
-      setFeedsLoading(true);
-      console.log('🔴 Disabling all RSS feeds...');
-      const response = await fetch('/api/feeds/disable-all', {
-        method: 'POST',
-        headers: {
-          'Cache-Control': 'no-cache',
-        }
-      });
-      
-      const result = await response.json();
-      console.log('🔴 Disable all feeds API response:', result);
-      
-      if (result.success) {
-        toast.success(result.message);
-        console.log('🔄 Reloading settings after disable all...');
-        // Reload settings to reflect changes
-        await loadUserSettings();
-      } else {
-        console.error('❌ Disable all feeds failed:', result.error);
-        toast.error(result.error || 'Failed to disable all feeds');
-      }
-    } catch (error) {
-      console.error('Disable all feeds error:', error);
-      toast.error('Failed to disable all feeds');
-    } finally {
-      setFeedsLoading(false);
-    }
-  };
 
 
   const applyDefaultSettings = () => {
@@ -370,15 +316,9 @@ export default function SettingsPage() {
   };
 
   const toggleFeed = (feedId: string, enabled: boolean) => {
-    console.log(`🔄 toggleFeed called: ${feedId} -> ${enabled}`);
-    
     setFeeds(prev => {
       const updated = prev.map(feed => 
         feed.id === feedId ? { ...feed, enabled } : feed
-      );
-      
-      console.log(`🔄 toggleFeed result for ${feedId}:`, 
-        updated.find(f => f.id === feedId)?.enabled
       );
       
       return updated;
@@ -440,15 +380,9 @@ export default function SettingsPage() {
   };
 
   const toggleCustomFeed = (feedId: string, enabled: boolean) => {
-    console.log(`🔄 toggleCustomFeed called: ${feedId} -> ${enabled}`);
-    
     setCustomFeeds(prev => {
       const updated = prev.map(feed => 
         feed.id === feedId ? { ...feed, enabled } : feed
-      );
-      
-      console.log(`🔄 toggleCustomFeed result for ${feedId}:`, 
-        updated.find(f => f.id === feedId)?.enabled
       );
       
       return updated;
@@ -602,21 +536,6 @@ export default function SettingsPage() {
                           'Enable All'
                         )}
                       </Button>
-                      <Button
-                        onClick={disableAllFeeds}
-                        disabled={feedsLoading}
-                        variant="outline"
-                        className="border-red-600 text-red-600 hover:bg-red-600 hover:text-white px-4 py-2 text-sm disabled:opacity-50"
-                      >
-                        {feedsLoading ? (
-                          <>
-                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current mr-2"></div>
-                            Disabling...
-                          </>
-                        ) : (
-                          'Disable All'
-                        )}
-                      </Button>
                     </div>
                   </div>
                 </CardHeader>
@@ -632,14 +551,9 @@ export default function SettingsPage() {
                         <Switch 
                           checked={!feed.enabled}
                           onCheckedChange={(checked) => {
-                            console.log(`🔀 Switch toggled for ${feed.name}: ${feed.enabled} -> ${!checked}`);
                             toggleFeed(feed.id, !checked);
                           }}
                         />
-                        {/* Debug indicator */}
-                        <span className="text-xs text-gray-500 ml-2">
-                          {feed.enabled ? '🟢' : '🔴'}
-                        </span>
                         <Button
                           onClick={() => removeFeed(feed.id)}
                           variant="outline"
@@ -694,10 +608,6 @@ export default function SettingsPage() {
                           checked={!feed.enabled}
                           onCheckedChange={(checked) => toggleCustomFeed(feed.id, !checked)}
                         />
-                        {/* Debug indicator */}
-                        <span className="text-xs text-gray-500 ml-2">
-                          {feed.enabled ? '🟢' : '🔴'}
-                        </span>
                         <Button
                           onClick={() => removeCustomFeed(feed.id)}
                           variant="outline"

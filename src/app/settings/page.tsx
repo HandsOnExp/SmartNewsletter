@@ -234,7 +234,11 @@ export default function SettingsPage() {
     setCustomFeeds(settings.rssFeeds?.custom || []);
     
     // Update feed enabled/disabled status and filter out deleted feeds
-    const enabledIds = settings.rssFeeds?.enabled || RSS_FEEDS.map(feed => feed.id);
+    // If no RSS settings exist, enable all feeds by default
+    // If RSS settings exist but enabled array is empty, respect that (all disabled)
+    const enabledIds = settings.rssFeeds ? 
+      (settings.rssFeeds.enabled || []) : 
+      RSS_FEEDS.map(feed => feed.id);
     const deletedIds = settings.rssFeeds?.deleted || [];
     setDeletedFeeds(deletedIds);
     

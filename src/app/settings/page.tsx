@@ -630,10 +630,10 @@ export default function SettingsPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Switch 
-                          checked={feed.enabled}
+                          checked={!feed.enabled}
                           onCheckedChange={(checked) => {
-                            console.log(`🔀 Switch toggled for ${feed.name}: ${feed.enabled} -> ${checked}`);
-                            toggleFeed(feed.id, checked);
+                            console.log(`🔀 Switch toggled for ${feed.name}: ${feed.enabled} -> ${!checked}`);
+                            toggleFeed(feed.id, !checked);
                           }}
                         />
                         {/* Debug indicator */}
@@ -691,8 +691,8 @@ export default function SettingsPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Switch 
-                          checked={feed.enabled}
-                          onCheckedChange={(checked) => toggleCustomFeed(feed.id, checked)}
+                          checked={!feed.enabled}
+                          onCheckedChange={(checked) => toggleCustomFeed(feed.id, !checked)}
                         />
                         {/* Debug indicator */}
                         <span className="text-xs text-gray-500 ml-2">

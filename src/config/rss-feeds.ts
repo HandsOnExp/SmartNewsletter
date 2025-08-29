@@ -91,17 +91,17 @@ export const RSS_FEEDS = [
 
   // Consumer Category - 2 highest quality, most frequently updated feeds
   {
-    id: 'verge-ai',
-    name: 'The Verge AI',
-    url: 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml',
+    id: 'ai-news',
+    name: 'AI News',
+    url: 'https://www.artificialintelligence-news.com/feed/rss/',
     category: 'consumer',
     priority: 11,
     enabled: true
   },
   {
-    id: 'venturebeat-ai',
-    name: 'VentureBeat AI',
-    url: 'https://venturebeat.com/ai/feed/',
+    id: 'analytics-india-ai',
+    name: 'Analytics India Magazine AI',
+    url: 'https://analyticsindiamag.com/feed/',
     category: 'consumer',
     priority: 12,
     enabled: true

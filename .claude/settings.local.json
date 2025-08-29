@@ -81,7 +81,8 @@
       "WebFetch(domain:ai.googleblog.com)",
       "WebFetch(domain:blog.research.google)",
       "WebFetch(domain:feeds.feedburner.com)",
-      "WebFetch(domain:paperswithcode.com)"
+      "WebFetch(domain:paperswithcode.com)",
+      "WebFetch(domain:rss.feedspot.com)"
     ],
     "deny": [],
     "ask": []

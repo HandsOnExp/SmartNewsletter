@@ -44,7 +44,8 @@ export async function POST() {
     }
 
     const startTime = Date.now();
-    console.log(`Starting newsletter generation for user ${userId} with ${llmProvider}`);
+    console.log(`🚀 Starting newsletter generation for user ${userId} with ${llmProvider}`);
+    console.log(`🎥 User preferences: ${maxArticles} articles, ${language} language, categories: ${preferredCategories.join(', ')}`);
 
     // Auto-cleanup database if needed (runs in background)
     autoCleanupIfNeeded().catch(error => 
@@ -84,7 +85,7 @@ export async function POST() {
     }, {} as Record<string, number>));
     console.log(`Final enabled feeds:`, enabledFeeds.map(f => `${f.name} (${f.category})`));
 
-    console.log(`Fetching RSS feeds with enhancement... (${enabledFeeds.length} enabled feeds)`);
+    console.log(`📰 Step 1/6: Fetching RSS feeds with enhancement... (${enabledFeeds.length} enabled feeds)`);
     console.log('Final enabled feeds:', enabledFeeds.map(f => f.name));
     
     // Use enhanced RSS processing with parallel optimizations and content quality analysis
@@ -107,9 +108,10 @@ export async function POST() {
     const enhancedContent = enhancedResults.enhancedContent;
     
     if (!feedResults || feedResults.length === 0) {
+      console.error('🚫 No RSS feeds could be fetched successfully');
       return NextResponse.json<APIResponse>({ 
         success: false, 
-        error: 'Failed to fetch RSS feed results' 
+        error: 'Unable to fetch content from any RSS feeds. This might be due to temporary network issues or feed unavailability. Please try again in a few minutes.' 
       }, { status: 500 });
     }
     
@@ -256,9 +258,11 @@ export async function POST() {
     console.log(`Target final articles: ${maxArticles}`);
 
     if (allArticles.length === 0) {
+      console.warn('⚠️ No articles found after processing feeds');
+      const feedNames = enabledFeeds.map(f => f.name).join(', ');
       return NextResponse.json<APIResponse>({ 
         success: false, 
-        error: 'No articles found from RSS feeds' 
+        error: `No recent articles found from your selected feeds (${feedNames}). Try adjusting your category preferences or check back later for new content.` 
       }, { status: 400 });
     }
 
@@ -269,9 +273,10 @@ export async function POST() {
     console.log(`Using all ${validatedArticles.length} articles without URL validation`);
 
     if (validatedArticles.length === 0) {
+      console.warn('⚠️ No valid articles after URL validation');
       return NextResponse.json<APIResponse>({ 
         success: false, 
-        error: 'No articles with valid URLs found' 
+        error: 'No articles with accessible URLs found. The feeds may contain broken links or temporary access issues.' 
       }, { status: 400 });
     }
 
@@ -286,7 +291,7 @@ export async function POST() {
     // Step 3.5: Advanced Analysis (when using enhanced content)
     let trendAnalysis, weightedArticles;
     if (useEnhancedContent && sortedArticles.length > 0) {
-      console.log('📊 Performing trend analysis and quality weighting...');
+      console.log('📈 Step 3/6: Performing trend analysis and quality weighting...');
       
       // Use enhanced content or sorted articles for analysis
       const articlesForAnalysis = useEnhancedContent && enhancedContent 
@@ -326,7 +331,7 @@ export async function POST() {
       sortedArticles = sortedArticles.slice(0, 10);
     }
 
-    console.log(`Processing ${sortedArticles.length} articles (filtered by ${timePeriod}) to generate ${maxArticles} articles in ${language}`);
+    console.log(`🤖 Step 4/6: AI Generation - Processing ${sortedArticles.length} articles (filtered by ${timePeriod}) to generate ${maxArticles} articles in ${language}`);
 
     // Step 4: Generate newsletter content with Gemini (Single Reliable Attempt)
     console.log(`GEMINI GENERATION: Single reliable attempt in ${language}...`);
@@ -804,11 +809,30 @@ export async function POST() {
     }
 
   } catch (error) {
-    console.error('Newsletter generation error:', error);
+    console.error('💥 Newsletter generation error:', error);
+    
+    // Provide more specific error messages based on error type
+    let userFriendlyMessage = 'An unexpected error occurred while generating your newsletter.';
+    
+    if (error instanceof Error) {
+      if (error.message.includes('timeout')) {
+        userFriendlyMessage = 'The newsletter generation is taking longer than expected. This might be due to high demand or slow RSS feeds. Please try again.';
+      } else if (error.message.includes('rate limit') || error.message.includes('quota')) {
+        userFriendlyMessage = 'AI service rate limit reached. Please wait a few minutes before generating another newsletter.';
+      } else if (error.message.includes('fetch') || error.message.includes('network')) {
+        userFriendlyMessage = 'Network connectivity issues prevented newsletter generation. Please check your internet connection and try again.';
+      } else if (error.message.includes('parse') || error.message.includes('JSON')) {
+        userFriendlyMessage = 'There was an issue processing the content format. Our team has been notified and this should be resolved soon.';
+      } else {
+        // Include technical details for debugging while keeping message user-friendly
+        userFriendlyMessage = `Newsletter generation failed: ${error.message.length > 100 ? error.message.substring(0, 100) + '...' : error.message}`;
+      }
+    }
+    
     return NextResponse.json<APIResponse>(
       { 
         success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error during generation' 
+        error: userFriendlyMessage
       },
       { status: 500 }
     );
@@ -818,6 +842,6 @@ export async function POST() {
 export async function GET() {
   return NextResponse.json<APIResponse>({
     success: false,
-    error: 'Method not allowed'
+    error: 'This endpoint only accepts POST requests. Please use the correct method to generate newsletters.'
   }, { status: 405 });
 }

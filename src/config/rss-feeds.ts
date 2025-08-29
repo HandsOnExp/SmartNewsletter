@@ -19,9 +19,9 @@ export const RSS_FEEDS = [
 
   // Technology Category - 2 highest quality, most frequently updated feeds
   {
-    id: 'the-verge',
-    name: 'The Verge',
-    url: 'https://www.theverge.com/rss/index.xml',
+    id: 'ieee-spectrum-ai',
+    name: 'IEEE Spectrum AI',
+    url: 'https://spectrum.ieee.org/feeds/topic/artificial-intelligence.rss',
     category: 'technology',
     priority: 3,
     enabled: true

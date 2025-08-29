@@ -21,13 +21,14 @@ export interface ExtractedContent {
 }
 
 export interface ContentQuality {
-  score: number; // 0-100
+  score: number; // 0-110 (with extraction bonus)
   factors: {
     length: number; // Word count contribution
     freshness: number; // Recency contribution
     authority: number; // Source authority contribution
     engagement: number; // Potential engagement score
     relevance: number; // AI/tech relevance
+    extraction: number; // Full content extraction success bonus
   };
   reasoning: string;
 }
@@ -38,6 +39,7 @@ export interface ContentExtractionOptions {
   maxAge: number; // hours
   qualityThreshold: number; // 0-100
   enhanceWithFullContent: boolean;
+  domainReliabilityCheck: boolean; // Enable domain-based filtering
 }
 
 const DEFAULT_OPTIONS: ContentExtractionOptions = {
@@ -45,7 +47,37 @@ const DEFAULT_OPTIONS: ContentExtractionOptions = {
   minWordCount: 150, // Lowered from 200
   maxAge: 72, // 3 days
   qualityThreshold: 45, // Lowered from 60 to be more inclusive
-  enhanceWithFullContent: true
+  enhanceWithFullContent: true,
+  domainReliabilityCheck: true
+};
+
+// Domain reliability mapping based on observed extraction success rates
+const DOMAIN_RELIABILITY: Record<string, { reliability: number; skipExtraction?: boolean; fallbackToRSS?: boolean }> = {
+  // High reliability domains (90%+ success rate)
+  'techcrunch.com': { reliability: 95 },
+  'arstechnica.com': { reliability: 95 },
+  'spectrum.ieee.org': { reliability: 95 },
+  'wired.com': { reliability: 90 },
+  'news.mit.edu': { reliability: 90 },
+  'blog.google': { reliability: 90 },
+  'openai.com': { reliability: 90 },
+  
+  // Medium reliability domains (60-89% success rate)
+  'venturebeat.com': { reliability: 70, fallbackToRSS: true }, // Known XML issues
+  'marktechpost.com': { reliability: 75 },
+  'artificialintelligence-news.com': { reliability: 80 },
+  'aibusiness.com': { reliability: 75 },
+  
+  // Low reliability domains (paywall/403 issues)
+  'fastcompany.com': { reliability: 30, fallbackToRSS: true }, // Known 403 issues
+  'businessinsider.com': { reliability: 40, fallbackToRSS: true },
+  
+  // Research domains (often have accessibility issues but valuable content)
+  'arxiv.org': { reliability: 50, fallbackToRSS: true },
+  'nature.com': { reliability: 60, fallbackToRSS: true },
+  
+  // Default for unknown domains
+  'default': { reliability: 70 }
 };
 
 /**
@@ -59,6 +91,7 @@ export async function extractAndEnhanceContent(
   const startTime = Date.now();
   
   console.log(`Starting content extraction for ${articles.length} articles...`);
+  console.log(`🔧 Content extraction settings: maxArticles=${opts.maxArticles}, qualityThreshold=${opts.qualityThreshold}, domainReliabilityCheck=${opts.domainReliabilityCheck}`);
   
   // Step 1: Filter and sort articles by basic criteria
   const filteredArticles = articles
@@ -75,6 +108,18 @@ export async function extractAndEnhanceContent(
         ? article.content.length 
         : article.contentSnippet.length;
       if (contentLength < 100) return false; // Very short articles
+      
+      // Domain reliability filtering
+      if (opts.domainReliabilityCheck) {
+        const domain = getDomainFromURL(article.link);
+        const domainInfo = DOMAIN_RELIABILITY[domain] || DOMAIN_RELIABILITY.default;
+        
+        // Skip domains with very low reliability unless we have fallback strategy
+        if (domainInfo.reliability < 40 && !domainInfo.fallbackToRSS) {
+          console.log(`⚠️ Skipping article from low-reliability domain: ${domain} (reliability: ${domainInfo.reliability}%)`);
+          return false;
+        }
+      }
       
       return true;
     })
@@ -101,7 +146,24 @@ export async function extractAndEnhanceContent(
         enhancedArticles.push(result.value);
       } else {
         const articleTitle = batch[batchIndex]?.title || 'Unknown';
-        console.log(`Failed to enhance article: "${articleTitle}"`);
+        const articleUrl = batch[batchIndex]?.link || 'Unknown URL';
+        const domain = getDomainFromURL(articleUrl);
+        const error = result.status === 'rejected' ? result.reason : 'Unknown error';
+        
+        console.log(`❌ Failed to enhance article: "${articleTitle}"`);
+        console.log(`   Domain: ${domain}, URL: ${articleUrl}`);
+        console.log(`   Error: ${error instanceof Error ? error.message : error}`);
+        
+        // Track domain-specific failure patterns for future reliability updates
+        if (error && typeof error === 'object') {
+          if (error.message?.includes('HTTP 403')) {
+            console.log(`   🚫 Domain ${domain} has paywall/access restrictions`);
+          } else if (error.message?.includes('timeout')) {
+            console.log(`   ⏱️ Domain ${domain} response timeout`);
+          } else if (error.message?.includes('XML')) {
+            console.log(`   📄 Domain ${domain} has malformed RSS/XML`);
+          }
+        }
       }
     });
     
@@ -118,13 +180,54 @@ export async function extractAndEnhanceContent(
     .slice(0, opts.maxArticles);
   
   const processingTime = Date.now() - startTime;
-  console.log(`Content extraction complete: ${enhancedArticles.length} enhanced, ${qualityFiltered.length} high-quality articles (${processingTime}ms)`);
+  console.log(`✅ Content extraction complete: ${enhancedArticles.length} enhanced, ${qualityFiltered.length} high-quality articles (${processingTime}ms)`);
   
-  // Log quality distribution
-  const averageQuality = qualityFiltered.reduce((sum, article) => sum + article.quality.score, 0) / qualityFiltered.length;
-  console.log(`Average quality score: ${averageQuality.toFixed(1)}, range: ${Math.min(...qualityFiltered.map(a => a.quality.score))} - ${Math.max(...qualityFiltered.map(a => a.quality.score))}`);
+  // Enhanced extraction statistics
+  const successRate = ((enhancedArticles.length / filteredArticles.length) * 100).toFixed(1);
+  const extractedCount = enhancedArticles.filter(a => a.quality.factors.extraction === 10).length;
+  const fallbackCount = enhancedArticles.length - extractedCount;
+  
+  console.log(`📊 Enhancement success rate: ${successRate}% (${enhancedArticles.length}/${filteredArticles.length})`);
+  console.log(`🎯 Full extraction: ${extractedCount}, RSS fallback: ${fallbackCount}`);
+  
+  // Enhanced quality statistics
+  if (qualityFiltered.length > 0) {
+    const averageQuality = qualityFiltered.reduce((sum, article) => sum + article.quality.score, 0) / qualityFiltered.length;
+    const minScore = Math.min(...qualityFiltered.map(a => a.quality.score));
+    const maxScore = Math.max(...qualityFiltered.map(a => a.quality.score));
+    
+    console.log(`📈 Average quality score: ${averageQuality.toFixed(1)}, range: ${minScore}-${maxScore}`);
+    
+    // Quality factor breakdown
+    const avgFactors = qualityFiltered.reduce((acc, article) => {
+      Object.keys(article.quality.factors).forEach(key => {
+        acc[key] = (acc[key] || 0) + article.quality.factors[key as keyof typeof article.quality.factors];
+      });
+      return acc;
+    }, {} as Record<string, number>);
+    
+    Object.keys(avgFactors).forEach(key => {
+      avgFactors[key] = avgFactors[key] / qualityFiltered.length;
+    });
+    
+    console.log(`🏆 Quality breakdown: Length=${avgFactors.length?.toFixed(1)}, Authority=${avgFactors.authority?.toFixed(1)}, Extraction=${avgFactors.extraction?.toFixed(1)}`);
+  } else {
+    console.warn(`⚠️ No articles met quality threshold of ${opts.qualityThreshold}`);
+  }
   
   return qualityFiltered;
+}
+
+/**
+ * Extract domain from URL for reliability checking
+ */
+function getDomainFromURL(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.hostname.replace(/^www\./, '');
+  } catch {
+    return 'unknown';
+  }
 }
 
 /**
@@ -140,15 +243,41 @@ async function enhanceArticle(article: ParsedArticle, options: ContentExtraction
       return JSON.parse(cached) as ExtractedContent;
     }
     
-    // Extract full content if enabled
+    // Extract full content if enabled, with domain-aware fallback strategy
     let fullContent = '';
+    let extractionMethod = 'rss'; // Track how content was obtained
+    
     if (options.enhanceWithFullContent) {
-      try {
-        fullContent = await fetchFullArticleContent(article.link);
-      } catch (error) {
-        console.log(`Failed to fetch full content for "${article.title}": ${error instanceof Error ? error.message : 'Unknown error'}`);
-        // Fall back to RSS content
+      const domain = getDomainFromURL(article.link);
+      const domainInfo = DOMAIN_RELIABILITY[domain] || DOMAIN_RELIABILITY.default;
+      
+      // Check if domain has known issues that suggest skipping full extraction
+      if (domainInfo.fallbackToRSS && domainInfo.reliability < 50) {
+        console.log(`🔄 Using RSS content for known problematic domain: ${domain} (reliability: ${domainInfo.reliability}%)`);
         fullContent = typeof article.content === 'string' ? article.content : article.contentSnippet;
+        extractionMethod = 'rss-fallback';
+      } else {
+        try {
+          fullContent = await fetchFullArticleContent(article.link);
+          extractionMethod = 'extracted';
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+          console.log(`⚠️ Failed to fetch full content for "${article.title}": ${errorMsg}`);
+          console.log(`   🌐 Domain: ${domain}, URL: ${article.link}`);
+          
+          // Enhanced fallback strategy
+          fullContent = typeof article.content === 'string' ? article.content : article.contentSnippet;
+          extractionMethod = 'rss-error';
+          
+          // Log specific error types for domain reliability updates
+          if (errorMsg.includes('HTTP 403')) {
+            console.log(`   🚫 Domain ${domain} returned 403 - consider updating reliability score to <50`);
+          } else if (errorMsg.includes('timeout')) {
+            console.log(`   ⏱️ Domain ${domain} response timeout - may need longer timeout`);
+          } else if (errorMsg.includes('SSL') || errorMsg.includes('certificate')) {
+            console.log(`   🔒 Domain ${domain} has SSL/certificate issues`);
+          }
+        }
       }
     } else {
       fullContent = typeof article.content === 'string' ? article.content : article.contentSnippet;
@@ -163,8 +292,8 @@ async function enhanceArticle(article: ParsedArticle, options: ContentExtraction
     const topics = extractTopics(cleanContent, article.title);
     const entities = extractEntities(cleanContent, article.title);
     
-    // Calculate content quality
-    const quality = calculateContentQuality(article, cleanContent, wordCount);
+    // Calculate content quality with extraction method context
+    const quality = calculateContentQuality(article, cleanContent, wordCount, extractionMethod);
     
     // Skip if quality is too low
     if (quality.score < options.qualityThreshold) {
@@ -179,7 +308,14 @@ async function enhanceArticle(article: ParsedArticle, options: ContentExtraction
       publishedAt: article.pubDate,
       wordCount,
       readingTime,
-      quality,
+      quality: {
+        ...quality,
+        factors: {
+          ...quality.factors,
+          // Boost quality score for successfully extracted content
+          ...(extractionMethod === 'extracted' && { extraction: 10 })
+        }
+      },
       topics,
       entities,
       sourceUrl: article.link
@@ -190,7 +326,10 @@ async function enhanceArticle(article: ParsedArticle, options: ContentExtraction
     
     return enhanced;
   } catch (error) {
-    console.error(`Error enhancing article "${article.title}":`, error);
+    const domain = getDomainFromURL(article.link);
+    console.error(`💥 Critical error enhancing article "${article.title}" from ${domain}:`, error);
+    console.error(`   URL: ${article.link}`);
+    console.error(`   Error type: ${error instanceof Error ? error.constructor.name : typeof error}`);
     return null;
   }
 }
@@ -392,13 +531,14 @@ function generateExcerpt(content: string, maxLength: number): string {
 /**
  * Calculate content quality score
  */
-function calculateContentQuality(article: ParsedArticle, content: string, wordCount: number): ContentQuality {
+function calculateContentQuality(article: ParsedArticle, content: string, wordCount: number, extractionMethod: string = 'rss'): ContentQuality {
   const factors = {
     length: 0,
     freshness: 0,
     authority: 0,
     engagement: 0,
-    relevance: 0
+    relevance: 0,
+    extraction: 0 // New factor for successful content extraction
   };
   
   // Length factor (0-30 points)
@@ -416,12 +556,13 @@ function calculateContentQuality(article: ParsedArticle, content: string, wordCo
   else if (ageHours <= 72) factors.freshness = 10;
   else factors.freshness = 5;
   
-  // Authority factor (0-20 points) - based on source
-  const authorityDomains = ['techcrunch.com', 'wired.com', 'arstechnica.com', 'theverge.com', 'reuters.com'];
+  // Authority factor (0-20 points) - based on source, updated with new IEEE Spectrum
+  const authorityDomains = ['techcrunch.com', 'wired.com', 'arstechnica.com', 'spectrum.ieee.org', 'reuters.com'];
   const domain = new URL(article.link).hostname.replace('www.', '');
   if (authorityDomains.includes(domain)) factors.authority = 20;
   else if (domain.includes('google.com') || domain.includes('openai.com') || domain.includes('microsoft.com')) factors.authority = 18;
-  else if (domain.includes('.edu') || domain.includes('arxiv.org')) factors.authority = 16;
+  else if (domain.includes('.edu') || domain.includes('arxiv.org') || domain.includes('mit.edu')) factors.authority = 16;
+  else if (domain.includes('artificialintelligence-news.com') || domain.includes('marktechpost.com')) factors.authority = 14;
   else factors.authority = 10;
   
   // Engagement factor (0-15 points) - based on content characteristics
@@ -444,10 +585,15 @@ function calculateContentQuality(article: ParsedArticle, content: string, wordCo
   
   factors.relevance = Math.min(relevanceCount, 10);
   
-  // Calculate total score
-  const score = factors.length + factors.freshness + factors.authority + factors.engagement + factors.relevance;
+  // Extraction factor (0-10 points) - bonus for successful full content extraction
+  if (extractionMethod === 'extracted') factors.extraction = 10;
+  else if (extractionMethod === 'rss-fallback') factors.extraction = 5; // Planned fallback, still good
+  else factors.extraction = 0; // RSS-only or error fallback
   
-  const reasoning = `Length: ${factors.length}/30, Freshness: ${factors.freshness}/25, Authority: ${factors.authority}/20, Engagement: ${factors.engagement}/15, Relevance: ${factors.relevance}/10`;
+  // Calculate total score with extraction bonus
+  const score = factors.length + factors.freshness + factors.authority + factors.engagement + factors.relevance + factors.extraction;
+  
+  const reasoning = `Length: ${factors.length}/30, Freshness: ${factors.freshness}/25, Authority: ${factors.authority}/20, Engagement: ${factors.engagement}/15, Relevance: ${factors.relevance}/10, Extraction: ${factors.extraction}/10 (${extractionMethod})`;
   
   return {
     score,

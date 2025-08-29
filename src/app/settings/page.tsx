@@ -22,7 +22,6 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedsLoading, setFeedsLoading] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
   const [testingKey, setTestingKey] = useState<{ provider: string; testing: boolean }>({ provider: '', testing: false });
   const [showApiKeys, setShowApiKeys] = useState({
     gemini: false
@@ -262,14 +261,6 @@ export default function SettingsPage() {
     
     setFeeds(updatedFeeds);
     
-    // Force component re-render to ensure UI updates
-    setRefreshKey(prev => prev + 1);
-    
-    // Additional aggressive UI refresh
-    setTimeout(() => {
-      setRefreshKey(prev => prev + 1);
-    }, 50);
-    
     console.log('✅ applySettings completed, feeds updated');
     
     // Add a small delay and verify the state was actually updated
@@ -388,9 +379,6 @@ export default function SettingsPage() {
       
       return updated;
     });
-    
-    // Force re-render
-    setRefreshKey(prev => prev + 1);
   };
 
   const addCustomFeed = () => {
@@ -461,9 +449,6 @@ export default function SettingsPage() {
       
       return updated;
     });
-    
-    // Force re-render
-    setRefreshKey(prev => prev + 1);
   };
 
   const saveSettings = async () => {
@@ -633,7 +618,7 @@ export default function SettingsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {feeds.map((feed) => (
-                    <div key={`${feed.id}-${refreshKey}-${feed.enabled}`} className="flex items-center justify-between p-4 border border-gray-700 rounded-lg bg-gray-800/50">
+                    <div key={feed.id} className="flex items-center justify-between p-4 border border-gray-700 rounded-lg bg-gray-800/50">
                       <div>
                         <h3 className="font-semibold text-white">{feed.name}</h3>
                         <p className="text-sm text-gray-400 capitalize">{feed.category}</p>
@@ -641,7 +626,6 @@ export default function SettingsPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <Switch 
-                          key={`switch-${feed.id}-${refreshKey}-${feed.enabled ? 'on' : 'off'}`}
                           checked={feed.enabled}
                           onCheckedChange={(checked) => {
                             console.log(`🔀 Switch toggled for ${feed.name}: ${feed.enabled} -> ${checked}`);
@@ -696,14 +680,13 @@ export default function SettingsPage() {
 
                   {/* Custom feeds list */}
                   {customFeeds.map((feed) => (
-                    <div key={`${feed.id}-${refreshKey}-${feed.enabled}`} className="flex items-center justify-between p-4 border border-gray-700 rounded-lg bg-gray-800/50">
+                    <div key={feed.id} className="flex items-center justify-between p-4 border border-gray-700 rounded-lg bg-gray-800/50">
                       <div>
                         <h3 className="font-semibold text-white">{feed.name}</h3>
                         <p className="text-xs text-gray-500 mt-1">{feed.url}</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <Switch 
-                          key={`custom-switch-${feed.id}-${refreshKey}-${feed.enabled ? 'on' : 'off'}`}
                           checked={feed.enabled}
                           onCheckedChange={(checked) => toggleCustomFeed(feed.id, checked)}
                         />

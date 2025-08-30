@@ -1,11 +1,11 @@
 export const RSS_FEEDS = [
-  // Business Category - 2 highest quality, most frequently updated feeds
+  // Business Category - Balanced priorities to prevent single-source dominance
   {
     id: 'techcrunch-ai',
     name: 'TechCrunch AI',
     url: 'https://techcrunch.com/category/artificial-intelligence/feed/',
     category: 'business',
-    priority: 1,
+    priority: 3, // Reduced from 1 to 3
     enabled: true
   },
   {
@@ -13,17 +13,17 @@ export const RSS_FEEDS = [
     name: 'AI Wire',
     url: 'https://www.aiwire.net/feed/',
     category: 'business',
-    priority: 2,
+    priority: 2, // Moved to higher priority than TechCrunch
     enabled: true
   },
 
-  // Technology Category - 2 highest quality, most frequently updated feeds
+  // Technology Category - Premium sources get higher priority
   {
     id: 'ieee-spectrum-ai',
     name: 'IEEE Spectrum AI',
     url: 'https://spectrum.ieee.org/feeds/topic/artificial-intelligence.rss',
     category: 'technology',
-    priority: 3,
+    priority: 1, // Moved to highest priority - academic/professional source
     enabled: true
   },
   {
@@ -35,7 +35,7 @@ export const RSS_FEEDS = [
     enabled: true
   },
 
-  // Research Category - 3 highest quality, most frequently updated feeds
+  // Research Category - High-quality research sources
   {
     id: 'google-ai-blog',
     name: 'Google AI Blog',
@@ -61,7 +61,7 @@ export const RSS_FEEDS = [
     enabled: true
   },
 
-  // Product Category - 2 highest quality, most frequently updated feeds
+  // Product Category - Company blogs and product news
   {
     id: 'openai-blog',
     name: 'OpenAI Blog',
@@ -79,7 +79,7 @@ export const RSS_FEEDS = [
     enabled: true
   },
 
-  // Enterprise Category - 2 highest quality, most frequently updated feeds
+  // Enterprise Category - Business and enterprise focus
   {
     id: 'nvidia-ai-blog',
     name: 'NVIDIA AI Blog',
@@ -97,7 +97,7 @@ export const RSS_FEEDS = [
     enabled: true
   },
 
-  // Consumer Category - 3 highest quality, most frequently updated feeds
+  // Consumer Category - General audience content
   {
     id: 'ai-news',
     name: 'AI News',
@@ -123,7 +123,7 @@ export const RSS_FEEDS = [
     enabled: true
   },
 
-  // Security Category - 2 highest quality, most frequently updated feeds
+  // Security Category - Cybersecurity and AI safety
   {
     id: 'dark-reading',
     name: 'Dark Reading',
@@ -141,7 +141,7 @@ export const RSS_FEEDS = [
     enabled: true
   },
 
-  // Development Category - 2 highest quality, most frequently updated feeds
+  // Development Category - Developer-focused content
   {
     id: 'hacker-news',
     name: 'Hacker News',

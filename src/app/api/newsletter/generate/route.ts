@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { fetchAllFeedsWithEnhancement, deduplicateArticles, sortArticlesByDate, filterArticlesByTimePeriod } from '@/lib/rss-parser';
+import { fetchAllFeedsWithEnhancement, deduplicateArticles, sortArticlesByDate, filterArticlesByTimePeriod, FilterResult } from '@/lib/rss-parser';
 import { generateNewsletterContent, checkRateLimit } from '@/lib/ai-processors';
 import { monitoredGeneration } from '@/lib/performance-monitor';
 import { RSS_FEEDS } from '@/config/rss-feeds';
@@ -8,6 +8,8 @@ import { createNewsletter, connectDB, getUserSettings } from '@/lib/db';
 import { autoCleanupIfNeeded } from '@/lib/database-cleanup';
 import { validateNewsletterQuality, autoFixTopicIssues } from '@/lib/selective-quality-validator';
 import { analyzeTrends, weightArticlesByQuality } from '@/lib/trend-analyzer';
+import { applySourceDiversity, DEFAULT_DIVERSITY_CONFIG } from '@/lib/source-diversity';
+import { enhancedTimeFilter, DEFAULT_FRESHNESS_CONFIG } from '@/lib/freshness-scorer';
 import { APIResponse, NewsletterGenerationResponse, CustomRSSFeed, NewsletterCategory } from '@/types';
 
 // Configure runtime for longer timeout (Free plan: up to 60s)
@@ -280,13 +282,107 @@ export async function POST() {
       }, { status: 400 });
     }
 
-    // Step 3: Deduplicate and filter articles by time period
+    // Step 3: Deduplicate and apply enhanced filtering
     const uniqueArticles = deduplicateArticles(validatedArticles);
-    const timePeriod = '3days'; // Force 3-day period for more articles
-    const minArticlesForStrict = Math.max(maxArticles, 5);
-    const filterResult = filterArticlesByTimePeriod(uniqueArticles, timePeriod, minArticlesForStrict);
     
-    let sortedArticles = sortArticlesByDate(filterResult.articles);
+    console.log('🔄 Step 3/6: Applying enhanced article selection with diversity and freshness controls...');
+    
+    // Step 3a: Apply freshness scoring to prefer recent articles
+    const freshnessConfig = {
+      ...DEFAULT_FRESHNESS_CONFIG,
+      strictMode: true, // Heavily penalize older articles
+      minFreshnessScore: 15 // Allow slightly older articles if needed
+    };
+    
+    const freshResult = enhancedTimeFilter(uniqueArticles, Math.min(30, uniqueArticles.length), freshnessConfig);
+    console.log(`🕐 Freshness filter: Selected ${freshResult.selectedArticles.length} articles (avg freshness: ${freshResult.freshnessStats.averageFreshness.toFixed(1)}/100)`);
+    
+    // Step 3b: Apply source diversity controls
+    const diversityConfig = {
+      ...DEFAULT_DIVERSITY_CONFIG,
+      maxArticlesPerSource: 2, // Limit TechCrunch and others to max 2 articles
+      maxArticlesPerCategory: Math.ceil(maxArticles * 0.6), // Allow up to 60% from any category
+      diversityWeight: 0.4 // Strong diversity preference
+    };
+    
+    const diversityResult = applySourceDiversity(freshResult.selectedArticles, diversityConfig);
+    console.log(`🎯 Diversity control: Selected ${diversityResult.selectedArticles.length} articles (diversity score: ${diversityResult.diversityScore}/100)`);
+    
+    // Step 3c: Fallback to time period filtering if needed
+    // Convert ExtractedContent to ParsedArticle format for sorting
+    const diversityArticles = diversityResult.selectedArticles.map(article => {
+      if ('sourceUrl' in article) {
+        // Convert ExtractedContent to ParsedArticle
+        return {
+          title: article.title,
+          link: article.sourceUrl,
+          pubDate: article.publishedAt,
+          contentSnippet: article.excerpt,
+          content: article.content,
+          creator: article.author || '',
+          categories: article.topics || [],
+          source: 'Enhanced Processing'
+        };
+      }
+      return article; // Already ParsedArticle
+    });
+    
+    let sortedArticles = sortArticlesByDate(diversityArticles);
+    let filterResult: FilterResult = { 
+      articles: sortedArticles, 
+      usedFallback: false, 
+      originalPeriod: 'Enhanced Selection'
+    };
+    
+    // If we don't have enough articles after diversity filtering, fall back to traditional time filtering
+    if (sortedArticles.length < Math.max(maxArticles, 3)) {
+      console.log(`⚠️ Only ${sortedArticles.length} articles after diversity control, falling back to time period filtering...`);
+      const timePeriod = '3days';
+      const minArticlesForStrict = Math.max(maxArticles, 5);
+      filterResult = filterArticlesByTimePeriod(uniqueArticles, timePeriod, minArticlesForStrict);
+      sortedArticles = sortArticlesByDate(filterResult.articles);
+      
+      // Still apply some diversity control on the fallback
+      const fallbackDiversityResult = applySourceDiversity(sortedArticles, {
+        ...diversityConfig,
+        maxArticlesPerSource: 3, // Slightly more permissive for fallback
+        diversityWeight: 0.2 // Less strict diversity
+      });
+      
+      // Convert fallback articles if needed
+      const fallbackArticles = fallbackDiversityResult.selectedArticles.map(article => {
+        if ('sourceUrl' in article) {
+          return {
+            title: article.title,
+            link: article.sourceUrl,
+            pubDate: article.publishedAt,
+            contentSnippet: article.excerpt,
+            content: article.content,
+            creator: article.author || '',
+            categories: article.topics || [],
+            source: 'Enhanced Processing'
+          };
+        }
+        return article;
+      });
+      
+      sortedArticles = sortArticlesByDate(fallbackArticles);
+      console.log(`🔄 Fallback diversity: ${sortedArticles.length} articles selected`);
+    }
+    
+    // Log the final source distribution for debugging
+    const sourceDistribution = sortedArticles.reduce((acc, article) => {
+      const source = article.source || 'Unknown';
+      acc[source] = (acc[source] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    console.log(`📊 Final source distribution:`, Object.entries(sourceDistribution)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([source, count]) => `${source}(${count})`)
+      .join(', ')
+    );
 
     // Step 3.5: Advanced Analysis (when using enhanced content)
     let trendAnalysis, weightedArticles;
@@ -331,7 +427,7 @@ export async function POST() {
       sortedArticles = sortedArticles.slice(0, 10);
     }
 
-    console.log(`🤖 Step 4/6: AI Generation - Processing ${sortedArticles.length} articles (filtered by ${timePeriod}) to generate ${maxArticles} articles in ${language}`);
+    console.log(`🤖 Step 4/6: AI Generation - Processing ${sortedArticles.length} articles (enhanced selection) to generate ${maxArticles} articles in ${language}`);
 
     // Step 4: Generate newsletter content with Gemini (Single Reliable Attempt)
     console.log(`GEMINI GENERATION: Single reliable attempt in ${language}...`);
@@ -670,8 +766,8 @@ export async function POST() {
         fallbackNotification: filterResult.usedFallback ? {
           usedFallback: true,
           originalPeriod: filterResult.originalPeriod,
-          fallbackPeriod: filterResult.fallbackPeriod,
-          message: filterResult.fallbackMessage
+          fallbackPeriod: filterResult.fallbackPeriod || 'Extended Search',
+          message: filterResult.fallbackMessage || 'Used extended search criteria to find sufficient articles'
         } : {
           usedFallback: false,
           originalPeriod: filterResult.originalPeriod
@@ -742,8 +838,8 @@ export async function POST() {
             fallbackNotification: filterResult.usedFallback ? {
               usedFallback: true,
               originalPeriod: filterResult.originalPeriod,
-              fallbackPeriod: filterResult.fallbackPeriod,
-              message: filterResult.fallbackMessage
+              fallbackPeriod: filterResult.fallbackPeriod || 'Extended Search',
+              message: filterResult.fallbackMessage || 'Used extended search criteria to find sufficient articles'
             } : {
               usedFallback: false,
               originalPeriod: filterResult.originalPeriod
@@ -796,8 +892,8 @@ export async function POST() {
         fallbackNotification: filterResult.usedFallback ? {
           usedFallback: true,
           originalPeriod: filterResult.originalPeriod,
-          fallbackPeriod: filterResult.fallbackPeriod,
-          message: filterResult.fallbackMessage
+          fallbackPeriod: filterResult.fallbackPeriod || 'Extended Search',
+          message: filterResult.fallbackMessage || 'Used extended search criteria to find sufficient articles'
         } : {
           usedFallback: false,
           originalPeriod: filterResult.originalPeriod

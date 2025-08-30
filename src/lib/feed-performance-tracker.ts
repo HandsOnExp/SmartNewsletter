@@ -156,18 +156,33 @@ export function enhanceRSSFeedsWithPerformance(feeds: RSSFeed[]): EnhancedRSSFee
 }
 
 /**
- * Get feeds sorted by performance priority
+ * Get feeds sorted by performance priority with diversity balancing
  */
 export function getFeedsByPerformancePriority(feeds: RSSFeed[]): EnhancedRSSFeed[] {
   const enhancedFeeds = enhanceRSSFeedsWithPerformance(feeds);
   
   return enhancedFeeds.sort((a, b) => {
-    // Primary sort: reliability score
-    const reliabilityDiff = (b.performance?.reliability || 70) - (a.performance?.reliability || 70);
-    if (Math.abs(reliabilityDiff) > 10) return reliabilityDiff;
+    // Primary sort: balance reliability and diversity
+    const reliabilityA = a.performance?.reliability || 70;
+    const reliabilityB = b.performance?.reliability || 70;
     
-    // Secondary sort: original priority
-    return a.priority - b.priority;
+    // Don't let high-performing feeds completely overshadow others
+    // Cap the reliability advantage to prevent single-source dominance
+    const cappedReliabilityA = Math.min(reliabilityA, 85);
+    const cappedReliabilityB = Math.min(reliabilityB, 85);
+    
+    const reliabilityDiff = cappedReliabilityB - cappedReliabilityA;
+    
+    // Only prioritize by reliability if difference is significant (>15 points)
+    if (Math.abs(reliabilityDiff) > 15) return reliabilityDiff;
+    
+    // Secondary sort: original priority (ensures category diversity)
+    const priorityDiff = a.priority - b.priority;
+    if (Math.abs(priorityDiff) > 0) return priorityDiff;
+    
+    // Tertiary sort: slight preference for less reliable feeds for diversity
+    // This helps ensure all quality sources get a chance
+    return reliabilityA - reliabilityB; // Note: reversed to slightly favor less dominant sources
   });
 }
 

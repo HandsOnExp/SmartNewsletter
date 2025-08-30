@@ -9,9 +9,9 @@ export const RSS_FEEDS = [
     enabled: true
   },
   {
-    id: 'fastcompany-ai',
-    name: 'Fast Company AI',
-    url: 'https://www.fastcompany.com/section/ai/rss',
+    id: 'venturebeat-ai',
+    name: 'VentureBeat AI',
+    url: 'https://venturebeat.com/ai/feed/',
     category: 'business',
     priority: 2,
     enabled: true
@@ -45,9 +45,9 @@ export const RSS_FEEDS = [
     enabled: true
   },
   {
-    id: 'mit-tech-review-ai',
-    name: 'MIT Technology Review AI',
-    url: 'https://www.technologyreview.com/feed/',
+    id: 'arxiv-ai',
+    name: 'arXiv AI Papers',
+    url: 'https://rss.arxiv.org/rss/cs.AI',
     category: 'research',
     priority: 6,
     enabled: true
@@ -107,9 +107,9 @@ export const RSS_FEEDS = [
     enabled: true
   },
   {
-    id: 'unite-ai',
-    name: 'Unite.AI',
-    url: 'https://www.unite.ai/feed/',
+    id: 'analytics-india-ai',
+    name: 'Analytics India Magazine AI',
+    url: 'https://analyticsindiamag.com/feed/',
     category: 'consumer',
     priority: 13,
     enabled: true

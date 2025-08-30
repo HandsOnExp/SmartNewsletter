@@ -56,9 +56,12 @@ export interface WeightedContent {
     relevance: number;
     trending: number;
     quality: number;
+    diversity: number;
     composite: number;
   };
   reasoning: string[];
+  feedId?: string;
+  feedName?: string;
 }
 
 // Authority scores for known sources
@@ -263,7 +266,7 @@ export function calculateSourceAuthority(url: string): SourceAuthority {
 }
 
 /**
- * Weight articles based on multiple factors
+ * Weight articles based on multiple factors including feed diversity
  */
 export function weightArticlesByQuality(
   articles: (ParsedArticle | ExtractedContent)[],
@@ -276,24 +279,35 @@ export function weightArticlesByQuality(
     trendAnalysis?.emergingTopics.map(t => t.topic.toLowerCase()) || []
   );
   
-  return articles.map(article => {
+  // Map articles to their source feeds for diversity tracking
+  const feedCounts = new Map<string, number>();
+  const weightedArticles = articles.map(article => {
     const reasoning: string[] = [];
-    const weights = { authority: 0, freshness: 0, relevance: 0, trending: 0, quality: 0, composite: 0 };
+    const weights = { authority: 0, freshness: 0, relevance: 0, trending: 0, quality: 0, diversity: 0, composite: 0 };
     
-    // Authority weight (0-30 points)
+    // Extract feed information
     const sourceUrl = 'sourceUrl' in article ? article.sourceUrl : article.link;
+    const domain = new URL(sourceUrl).hostname.replace('www.', '');
+    const feedName = getFeedNameFromDomain(domain);
+    const feedId = getFeedIdFromDomain(domain);
+    
+    // Track feed counts for diversity calculation
+    const currentCount = feedCounts.get(feedId) || 0;
+    feedCounts.set(feedId, currentCount + 1);
+    
+    // Authority weight (0-25 points, reduced to make room for diversity)
     const authority = calculateSourceAuthority(sourceUrl);
-    weights.authority = (authority.authorityScore / 100) * 30;
+    weights.authority = (authority.authorityScore / 100) * 25;
     reasoning.push(`Authority: ${authority.authorityScore}/100 (${authority.domain})`);
     
-    // Freshness weight (0-25 points)
+    // Freshness weight (0-20 points, slightly reduced)
     const pubDate = 'publishedAt' in article ? article.publishedAt : article.pubDate;
     const ageHours = (now.getTime() - new Date(pubDate).getTime()) / (1000 * 60 * 60);
-    if (ageHours <= 6) weights.freshness = 25;
-    else if (ageHours <= 24) weights.freshness = 20;
-    else if (ageHours <= 48) weights.freshness = 15;
-    else if (ageHours <= 72) weights.freshness = 10;
-    else weights.freshness = 5;
+    if (ageHours <= 6) weights.freshness = 20;
+    else if (ageHours <= 24) weights.freshness = 16;
+    else if (ageHours <= 48) weights.freshness = 12;
+    else if (ageHours <= 72) weights.freshness = 8;
+    else weights.freshness = 4;
     reasoning.push(`Freshness: ${Math.round(ageHours)}h old`);
     
     // Relevance weight (0-20 points)
@@ -327,16 +341,18 @@ export function weightArticlesByQuality(
       reasoning.push(`Estimated quality: ${estimatedQuality}/100`);
     }
     
-    // Composite score
-    weights.composite = weights.authority + weights.freshness + weights.relevance + weights.trending + weights.quality;
-    
     return {
       article,
       weights,
-      reasoning
+      reasoning,
+      feedId,
+      feedName
     };
-  })
-  .sort((a, b) => b.weights.composite - a.weights.composite);
+  });
+  
+  // Apply diversity bonuses/penalties based on feed distribution
+  return applyDiversityWeighting(weightedArticles)
+    .sort((a, b) => b.weights.composite - a.weights.composite);
 }
 
 // Helper functions
@@ -585,4 +601,131 @@ function estimateArticleQuality(article: ParsedArticle): number {
   if (article.categories && article.categories.length > 0) score += 5;
   
   return Math.min(100, score);
+}
+
+/**
+ * Apply diversity weighting to prevent single feed dominance
+ */
+function applyDiversityWeighting(weightedArticles: WeightedContent[]): WeightedContent[] {
+  console.log('🎯 Applying feed diversity weighting...');
+  
+  // Count articles per feed
+  const feedCounts = new Map<string, number>();
+  weightedArticles.forEach(wa => {
+    if (wa.feedId) {
+      feedCounts.set(wa.feedId, (feedCounts.get(wa.feedId) || 0) + 1);
+    }
+  });
+  
+  // Log feed distribution
+  console.log('📊 Article distribution by feed:', Object.fromEntries(feedCounts));
+  
+  // Apply diversity weights (0-10 points)
+  const articlesWithDiversity = weightedArticles.map(wa => {
+    if (!wa.feedId) {
+      wa.weights.diversity = 5; // Neutral score for unknown feeds
+      wa.weights.composite = wa.weights.authority + wa.weights.freshness + wa.weights.relevance + wa.weights.trending + wa.weights.quality + wa.weights.diversity;
+      return wa;
+    }
+    
+    const feedCount = feedCounts.get(wa.feedId) || 1;
+    const totalArticles = weightedArticles.length;
+    const feedPercentage = (feedCount / totalArticles) * 100;
+    
+    // Diversity bonus calculation
+    // - Feeds with <20% of total articles get bonus
+    // - Feeds with >50% of total articles get penalty
+    // - Target: balanced distribution across feeds
+    let diversityScore = 5; // Base score
+    
+    if (feedPercentage < 10) {
+      diversityScore = 10; // High bonus for underrepresented feeds
+    } else if (feedPercentage < 20) {
+      diversityScore = 8; // Medium bonus
+    } else if (feedPercentage < 30) {
+      diversityScore = 6; // Small bonus
+    } else if (feedPercentage < 40) {
+      diversityScore = 4; // Small penalty
+    } else if (feedPercentage < 60) {
+      diversityScore = 2; // Medium penalty
+    } else {
+      diversityScore = 0; // High penalty for dominant feeds
+    }
+    
+    wa.weights.diversity = diversityScore;
+    wa.reasoning.push(`Diversity: ${diversityScore}/10 (feed: ${feedPercentage.toFixed(1)}% of articles)`);
+    
+    // Recalculate composite score
+    wa.weights.composite = wa.weights.authority + wa.weights.freshness + wa.weights.relevance + wa.weights.trending + wa.weights.quality + wa.weights.diversity;
+    
+    return wa;
+  });
+  
+  // Log diversity adjustments
+  const diversityAdjustments = articlesWithDiversity
+    .filter(wa => wa.weights.diversity !== 5)
+    .map(wa => `${wa.feedName || wa.feedId}: ${wa.weights.diversity}/10`)
+    .slice(0, 5);
+  
+  if (diversityAdjustments.length > 0) {
+    console.log('🔄 Diversity adjustments applied:', diversityAdjustments.join(', '));
+  }
+  
+  return articlesWithDiversity;
+}
+
+/**
+ * Get feed name from domain
+ */
+function getFeedNameFromDomain(domain: string): string {
+  const feedMap: Record<string, string> = {
+    'techcrunch.com': 'TechCrunch AI',
+    'fastcompany.com': 'Fast Company AI',
+    'spectrum.ieee.org': 'IEEE Spectrum AI',
+    'wired.com': 'WIRED AI',
+    'technologyreview.com': 'MIT Technology Review',
+    'distill.pub': 'Distill ML Research',
+    'infoworld.com': 'InfoWorld AI',
+    'unite.ai': 'Unite.AI',
+    'openai.com': 'OpenAI Blog',
+    'marktechpost.com': 'MarkTechPost',
+    'blogs.nvidia.com': 'NVIDIA AI Blog',
+    'aibusiness.com': 'AI Business',
+    'artificialintelligence-news.com': 'AI News',
+    'darkreading.com': 'Dark Reading',
+    'securityweek.com': 'Security Week',
+    'hnrss.org': 'Hacker News',
+    'dev.to': 'DEV Community',
+    'feeds.feedburner.com': 'Google AI Blog' // feedburner for Google AI Blog
+  };
+  
+  return feedMap[domain] || domain;
+}
+
+/**
+ * Get feed ID from domain
+ */
+function getFeedIdFromDomain(domain: string): string {
+  const feedIdMap: Record<string, string> = {
+    'techcrunch.com': 'techcrunch-ai',
+    'fastcompany.com': 'fastcompany-ai',
+    'spectrum.ieee.org': 'ieee-spectrum-ai',
+    'wired.com': 'wired-ai',
+    'technologyreview.com': 'mit-tech-review-ai',
+    'distill.pub': 'distill-pub',
+    'infoworld.com': 'infoworld-ai',
+    'unite.ai': 'unite-ai',
+    'openai.com': 'openai-blog',
+    'marktechpost.com': 'marktechpost',
+    'blogs.nvidia.com': 'nvidia-ai-blog',
+    'aibusiness.com': 'ai-business',
+    'artificialintelligence-news.com': 'ai-news',
+    'darkreading.com': 'dark-reading',
+    'securityweek.com': 'security-week',
+    'hnrss.org': 'hacker-news',
+    'dev.to': 'dev-to',
+    'feeds.feedburner.com': 'google-ai-blog' // feedburner for Google AI Blog
+  };
+  
+  return feedIdMap[domain] || domain;
 }

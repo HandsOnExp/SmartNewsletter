@@ -61,14 +61,19 @@ const DOMAIN_RELIABILITY: Record<string, { reliability: number; skipExtraction?:
   'news.mit.edu': { reliability: 90 },
   'blog.google': { reliability: 90 },
   'openai.com': { reliability: 90 },
+  'technologyreview.com': { reliability: 90 }, // MIT Technology Review
+  'distill.pub': { reliability: 95 }, // Distill research
+  'infoworld.com': { reliability: 85 }, // InfoWorld AI
+  'unite.ai': { reliability: 80 }, // Unite.AI
   
   // Medium reliability domains (60-89% success rate)
   'venturebeat.com': { reliability: 70, fallbackToRSS: true }, // Known XML issues
   'marktechpost.com': { reliability: 75 },
   'artificialintelligence-news.com': { reliability: 80 },
   'aibusiness.com': { reliability: 75 },
+  'nvidia.com': { reliability: 85 }, // NVIDIA blog
   
-  // Low reliability domains (paywall/403 issues)
+  // Low reliability domains (paywall/403 issues) - Removed Analytics India Magazine
   'fastcompany.com': { reliability: 30, fallbackToRSS: true }, // Known 403 issues
   'businessinsider.com': { reliability: 40, fallbackToRSS: true },
   
@@ -258,24 +263,30 @@ async function enhanceArticle(article: ParsedArticle, options: ContentExtraction
         extractionMethod = 'rss-fallback';
       } else {
         try {
-          fullContent = await fetchFullArticleContent(article.link);
+          fullContent = await fetchFullArticleContentWithRetry(article.link, domain);
           extractionMethod = 'extracted';
         } catch (error) {
           const errorMsg = error instanceof Error ? error.message : 'Unknown error';
           console.log(`⚠️ Failed to fetch full content for "${article.title}": ${errorMsg}`);
           console.log(`   🌐 Domain: ${domain}, URL: ${article.link}`);
           
-          // Enhanced fallback strategy
-          fullContent = typeof article.content === 'string' ? article.content : article.contentSnippet;
+          // Enhanced fallback strategy with better content handling
+          fullContent = getEnhancedFallbackContent(article);
           extractionMethod = 'rss-error';
           
           // Log specific error types for domain reliability updates
-          if (errorMsg.includes('HTTP 403')) {
-            console.log(`   🚫 Domain ${domain} returned 403 - consider updating reliability score to <50`);
-          } else if (errorMsg.includes('timeout')) {
+          if (errorMsg.includes('HTTP 403') || errorMsg.includes('Forbidden')) {
+            console.log(`   🚫 Domain ${domain} returned 403/Forbidden - consider updating reliability score to <50`);
+          } else if (errorMsg.includes('timeout') || errorMsg.includes('TIMEOUT')) {
             console.log(`   ⏱️ Domain ${domain} response timeout - may need longer timeout`);
           } else if (errorMsg.includes('SSL') || errorMsg.includes('certificate')) {
             console.log(`   🔒 Domain ${domain} has SSL/certificate issues`);
+          } else if (errorMsg.includes('HTTP 404')) {
+            console.log(`   🔍 Domain ${domain} returned 404 - article may have been removed`);
+          } else if (errorMsg.includes('HTTP 429')) {
+            console.log(`   🚦 Domain ${domain} rate limited - consider longer delays`);
+          } else {
+            console.log(`   ❓ Domain ${domain} unknown error: ${errorMsg}`);
           }
         }
       }
@@ -339,7 +350,7 @@ async function enhanceArticle(article: ParsedArticle, options: ContentExtraction
  */
 async function fetchFullArticleContent(url: string): Promise<string> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000); // Reduced to 5 second timeout for faster processing
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // Increased to 10 second timeout for better quality
   
   try {
     const response = await fetch(url, {
@@ -600,4 +611,114 @@ function calculateContentQuality(article: ParsedArticle, content: string, wordCo
     factors,
     reasoning
   };
+}
+
+/**
+ * Fetch article content with retry mechanism for better reliability
+ */
+async function fetchFullArticleContentWithRetry(url: string, domain: string, maxRetries: number = 2): Promise<string> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      // Increase timeout for each retry attempt
+      const timeout = 5000 + (attempt * 2000); // 5s, 7s, 9s
+      return await fetchFullArticleContentWithTimeout(url, timeout);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('Unknown error');
+      console.log(`   🔄 Retry ${attempt}/${maxRetries} failed for ${domain}: ${lastError.message}`);
+      
+      // Don't retry for certain error types
+      if (lastError.message.includes('HTTP 403') || 
+          lastError.message.includes('HTTP 404') || 
+          lastError.message.includes('Forbidden')) {
+        break;
+      }
+      
+      // Brief pause between retries
+      if (attempt < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
+  }
+  
+  throw lastError || new Error('Max retries exceeded');
+}
+
+/**
+ * Fetch article content with configurable timeout
+ */
+async function fetchFullArticleContentWithTimeout(url: string, timeoutMs: number): Promise<string> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; AI Newsletter Bot; +https://smart-newsletter.com)',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'identity',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive'
+      },
+      redirect: 'follow'
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} ${response.statusText}`);
+    }
+    
+    const html = await response.text();
+    if (!html || html.length === 0) {
+      throw new Error('Empty response body');
+    }
+    
+    return extractTextFromHtml(html);
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeoutMs}ms`);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Get enhanced fallback content from RSS data
+ */
+function getEnhancedFallbackContent(article: ParsedArticle): string {
+  let content = '';
+  
+  // Prioritize content field if available and substantial
+  if (typeof article.content === 'string' && article.content.length > 100) {
+    content = article.content;
+  } else if (article.contentSnippet && article.contentSnippet.length > 50) {
+    content = article.contentSnippet;
+  } else if ('summary' in article && article.summary && typeof article.summary === 'string' && article.summary.length > 50) {
+    content = article.summary;
+  } else if (typeof article.content === 'string') {
+    content = article.content;
+  } else {
+    content = article.contentSnippet || '';
+  }
+  
+  // Clean up HTML entities and formatting
+  content = content
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, '/')
+    .replace(/<[^>]*>/g, ' ') // Remove any remaining HTML tags
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  return content;
 }

@@ -895,11 +895,11 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between">
                     <Label className="text-white">Preferred Categories</Label>
                     <span className="text-purple-400 text-sm font-medium">
-                      {preferences.preferredCategories.length}/3 selected
+                      {preferences.preferredCategories.length}/2 selected
                     </span>
                   </div>
                   <p className="text-sm text-gray-400">
-                    Select 1-3 categories that interest you. Only articles from these categories will appear in your newsletters.
+                    Select 1-2 categories that interest you. Only articles from these categories will appear in your newsletters.
                   </p>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {([
@@ -913,7 +913,7 @@ export default function SettingsPage() {
                       { value: 'development', label: 'Development', emoji: '⚙️' }
                     ] as const).map((category) => {
                       const isSelected = preferences.preferredCategories.includes(category.value as NewsletterCategory);
-                      const isDisabled = !isSelected && preferences.preferredCategories.length >= 3;
+                      const isDisabled = !isSelected && preferences.preferredCategories.length >= 2;
                       
                       return (
                         <button
@@ -958,7 +958,7 @@ export default function SettingsPage() {
                     })}
                   </div>
                   <p className="text-xs text-gray-500">
-                    You must select at least one category. Maximum 3 categories allowed per generation.
+                    You must select at least one category. Maximum 2 categories allowed per generation for better content diversity.
                   </p>
                 </div>
               </CardContent>

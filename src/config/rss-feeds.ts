@@ -35,7 +35,7 @@ export const RSS_FEEDS = [
     enabled: true
   },
 
-  // Research Category - 2 highest quality, most frequently updated feeds
+  // Research Category - 3 highest quality, most frequently updated feeds
   {
     id: 'google-ai-blog',
     name: 'Google AI Blog',
@@ -45,11 +45,19 @@ export const RSS_FEEDS = [
     enabled: true
   },
   {
-    id: 'arxiv-ai',
-    name: 'arXiv AI Papers',
-    url: 'https://rss.arxiv.org/rss/cs.AI',
+    id: 'mit-tech-review-ai',
+    name: 'MIT Technology Review AI',
+    url: 'https://www.technologyreview.com/feed/',
     category: 'research',
     priority: 6,
+    enabled: true
+  },
+  {
+    id: 'distill-pub',
+    name: 'Distill Machine Learning Research',
+    url: 'https://distill.pub/rss.xml',
+    category: 'research',
+    priority: 7,
     enabled: true
   },
 
@@ -59,7 +67,7 @@ export const RSS_FEEDS = [
     name: 'OpenAI Blog',
     url: 'https://openai.com/blog/rss.xml',
     category: 'product',
-    priority: 7,
+    priority: 8,
     enabled: true
   },
   {
@@ -67,7 +75,7 @@ export const RSS_FEEDS = [
     name: 'MarkTechPost',
     url: 'https://marktechpost.com/feed/',
     category: 'product',
-    priority: 8,
+    priority: 9,
     enabled: true
   },
 
@@ -77,7 +85,7 @@ export const RSS_FEEDS = [
     name: 'NVIDIA AI Blog',
     url: 'https://blogs.nvidia.com/feed/',
     category: 'enterprise',
-    priority: 9,
+    priority: 10,
     enabled: true
   },
   {
@@ -85,25 +93,33 @@ export const RSS_FEEDS = [
     name: 'AI Business',
     url: 'https://aibusiness.com/rss.xml',
     category: 'enterprise', 
-    priority: 10,
+    priority: 11,
     enabled: true
   },
 
-  // Consumer Category - 2 highest quality, most frequently updated feeds
+  // Consumer Category - 3 highest quality, most frequently updated feeds
   {
     id: 'ai-news',
     name: 'AI News',
     url: 'https://www.artificialintelligence-news.com/feed/rss/',
     category: 'consumer',
-    priority: 11,
+    priority: 12,
     enabled: true
   },
   {
-    id: 'analytics-india-ai',
-    name: 'Analytics India Magazine AI',
-    url: 'https://analyticsindiamag.com/feed/',
+    id: 'unite-ai',
+    name: 'Unite.AI',
+    url: 'https://www.unite.ai/feed/',
     category: 'consumer',
-    priority: 12,
+    priority: 13,
+    enabled: true
+  },
+  {
+    id: 'infoworld-ai',
+    name: 'InfoWorld AI',
+    url: 'https://www.infoworld.com/category/artificial-intelligence/rss',
+    category: 'consumer',
+    priority: 14,
     enabled: true
   },
 
@@ -113,7 +129,7 @@ export const RSS_FEEDS = [
     name: 'Dark Reading',
     url: 'https://www.darkreading.com/rss.xml',
     category: 'security',
-    priority: 13,
+    priority: 15,
     enabled: true
   },
   {
@@ -121,7 +137,7 @@ export const RSS_FEEDS = [
     name: 'Security Week',
     url: 'https://www.securityweek.com/feed/',
     category: 'security',
-    priority: 14,
+    priority: 16,
     enabled: true
   },
 
@@ -131,7 +147,7 @@ export const RSS_FEEDS = [
     name: 'Hacker News',
     url: 'https://hnrss.org/newest',
     category: 'development',
-    priority: 15,
+    priority: 17,
     enabled: true
   },
   {
@@ -139,7 +155,7 @@ export const RSS_FEEDS = [
     name: 'DEV Community',
     url: 'https://dev.to/feed',
     category: 'development',
-    priority: 16,
+    priority: 18,
     enabled: true
   }
 ];

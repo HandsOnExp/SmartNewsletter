@@ -31,6 +31,14 @@ export const BLACKLISTED_FEEDS = [
     reason: 'Access restricted',
     dateBlacklisted: '2025-08-30',
     category: 'consumer'
+  },
+  {
+    id: 'venturebeat-ai',
+    name: 'VentureBeat AI',
+    url: 'https://venturebeat.com/ai/feed/',
+    reason: 'Requires subscription',
+    dateBlacklisted: '2025-08-30',
+    category: 'business'
   }
 ];
 

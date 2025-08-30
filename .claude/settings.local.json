@@ -85,7 +85,8 @@
       "WebFetch(domain:rss.feedspot.com)",
       "WebFetch(domain:www.unite.ai)",
       "WebFetch(domain:analyticsindiamag.com)",
-      "WebFetch(domain:www.zdnet.com)"
+      "WebFetch(domain:www.zdnet.com)",
+      "WebFetch(domain:spectrum.ieee.org)"
     ],
     "deny": [],
     "ask": []

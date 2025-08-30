@@ -9,9 +9,9 @@ export const RSS_FEEDS = [
     enabled: true
   },
   {
-    id: 'venturebeat-ai',
-    name: 'VentureBeat AI',
-    url: 'https://venturebeat.com/ai/feed/',
+    id: 'aiwire',
+    name: 'AI Wire',
+    url: 'https://www.aiwire.net/feed/',
     category: 'business',
     priority: 2,
     enabled: true

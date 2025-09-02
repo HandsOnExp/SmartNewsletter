@@ -43,10 +43,20 @@ export interface ContentExtractionOptions {
 }
 
 const DEFAULT_OPTIONS: ContentExtractionOptions = {
-  maxArticles: 20,
-  minWordCount: 150, // Lowered from 200
+  maxArticles: 25, // Increased from 20 to get more high-quality articles
+  minWordCount: 150,
   maxAge: 72, // 3 days
-  qualityThreshold: 45, // Lowered from 60 to be more inclusive
+  qualityThreshold: 45,
+  enhanceWithFullContent: true,
+  domainReliabilityCheck: true
+};
+
+// Enhanced options for better quality (uses more timeout budget)
+export const ENHANCED_EXTRACTION_OPTIONS: ContentExtractionOptions = {
+  maxArticles: 35, // Even more articles to choose from
+  minWordCount: 100, // Lower threshold to include more articles
+  maxAge: 96, // 4 days for more content
+  qualityThreshold: 40, // More inclusive threshold
   enhanceWithFullContent: true,
   domainReliabilityCheck: true
 };
@@ -72,6 +82,7 @@ const DOMAIN_RELIABILITY: Record<string, { reliability: number; skipExtraction?:
   'artificialintelligence-news.com': { reliability: 80 },
   'aibusiness.com': { reliability: 75 },
   'nvidia.com': { reliability: 85 }, // NVIDIA blog
+  'analyticsindiamag.com': { reliability: 45, fallbackToRSS: true }, // Observed extraction failures
   
   // Low reliability domains (paywall/403 issues) - Removed Analytics India Magazine
   'fastcompany.com': { reliability: 30, fallbackToRSS: true }, // Known 403 issues
@@ -135,7 +146,7 @@ export async function extractAndEnhanceContent(
   
   // Step 2: Enhance articles with full content and quality analysis
   const enhancedArticles: ExtractedContent[] = [];
-  const BATCH_SIZE = 5; // Process in batches to prevent overwhelming
+  const BATCH_SIZE = opts.maxArticles > 30 ? 8 : 6; // Larger batches for enhanced processing
   
   for (let i = 0; i < filteredArticles.length; i += BATCH_SIZE) {
     const batch = filteredArticles.slice(i, i + BATCH_SIZE);
@@ -172,9 +183,10 @@ export async function extractAndEnhanceContent(
       }
     });
     
-    // Brief pause between batches to prevent overwhelming servers
+    // Brief pause between batches - reduced for enhanced processing mode
     if (i + BATCH_SIZE < filteredArticles.length) {
-      await new Promise(resolve => setTimeout(resolve, 100)); // Reduced from 200ms to 100ms
+      const delay = opts.maxArticles > 30 ? 50 : 75; // Shorter delays for enhanced processing
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
   
@@ -616,33 +628,56 @@ function calculateContentQuality(article: ParsedArticle, content: string, wordCo
 /**
  * Fetch article content with retry mechanism for better reliability
  */
-async function fetchFullArticleContentWithRetry(url: string, domain: string, maxRetries: number = 2): Promise<string> {
+async function fetchFullArticleContentWithRetry(url: string, domain: string, maxRetries: number = 3): Promise<string> {
   let lastError: Error | null = null;
+  
+  // Use domain-specific timeout configuration
+  const domainInfo = DOMAIN_RELIABILITY[domain] || DOMAIN_RELIABILITY.default;
+  const baseTimeout = domainInfo.reliability > 70 ? 6000 : 8000; // Longer timeout for less reliable domains
   
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      // Increase timeout for each retry attempt
-      const timeout = 5000 + (attempt * 2000); // 5s, 7s, 9s
+      // Progressive timeout: start higher for problematic domains
+      const timeout = baseTimeout + (attempt * 2000); // Base + 2s per retry
       return await fetchFullArticleContentWithTimeout(url, timeout);
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error('Unknown error');
+      lastError = error instanceof Error ? error : new Error('Content extraction failed');
       console.log(`   🔄 Retry ${attempt}/${maxRetries} failed for ${domain}: ${lastError.message}`);
       
-      // Don't retry for certain error types
+      // Don't retry for certain error types that won't resolve with retries
       if (lastError.message.includes('HTTP 403') || 
           lastError.message.includes('HTTP 404') || 
-          lastError.message.includes('Forbidden')) {
+          lastError.message.includes('HTTP 429') ||
+          lastError.message.includes('Forbidden') ||
+          lastError.message.includes('Unauthorized')) {
+        console.log(`   ❌ Non-retryable error for ${domain}, stopping retries`);
         break;
       }
       
-      // Brief pause between retries
+      // For Analytics India Magazine and other problematic domains, fail fast
+      if (domain === 'analyticsindiamag.com' && attempt === 1) {
+        console.log(`   ⚡ Fast-failing for problematic domain: ${domain}`);
+        break;
+      }
+      
+      // Brief pause between retries, longer for known problematic domains
       if (attempt < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        const delay = domainInfo.reliability < 50 ? 2000 : 1000 * attempt;
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
   }
   
-  throw lastError || new Error('Max retries exceeded');
+  // Return more specific error information
+  if (lastError) {
+    // Enhance error message with domain context
+    const errorDetails = lastError.message.includes('HTTP') 
+      ? lastError.message 
+      : `Network/parsing error: ${lastError.message}`;
+    throw new Error(`${errorDetails} (domain: ${domain}, reliability: ${domainInfo.reliability}%)`);
+  }
+  
+  throw new Error(`Max retries exceeded for ${domain} after ${maxRetries} attempts`);
 }
 
 /**

@@ -5,15 +5,23 @@ export const RSS_FEEDS = [
     name: 'TechCrunch AI',
     url: 'https://techcrunch.com/category/artificial-intelligence/feed/',
     category: 'business',
-    priority: 3, // Reduced from 1 to 3
+    priority: 3,
     enabled: true
   },
   {
-    id: 'aiwire',
-    name: 'AI Wire',
-    url: 'https://www.aiwire.net/feed/',
+    id: 'venturebeat-ai',
+    name: 'VentureBeat AI',
+    url: 'https://venturebeat.com/ai/feed/',
     category: 'business',
-    priority: 2, // Moved to higher priority than TechCrunch
+    priority: 2, // High priority reliable business source
+    enabled: true
+  },
+  {
+    id: 'enterprise-ai-news',
+    name: 'Enterprise AI News',
+    url: 'https://www.enterpriseai.news/feed/',
+    category: 'business',
+    priority: 4, // Backup business source
     enabled: true
   },
 
@@ -115,11 +123,19 @@ export const RSS_FEEDS = [
     enabled: true
   },
   {
-    id: 'infoworld-ai',
-    name: 'InfoWorld AI',
-    url: 'https://www.infoworld.com/category/artificial-intelligence/rss',
+    id: 'unite-ai',
+    name: 'Unite AI',
+    url: 'https://www.unite.ai/feed/',
     category: 'consumer',
     priority: 14,
+    enabled: true
+  },
+  {
+    id: 'zdnet-ai',
+    name: 'ZDNet AI',
+    url: 'https://www.zdnet.com/topic/artificial-intelligence/rss.xml',
+    category: 'consumer',
+    priority: 15, // Backup consumer source
     enabled: true
   },
 
@@ -129,7 +145,7 @@ export const RSS_FEEDS = [
     name: 'Dark Reading',
     url: 'https://www.darkreading.com/rss.xml',
     category: 'security',
-    priority: 15,
+    priority: 16,
     enabled: true
   },
   {
@@ -137,7 +153,7 @@ export const RSS_FEEDS = [
     name: 'Security Week',
     url: 'https://www.securityweek.com/feed/',
     category: 'security',
-    priority: 16,
+    priority: 17,
     enabled: true
   },
 
@@ -147,7 +163,7 @@ export const RSS_FEEDS = [
     name: 'Hacker News',
     url: 'https://hnrss.org/newest',
     category: 'development',
-    priority: 17,
+    priority: 18,
     enabled: true
   },
   {
@@ -155,7 +171,7 @@ export const RSS_FEEDS = [
     name: 'DEV Community',
     url: 'https://dev.to/feed',
     category: 'development',
-    priority: 18,
+    priority: 19,
     enabled: true
   }
 ];

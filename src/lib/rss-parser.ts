@@ -8,11 +8,12 @@ import {
 } from '@/utils/cache-optimization';
 import { validateURLsBatch, sanitizeURL, getFallbackURL, filterValidURLs } from '@/lib/url-validator';
 import { TimePeriod, TimePeriodOption } from '@/types';
-import { extractAndEnhanceContent, ExtractedContent } from '@/lib/content-extractor';
+import { extractAndEnhanceContent, ExtractedContent, ENHANCED_EXTRACTION_OPTIONS } from '@/lib/content-extractor';
 import { 
   trackFeedPerformance, 
   getFeedsByPerformancePriority,
-  getAdaptiveTimeout
+  getAdaptiveTimeout,
+  isFeedAllowed
 } from '@/lib/feed-performance-tracker';
 
 const parser = new Parser({
@@ -129,8 +130,22 @@ export async function fetchRSSFeed(url: string, feedName: string, timeoutMs: num
 export async function fetchAllFeeds(feeds: RSSFeed[] = RSS_FEEDS) {
   const enabledFeeds = feeds.filter(f => f.enabled);
   
+  // Filter feeds by circuit breaker state - only allow feeds that can run
+  const allowedFeeds = enabledFeeds.filter(feed => {
+    const allowed = isFeedAllowed(feed.id);
+    if (!allowed) {
+      console.log(`⚡ Circuit breaker: Skipping feed ${feed.name} (currently disabled)`);
+    }
+    return allowed;
+  });
+  
+  if (allowedFeeds.length < enabledFeeds.length) {
+    const blockedCount = enabledFeeds.length - allowedFeeds.length;
+    console.log(`⚡ Circuit breaker: ${blockedCount} feeds temporarily disabled due to failures`);
+  }
+  
   // Use performance-based prioritization instead of just priority
-  const performancePrioritizedFeeds = getFeedsByPerformancePriority(enabledFeeds);
+  const performancePrioritizedFeeds = getFeedsByPerformancePriority(allowedFeeds);
   
   console.log(`Performance-prioritized feeds: ${performancePrioritizedFeeds.map(f => `${f.name}(rel:${f.performance?.reliability || 'N/A'})`).join(', ')}`);
   
@@ -193,6 +208,7 @@ export async function fetchAllFeedsWithEnhancement(
     maxArticlesPerFeed?: number;
     qualityThreshold?: number;
     parallelProcessing?: boolean;
+    enhancedProcessing?: boolean; // Uses more timeout budget for better quality
   } = {}
 ): Promise<{
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -212,7 +228,8 @@ export async function fetchAllFeedsWithEnhancement(
     enhanceContent = true,
     maxArticlesPerFeed = 25,
     qualityThreshold = 60,
-    parallelProcessing = true
+    parallelProcessing = true,
+    enhancedProcessing = false
   } = options;
 
   console.log(`Starting enhanced RSS processing for ${feeds.length} feeds...`);
@@ -258,12 +275,22 @@ export async function fetchAllFeedsWithEnhancement(
   // Step 3: Enhanced content extraction (if enabled)
   if (enhanceContent && allArticles.length > 0) {
     try {
-      enhancedContent = await extractAndEnhanceContent(allArticles, {
-        maxArticles: Math.min(50, allArticles.length), // Process up to 50 articles
-        qualityThreshold,
-        enhanceWithFullContent: true,
-        minWordCount: 200
-      });
+      // Use enhanced extraction options if enhancedProcessing is enabled
+      const extractionOptions = enhancedProcessing 
+        ? {
+            ...ENHANCED_EXTRACTION_OPTIONS,
+            maxArticles: Math.min(60, allArticles.length), // Process more articles in enhanced mode
+            qualityThreshold: Math.min(qualityThreshold, ENHANCED_EXTRACTION_OPTIONS.qualityThreshold),
+            minWordCount: 150 // Slightly lower for more inclusivity
+          }
+        : {
+            maxArticles: Math.min(50, allArticles.length),
+            qualityThreshold,
+            enhanceWithFullContent: true,
+            minWordCount: 200
+          };
+      
+      enhancedContent = await extractAndEnhanceContent(allArticles, extractionOptions);
 
       if (enhancedContent.length > 0) {
         averageQuality = enhancedContent.reduce((sum, content) => sum + content.quality.score, 0) / enhancedContent.length;

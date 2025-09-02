@@ -33,12 +33,20 @@ export const BLACKLISTED_FEEDS = [
     category: 'consumer'
   },
   {
-    id: 'venturebeat-ai',
-    name: 'VentureBeat AI',
-    url: 'https://venturebeat.com/ai/feed/',
-    reason: 'Requires subscription',
-    dateBlacklisted: '2025-08-30',
+    id: 'aiwire',
+    name: 'AI Wire',
+    url: 'https://www.aiwire.net/feed/',
+    reason: 'Status code 403 - Access restricted',
+    dateBlacklisted: '2025-09-02',
     category: 'business'
+  },
+  {
+    id: 'infoworld-ai-old',
+    name: 'InfoWorld AI (old URL)',
+    url: 'https://www.infoworld.com/category/artificial-intelligence/rss',
+    reason: 'XML parsing errors - Invalid character in entity name',
+    dateBlacklisted: '2025-09-02',
+    category: 'consumer'
   }
 ];
 

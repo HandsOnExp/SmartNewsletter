@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { fetchAllFeedsWithEnhancement, deduplicateArticles, sortArticlesByDate, filterArticlesByTimePeriod, FilterResult } from '@/lib/rss-parser';
-import { generateNewsletterContent, checkRateLimit } from '@/lib/ai-processors';
+import { generateNewsletterContent, generateNewsletterContentWithValidation, checkRateLimit } from '@/lib/ai-processors';
 import { monitoredGeneration } from '@/lib/performance-monitor';
 import { RSS_FEEDS } from '@/config/rss-feeds';
 import { createNewsletter, connectDB, getUserSettings } from '@/lib/db';
 import { autoCleanupIfNeeded } from '@/lib/database-cleanup';
 import { validateNewsletterQuality, autoFixTopicIssues } from '@/lib/selective-quality-validator';
 import { analyzeTrends, weightArticlesByQuality } from '@/lib/trend-analyzer';
-import { applySourceDiversity, DEFAULT_DIVERSITY_CONFIG } from '@/lib/source-diversity';
+import { applySourceDiversity, applyProgressiveSourceDiversity, DEFAULT_DIVERSITY_CONFIG } from '@/lib/source-diversity';
 import { enhancedTimeFilter, DEFAULT_FRESHNESS_CONFIG } from '@/lib/freshness-scorer';
 import { APIResponse, NewsletterGenerationResponse, CustomRSSFeed, NewsletterCategory } from '@/types';
 
@@ -77,29 +77,21 @@ export async function POST() {
     // Add enabled custom feeds (custom feeds can be from any category)
     enabledFeeds = [...enabledFeeds, ...customFeeds.filter((feed: CustomRSSFeed) => feed.enabled)];
     
-    console.log(`🔍 DEBUGGING TOPIC SELECTION:`);
-    console.log(`User preferred categories:`, preferredCategories);
-    console.log(`Total RSS feeds available:`, RSS_FEEDS.length);
-    console.log(`Filtered to ${enabledFeeds.length} feeds based on preferred categories and user settings`);
-    console.log(`Enabled feeds by category:`, enabledFeeds.reduce((acc, feed) => {
-      acc[feed.category] = (acc[feed.category] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>));
-    console.log(`Final enabled feeds:`, enabledFeeds.map(f => `${f.name} (${f.category})`));
+    console.log(`📊 Feed selection: ${enabledFeeds.length} feeds from ${preferredCategories.length} categories`);
 
-    console.log(`📰 Step 1/6: Fetching RSS feeds with enhancement... (${enabledFeeds.length} enabled feeds)`);
-    console.log('Final enabled feeds:', enabledFeeds.map(f => f.name));
+    console.log(`📰 Step 1/6: Fetching ${enabledFeeds.length} RSS feeds with enhancement...`);
     
-    // Use enhanced RSS processing with parallel optimizations and content quality analysis
+    // Use enhanced RSS processing with extended timeouts for better quality
     const feedFetchPromise = fetchAllFeedsWithEnhancement(enabledFeeds, {
       enhanceContent: true, // Enable full content extraction
-      maxArticlesPerFeed: 30, // Allow more articles per feed for better selection
-      qualityThreshold: 50, // Lowered threshold for more articles to pass
-      parallelProcessing: true // Use parallel processing for speed
+      maxArticlesPerFeed: 35, // More articles per feed for enhanced selection
+      qualityThreshold: 45, // Lowered threshold for more inclusivity
+      parallelProcessing: true, // Use parallel processing for speed
+      enhancedProcessing: true // Enable enhanced processing mode (uses more timeout budget)
     });
     
     const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Enhanced feed fetching timeout')), 20000) // 20 second timeout for enhanced processing
+      setTimeout(() => reject(new Error('Enhanced feed fetching timeout')), 25000) // 25 second timeout for enhanced processing (increased from 15s)
     );
     
     const enhancedResults = await Promise.race([feedFetchPromise, timeoutPromise]) as Awaited<ReturnType<typeof fetchAllFeedsWithEnhancement>>;
@@ -150,7 +142,7 @@ export async function POST() {
         readingTime: enhanced.readingTime
       }));
       useEnhancedContent = true;
-      console.log(`🚀 USING ENHANCED CONTENT: ${allArticles.length} high-quality articles`);
+      console.log(`🎯 Using ${allArticles.length} enhanced articles`);
     } else if (enhancedContent && enhancedContent.length > 0) {
       // Hybrid approach: Use enhanced content + supplement with standard RSS content
       const enhancedArticles = enhancedContent.map(enhanced => ({
@@ -297,16 +289,13 @@ export async function POST() {
     const freshResult = enhancedTimeFilter(uniqueArticles, Math.min(30, uniqueArticles.length), freshnessConfig);
     console.log(`🕐 Freshness filter: Selected ${freshResult.selectedArticles.length} articles (avg freshness: ${freshResult.freshnessStats.averageFreshness.toFixed(1)}/100)`);
     
-    // Step 3b: Apply source diversity controls
-    const diversityConfig = {
-      ...DEFAULT_DIVERSITY_CONFIG,
-      maxArticlesPerSource: 2, // Limit TechCrunch and others to max 2 articles
-      maxArticlesPerCategory: Math.ceil(maxArticles * 0.6), // Allow up to 60% from any category
-      diversityWeight: 0.4 // Strong diversity preference
-    };
-    
-    const diversityResult = applySourceDiversity(freshResult.selectedArticles, diversityConfig);
-    console.log(`🎯 Diversity control: Selected ${diversityResult.selectedArticles.length} articles (diversity score: ${diversityResult.diversityScore}/100)`);
+    // Step 3b: Apply progressive diversity controls - automatically relaxes constraints if needed
+    const diversityResult = applyProgressiveSourceDiversity(
+      freshResult.selectedArticles,
+      maxArticles, // Target article count
+      Math.max(3, Math.floor(maxArticles * 0.6)) // Minimum: 60% of target or 3, whichever is higher
+    );
+    console.log(`🎯 Progressive diversity control: Selected ${diversityResult.selectedArticles.length} articles (diversity score: ${diversityResult.diversityScore}/100)`);
     
     // Step 3c: Fallback to time period filtering if needed
     // Convert ExtractedContent to ParsedArticle format for sorting
@@ -344,7 +333,7 @@ export async function POST() {
       
       // Still apply some diversity control on the fallback
       const fallbackDiversityResult = applySourceDiversity(sortedArticles, {
-        ...diversityConfig,
+        ...DEFAULT_DIVERSITY_CONFIG,
         maxArticlesPerSource: 3, // Slightly more permissive for fallback
         diversityWeight: 0.2 // Less strict diversity
       });
@@ -463,10 +452,19 @@ export async function POST() {
         
         console.log(`🎯 Generation mode: ${useEnhancedContent ? 'Enhanced with full content analysis' : 'Standard fast mode'}`);
         
+        // Use multi-pass generation for Hebrew content to improve quality
+        const useMultiPass = language === 'hebrew';
+        console.log(`📝 Using ${useMultiPass ? 'multi-pass validation' : 'standard'} generation for ${language} content`);
+        
         generationResult = await monitoredGeneration(
           'gemini',
           userId,
-          () => generateNewsletterContent(articlesForGeneration, generationOptions)
+          () => useMultiPass 
+            ? generateNewsletterContentWithValidation(articlesForGeneration, { 
+                ...generationOptions, 
+                multiPass: true 
+              })
+            : generateNewsletterContent(articlesForGeneration, generationOptions)
         );
       } catch (error) {
         console.error(`Gemini generation attempt ${generationAttempt} failed:`, error);

@@ -251,6 +251,85 @@ export async function generateImage(prompt: string): Promise<{ success: boolean;
   }
 }
 
+// Multi-pass topic generation with validation and refinement
+export async function generateNewsletterContentWithValidation(
+  articles: ParsedArticle[] | ExtractedContent[],
+  options?: {
+    maxTopics?: number; 
+    language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
+    preferredCategories?: string[];
+    fastMode?: boolean;
+    timeout?: number;
+    useEnhancedContent?: boolean;
+    enhancedPrompts?: boolean;
+    multiPass?: boolean; // Enable multi-pass generation and validation
+  }
+): Promise<{ success: boolean; data?: NewsletterData; error?: string }> {
+  const startTime = Date.now();
+  
+  // First pass: Generate initial topics
+  console.log(`🔄 Multi-pass generation: Starting initial topic generation...`);
+  const initialResult = await generateNewsletterContent(articles, {
+    ...options,
+    maxTopics: Math.min((options?.maxTopics || 7) + 3, 12) // Generate 3 extra topics for validation
+  });
+  
+  if (!initialResult.success || !initialResult.data) {
+    return initialResult;
+  }
+  
+  // Second pass: Validate topics and refine if needed (if multiPass enabled)
+  if (options?.multiPass && options?.language === 'hebrew') {
+    console.log(`🔍 Multi-pass validation: Validating ${initialResult.data.topics.length} topics...`);
+    
+    const validatedResult = await validateAndRefineTOpics(
+      initialResult.data,
+      articles,
+      options?.maxTopics || 7
+    );
+    
+    if (validatedResult.success) {
+      console.log(`✅ Multi-pass validation: Refined to ${validatedResult.data!.topics.length} high-quality topics`);
+      return {
+        success: true,
+        data: {
+          ...validatedResult.data!,
+          stats: {
+            ...validatedResult.data!.stats,
+            generationTime: Date.now() - startTime
+          }
+        }
+      };
+    }
+  }
+  
+  // Fallback: Trim to requested number of topics
+  if (initialResult.data.topics.length > (options?.maxTopics || 7)) {
+    const targetTopics = options?.maxTopics || 7;
+    console.log(`📝 Trimming from ${initialResult.data.topics.length} to ${targetTopics} topics`);
+    
+    // Score and select best topics
+    const scoredTopics = initialResult.data.topics.map((topic, index) => ({
+      ...topic,
+      score: calculateTopicScore(topic, index)
+    }));
+    
+    scoredTopics.sort((a, b) => b.score - a.score);
+    initialResult.data.topics = scoredTopics.slice(0, targetTopics).map(({ score, ...topic }) => topic);
+  }
+  
+  return {
+    success: true,
+    data: {
+      ...initialResult.data,
+      stats: {
+        ...initialResult.data.stats,
+        generationTime: Date.now() - startTime
+      }
+    }
+  };
+}
+
 // Enhanced newsletter generation function
 export async function generateNewsletterContent(
   articles: ParsedArticle[] | ExtractedContent[], 
@@ -820,4 +899,145 @@ export function checkRateLimit(): { allowed: boolean; message?: string } {
   
   // For now, always allow (implement proper rate limiting in production)
   return { allowed: true };
+}
+
+// Topic validation and refinement function
+async function validateAndRefineTOpics(
+  newsletterData: NewsletterData,
+  sourceArticles: (ParsedArticle | ExtractedContent)[],
+  targetTopicCount: number
+): Promise<{ success: boolean; data?: NewsletterData; error?: string }> {
+  try {
+    console.log(`🔍 Validating ${newsletterData.topics.length} topics for quality and accuracy...`);
+    
+    // Step 1: Validate topic-source alignment
+    const validatedTopics = await Promise.all(
+      newsletterData.topics.map(async (topic, index) => {
+        const alignmentScore = await calculateTopicSourceAlignment(topic, sourceArticles);
+        return {
+          ...topic,
+          validationScore: alignmentScore,
+          originalIndex: index
+        };
+      })
+    );
+    
+    // Step 2: Filter out low-quality topics
+    const qualityThreshold = 0.6; // 60% alignment score minimum
+    const qualityTopics = validatedTopics.filter(topic => topic.validationScore >= qualityThreshold);
+    
+    console.log(`📊 Topic validation: ${qualityTopics.length}/${newsletterData.topics.length} topics passed quality check`);
+    
+    // Step 3: Select best topics
+    qualityTopics.sort((a, b) => {
+      // Combine validation score with original topic score
+      const aScore = b.validationScore * 0.6 + calculateTopicScore(a, a.originalIndex) * 0.4;
+      const bScore = b.validationScore * 0.6 + calculateTopicScore(b, b.originalIndex) * 0.4;
+      return bScore - aScore;
+    });
+    
+    const finalTopics = qualityTopics
+      .slice(0, targetTopicCount)
+      .map(({ validationScore, originalIndex, ...topic }) => topic);
+    
+    // Step 4: If we don't have enough high-quality topics, add some from the original set
+    if (finalTopics.length < Math.max(3, Math.floor(targetTopicCount * 0.6))) {
+      console.log(`⚠️ Not enough high-quality topics (${finalTopics.length}), adding best remaining topics...`);
+      
+      const remainingTopics = validatedTopics
+        .filter(topic => topic.validationScore < qualityThreshold)
+        .sort((a, b) => b.validationScore - a.validationScore)
+        .slice(0, targetTopicCount - finalTopics.length)
+        .map(({ validationScore, originalIndex, ...topic }) => topic);
+      
+      finalTopics.push(...remainingTopics);
+    }
+    
+    return {
+      success: true,
+      data: {
+        ...newsletterData,
+        topics: finalTopics
+      }
+    };
+    
+  } catch (error) {
+    console.error('Topic validation failed:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Topic validation failed'
+    };
+  }
+}
+
+// Calculate how well a topic aligns with source articles
+async function calculateTopicSourceAlignment(
+  topic: NewsletterTopic,
+  sourceArticles: (ParsedArticle | ExtractedContent)[]
+): Promise<number> {
+  // Simple alignment calculation based on keyword matching and URL validation
+  let alignmentScore = 0;
+  
+  // Check if topic URL exists in source articles
+  const hasMatchingUrl = sourceArticles.some(article => {
+    const articleUrl = 'sourceUrl' in article ? article.sourceUrl : article.link;
+    return articleUrl === topic.sourceUrl;
+  });
+  
+  if (hasMatchingUrl) {
+    alignmentScore += 0.5; // 50% for URL match
+  }
+  
+  // Check keyword alignment with source articles
+  const topicKeywords = extractKeywords(topic.headline + ' ' + topic.summary);
+  let keywordMatches = 0;
+  const totalKeywords = topicKeywords.length;
+  
+  if (totalKeywords > 0) {
+    sourceArticles.forEach(article => {
+      let articleContent = '';
+      if ('content' in article && typeof article.content === 'string') {
+        articleContent = article.content;
+      } else if ('contentSnippet' in article && article.contentSnippet) {
+        articleContent = article.contentSnippet;
+      } else if ('excerpt' in article && article.excerpt) {
+        articleContent = article.excerpt; // For ExtractedContent type
+      }
+      
+      const articleText = article.title + ' ' + articleContent;
+      const articleKeywords = extractKeywords(articleText);
+      
+      const matches = topicKeywords.filter(keyword => 
+        articleKeywords.some(artKeyword => 
+          artKeyword.toLowerCase().includes(keyword.toLowerCase()) ||
+          keyword.toLowerCase().includes(artKeyword.toLowerCase())
+        )
+      ).length;
+      
+      keywordMatches = Math.max(keywordMatches, matches);
+    });
+    
+    alignmentScore += (keywordMatches / totalKeywords) * 0.5; // 50% for keyword alignment
+  } else {
+    alignmentScore += 0.25; // Partial credit if no extractable keywords
+  }
+  
+  return Math.min(1, alignmentScore);
+}
+
+// Extract keywords from text for alignment checking
+function extractKeywords(text: string): string[] {
+  const words = text.toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .filter(word => word.length > 3 && !isStopWord(word));
+  
+  // Return unique words, limited to most important ones
+  return [...new Set(words)].slice(0, 10);
+}
+
+// Simple stop word check
+function isStopWord(word: string): boolean {
+  const stopWords = ['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'this', 'that', 'these', 'those', 'a', 'an'];
+  return stopWords.includes(word.toLowerCase());
 }

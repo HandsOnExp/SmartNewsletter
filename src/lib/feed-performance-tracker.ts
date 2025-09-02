@@ -14,12 +14,45 @@ interface FeedMetrics {
   errorMessage?: string;
 }
 
+// Circuit Breaker States
+export enum CircuitBreakerState {
+  CLOSED = 'closed',     // Normal operation
+  OPEN = 'open',         // Feed disabled due to failures
+  HALF_OPEN = 'half_open' // Testing if feed recovered
+}
+
+interface CircuitBreakerConfig {
+  failureThreshold: number;     // Number of failures to trigger open state
+  successThreshold: number;     // Number of successes to close circuit
+  timeWindow: number;          // Time window in minutes to consider failures
+  recoveryTimeout: number;     // Time in minutes before trying half-open
+}
+
+interface FeedCircuitBreaker {
+  feedId: string;
+  state: CircuitBreakerState;
+  failureCount: number;
+  successCount: number;
+  lastFailureTime?: Date;
+  nextRetryTime?: Date;
+  config: CircuitBreakerConfig;
+}
+
 // In-memory performance tracking (in production, use database)
 const performanceHistory = new Map<string, FeedMetrics[]>();
+const circuitBreakers = new Map<string, FeedCircuitBreaker>();
 const MAX_HISTORY_PER_FEED = 50;
 
+// Default circuit breaker configuration
+const DEFAULT_CIRCUIT_CONFIG: CircuitBreakerConfig = {
+  failureThreshold: 5,     // 5 consecutive failures
+  successThreshold: 3,     // 3 consecutive successes to recover
+  timeWindow: 30,          // 30 minute window
+  recoveryTimeout: 15      // Try recovery after 15 minutes
+};
+
 /**
- * Track RSS feed performance metrics
+ * Track RSS feed performance metrics and update circuit breaker state
  */
 export function trackFeedPerformance(
   feedId: string,
@@ -47,11 +80,139 @@ export function trackFeedPerformance(
 
   performanceHistory.set(feedId, history);
   
+  // Update circuit breaker state
+  updateCircuitBreaker(feedId, success, errorMessage);
+  
   // Cache the performance data
   const cacheKey = `feed-perf:${feedId}`;
   globalCache.set(cacheKey, JSON.stringify(history), 60); // 1 hour TTL
 
-  console.log(`Feed performance tracked: ${feedId} - ${success ? 'Success' : 'Failed'} in ${responseTime}ms`);
+  const circuitState = getCircuitBreakerState(feedId);
+  const stateInfo = circuitState !== CircuitBreakerState.CLOSED ? ` [${circuitState}]` : '';
+  console.log(`Feed performance tracked: ${feedId} - ${success ? 'Success' : 'Failed'} in ${responseTime}ms${stateInfo}`);
+}
+
+/**
+ * Get or create circuit breaker for a feed
+ */
+function getOrCreateCircuitBreaker(feedId: string): FeedCircuitBreaker {
+  let breaker = circuitBreakers.get(feedId);
+  if (!breaker) {
+    breaker = {
+      feedId,
+      state: CircuitBreakerState.CLOSED,
+      failureCount: 0,
+      successCount: 0,
+      config: DEFAULT_CIRCUIT_CONFIG
+    };
+    circuitBreakers.set(feedId, breaker);
+  }
+  return breaker;
+}
+
+/**
+ * Update circuit breaker state based on feed performance
+ */
+function updateCircuitBreaker(feedId: string, success: boolean, errorMessage?: string): void {
+  const breaker = getOrCreateCircuitBreaker(feedId);
+  const now = new Date();
+
+  switch (breaker.state) {
+    case CircuitBreakerState.CLOSED:
+      if (success) {
+        breaker.failureCount = 0; // Reset failure count on success
+      } else {
+        breaker.failureCount++;
+        breaker.lastFailureTime = now;
+        
+        if (breaker.failureCount >= breaker.config.failureThreshold) {
+          breaker.state = CircuitBreakerState.OPEN;
+          breaker.nextRetryTime = new Date(now.getTime() + breaker.config.recoveryTimeout * 60 * 1000);
+          console.warn(`🚨 Circuit breaker OPENED for feed ${feedId} after ${breaker.failureCount} failures. Last error: ${errorMessage}`);
+        }
+      }
+      break;
+
+    case CircuitBreakerState.OPEN:
+      // Check if it's time to try recovery
+      if (now >= (breaker.nextRetryTime || now)) {
+        breaker.state = CircuitBreakerState.HALF_OPEN;
+        breaker.successCount = 0;
+        console.log(`🔄 Circuit breaker entering HALF_OPEN state for feed ${feedId}`);
+      }
+      break;
+
+    case CircuitBreakerState.HALF_OPEN:
+      if (success) {
+        breaker.successCount++;
+        if (breaker.successCount >= breaker.config.successThreshold) {
+          breaker.state = CircuitBreakerState.CLOSED;
+          breaker.failureCount = 0;
+          breaker.successCount = 0;
+          console.log(`✅ Circuit breaker CLOSED for feed ${feedId} after ${breaker.successCount} successful attempts`);
+        }
+      } else {
+        // Failed during half-open, go back to open
+        breaker.state = CircuitBreakerState.OPEN;
+        breaker.failureCount++;
+        breaker.nextRetryTime = new Date(now.getTime() + breaker.config.recoveryTimeout * 60 * 1000);
+        console.warn(`❌ Circuit breaker returned to OPEN state for feed ${feedId}. Error: ${errorMessage}`);
+      }
+      break;
+  }
+}
+
+/**
+ * Check if a feed should be allowed to run (circuit breaker check)
+ */
+export function isFeedAllowed(feedId: string): boolean {
+  const breaker = circuitBreakers.get(feedId);
+  if (!breaker) return true; // No breaker = allowed
+
+  const now = new Date();
+  
+  switch (breaker.state) {
+    case CircuitBreakerState.CLOSED:
+    case CircuitBreakerState.HALF_OPEN:
+      return true;
+    case CircuitBreakerState.OPEN:
+      // Check if recovery time has passed
+      if (breaker.nextRetryTime && now >= breaker.nextRetryTime) {
+        breaker.state = CircuitBreakerState.HALF_OPEN;
+        breaker.successCount = 0;
+        console.log(`🔄 Circuit breaker transitioning to HALF_OPEN for feed ${feedId}`);
+        return true;
+      }
+      return false;
+  }
+}
+
+/**
+ * Get current circuit breaker state for a feed
+ */
+export function getCircuitBreakerState(feedId: string): CircuitBreakerState {
+  const breaker = circuitBreakers.get(feedId);
+  return breaker?.state || CircuitBreakerState.CLOSED;
+}
+
+/**
+ * Get circuit breaker info for a feed
+ */
+export function getCircuitBreakerInfo(feedId: string): {
+  state: CircuitBreakerState;
+  failureCount: number;
+  successCount: number;
+  nextRetryTime?: Date;
+  lastFailureTime?: Date;
+} {
+  const breaker = getOrCreateCircuitBreaker(feedId);
+  return {
+    state: breaker.state,
+    failureCount: breaker.failureCount,
+    successCount: breaker.successCount,
+    nextRetryTime: breaker.nextRetryTime,
+    lastFailureTime: breaker.lastFailureTime
+  };
 }
 
 /**

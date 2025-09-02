@@ -40,12 +40,36 @@ export interface DiversityResult {
  * Default diversity configuration for balanced newsletter generation
  */
 export const DEFAULT_DIVERSITY_CONFIG: DiversityConfig = {
-  maxArticlesPerSource: 2, // Max 2 articles from any single source (e.g., TechCrunch)
-  maxArticlesPerCategory: 4, // Max 4 articles from any single category
-  maxArticlesPerDomain: 3, // Max 3 articles from any single domain
+  maxArticlesPerSource: 3, // Max 3 articles from any single source (increased from 2)
+  maxArticlesPerCategory: 5, // Max 5 articles from any single category (increased from 4)
+  maxArticlesPerDomain: 4, // Max 4 articles from any single domain (increased from 3)
   prioritizeFreshness: true,
   diversityWeight: 0.3, // 30% weight for diversity, 70% for quality/relevance
   sourceRotationEnabled: true
+};
+
+/**
+ * Relaxed diversity configuration for when strict diversity yields too few articles
+ */
+export const RELAXED_DIVERSITY_CONFIG: DiversityConfig = {
+  maxArticlesPerSource: 4, // Allow more from reliable sources
+  maxArticlesPerCategory: 6, // Allow more from each category
+  maxArticlesPerDomain: 5, // Allow more from each domain
+  prioritizeFreshness: true,
+  diversityWeight: 0.2, // Reduce diversity weight to prioritize quality
+  sourceRotationEnabled: true
+};
+
+/**
+ * Minimum diversity configuration for fallback when few sources are available
+ */
+export const MINIMUM_DIVERSITY_CONFIG: DiversityConfig = {
+  maxArticlesPerSource: 5, // Even more relaxed
+  maxArticlesPerCategory: 7, // Most of the newsletter can be from one category
+  maxArticlesPerDomain: 6, // Most can be from one domain
+  prioritizeFreshness: true,
+  diversityWeight: 0.1, // Minimal diversity weight, focus on quality
+  sourceRotationEnabled: false // Disable rotation when we need more content
 };
 
 /**
@@ -132,6 +156,39 @@ function calculateQualityScore(article: ParsedArticle | ExtractedContent): numbe
   if (content && content.length > 500) score += 5;
 
   return Math.min(100, Math.max(0, score));
+}
+
+/**
+ * Apply progressive source diversity controls - automatically relaxes constraints if needed
+ */
+export function applyProgressiveSourceDiversity(
+  articles: (ParsedArticle | ExtractedContent)[],
+  targetArticleCount: number = 7,
+  minimumArticleCount: number = 4
+): DiversityResult {
+  const configs = [DEFAULT_DIVERSITY_CONFIG, RELAXED_DIVERSITY_CONFIG, MINIMUM_DIVERSITY_CONFIG];
+  const configNames = ['Default', 'Relaxed', 'Minimum'];
+  
+  for (let i = 0; i < configs.length; i++) {
+    const config = configs[i];
+    const configName = configNames[i];
+    
+    console.log(`🎯 Trying ${configName} diversity configuration (target: ${targetArticleCount} articles)...`);
+    const result = applySourceDiversity(articles, config);
+    
+    if (result.selectedArticles.length >= targetArticleCount) {
+      console.log(`✅ ${configName} diversity: Selected ${result.selectedArticles.length} articles (target reached)`);
+      return result;
+    } else if (result.selectedArticles.length >= minimumArticleCount && i === configs.length - 1) {
+      console.log(`⚠️ ${configName} diversity: Selected ${result.selectedArticles.length} articles (minimum threshold reached)`);
+      return result;
+    } else {
+      console.log(`❌ ${configName} diversity: Only ${result.selectedArticles.length} articles, trying next level...`);
+    }
+  }
+  
+  // This shouldn't be reached, but just in case, return the last result
+  return applySourceDiversity(articles, MINIMUM_DIVERSITY_CONFIG);
 }
 
 /**

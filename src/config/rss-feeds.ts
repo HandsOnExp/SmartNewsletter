@@ -122,22 +122,6 @@ export const RSS_FEEDS = [
     priority: 13,
     enabled: true
   },
-  {
-    id: 'unite-ai',
-    name: 'Unite AI',
-    url: 'https://www.unite.ai/feed/',
-    category: 'consumer',
-    priority: 14,
-    enabled: true
-  },
-  {
-    id: 'zdnet-ai',
-    name: 'ZDNet AI',
-    url: 'https://www.zdnet.com/topic/artificial-intelligence/rss.xml',
-    category: 'consumer',
-    priority: 15, // Backup consumer source
-    enabled: true
-  },
 
   // Security Category - Cybersecurity and AI safety
   {

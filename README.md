@@ -14,7 +14,7 @@ An intelligent newsletter generation platform that leverages advanced AI algorit
 - **Performance-Optimized AI**: Automatic fallback from Cohere to Gemini on timeout, intelligent provider switching
 - **Background Processing**: Optional background generation for longer requests without timeout issues
 - **Intelligent Summarization**: Complex AI topics distilled into clear, engaging content
-- **Smart Topic Selection**: AI analyzes RSS feeds and intelligently selects 1-8 topics based on importance, relevance, and quality (recommended: 5-7 for optimal engagement)
+- **Smart Topic Selection**: Users can choose from 1-8 categories, then select 1-2 specific topics for generation, with AI generating 1-8 articles based on importance, relevance, and quality
 - **Multi-language Support**: Generate newsletters in English, Hebrew, Spanish, French, German, Italian, and Portuguese
 - **Quality Scoring Algorithm**: Advanced topic ranking system that prioritizes breakthrough announcements, model releases, and practical applications
 
@@ -162,11 +162,15 @@ The AI uses an advanced multi-layered system to identify the most valuable conte
 6. **Smart Trimming**: Maintains optimal topic count while preserving source diversity
 7. **Fallback Handling**: Automatic blacklist management and feed performance monitoring
 
-### Topic Count Recommendations
-- **1-3 topics**: Perfect for focused, daily updates
-- **4-5 topics**: Ideal for regular digest newsletters
-- **6-7 topics**: Optimal for weekly comprehensive newsletters (recommended)
-- **8 topics**: Maximum coverage for comprehensive industry roundups
+### Topic Selection Options
+- **1 topic**: Focused newsletter on a single AI domain
+- **2 topics**: Maximum selection for balanced coverage across two key AI areas
+
+### Article Generation Options (per newsletter)
+- **1-3 articles**: Perfect for focused, daily updates
+- **4-5 articles**: Ideal for regular digest newsletters  
+- **6-7 articles**: Optimal for weekly comprehensive newsletters (recommended)
+- **8 articles**: Maximum coverage for comprehensive topic analysis
 
 ## 📡 API Endpoints
 

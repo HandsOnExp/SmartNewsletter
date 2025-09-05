@@ -35,7 +35,6 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { llmProvider } = body;
     
     // Generate unique job ID
     const jobId = `${userId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -131,7 +130,7 @@ export async function GET(request: Request) {
   }
 }
 
-async function processNewsletterInBackground(jobId: string, userId: string, requestBody: { llmProvider?: string }) {
+async function processNewsletterInBackground(jobId: string, userId: string, _requestBody: { llmProvider?: string }) {
   const job = jobStatus.get(jobId);
   if (!job) return;
 
@@ -146,7 +145,7 @@ async function processNewsletterInBackground(jobId: string, userId: string, requ
     const { createNewsletter, getUserSettings } = await import('@/lib/db');
     const { autoCleanupIfNeeded } = await import('@/lib/database-cleanup');
 
-    const { llmProvider: requestedProvider } = requestBody;
+    // Using Gemini as the only AI provider
 
     // Fetch user settings
     const userSettings = await getUserSettings(userId);

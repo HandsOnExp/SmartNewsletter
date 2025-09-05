@@ -102,7 +102,7 @@ export function buildPrompt(
     SOURCE: ${article.source}
     URL: ${article.link}
     CONTENT: ${article.contentSnippet || 'No preview available'}
-    ${article.content ? `FULL_TEXT: ${article.content.substring(0, 500)}...` : ''}
+    ${article.content && typeof article.content === 'string' ? `FULL_TEXT: ${article.content.substring(0, 500)}...` : ''}
     `).join('\n')}
     
     ${formatPrompt}

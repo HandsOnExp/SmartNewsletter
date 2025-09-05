@@ -315,7 +315,7 @@ export async function generateNewsletterContentWithValidation(
     }));
     
     scoredTopics.sort((a, b) => b.score - a.score);
-    initialResult.data.topics = scoredTopics.slice(0, targetTopics).map(({ score, ...topic }) => topic);
+    initialResult.data.topics = scoredTopics.slice(0, targetTopics).map(({ score: _, ...topic }) => topic);
   }
   
   return {
@@ -938,7 +938,7 @@ async function validateAndRefineTOpics(
     
     const finalTopics = qualityTopics
       .slice(0, targetTopicCount)
-      .map(({ validationScore, originalIndex, ...topic }) => topic);
+      .map(({ validationScore: _, originalIndex: __, ...topic }) => topic);
     
     // Step 4: If we don't have enough high-quality topics, add some from the original set
     if (finalTopics.length < Math.max(3, Math.floor(targetTopicCount * 0.6))) {
@@ -948,7 +948,7 @@ async function validateAndRefineTOpics(
         .filter(topic => topic.validationScore < qualityThreshold)
         .sort((a, b) => b.validationScore - a.validationScore)
         .slice(0, targetTopicCount - finalTopics.length)
-        .map(({ validationScore, originalIndex, ...topic }) => topic);
+        .map(({ validationScore: _, originalIndex: __, ...topic }) => topic);
       
       finalTopics.push(...remainingTopics);
     }

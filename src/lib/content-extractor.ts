@@ -357,43 +357,6 @@ async function enhanceArticle(article: ParsedArticle, options: ContentExtraction
   }
 }
 
-/**
- * Fetch full article content from URL using a simple text extraction approach
- */
-async function fetchFullArticleContent(url: string): Promise<string> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000); // Increased to 10 second timeout for better quality
-  
-  try {
-    const response = await fetch(url, {
-      method: 'GET',
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; AI Newsletter Bot)',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'identity',
-        'Cache-Control': 'no-cache'
-      },
-      redirect: 'follow'
-    });
-    
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-    
-    const html = await response.text();
-    if (!html || html.length === 0) {
-      throw new Error('Empty response body');
-    }
-    return extractTextFromHtml(html);
-  } catch (error) {
-    clearTimeout(timeoutId);
-    throw error;
-  }
-}
 
 /**
  * Extract readable text from HTML content

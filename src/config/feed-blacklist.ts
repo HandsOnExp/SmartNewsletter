@@ -47,6 +47,22 @@ export const BLACKLISTED_FEEDS = [
     reason: 'XML parsing errors - Invalid character in entity name',
     dateBlacklisted: '2025-09-02',
     category: 'consumer'
+  },
+  {
+    id: 'venturebeat-ai',
+    name: 'VentureBeat AI',
+    url: 'https://venturebeat.com/ai/feed/',
+    reason: 'Status code 429 - Rate limited consistently',
+    dateBlacklisted: '2025-09-02',
+    category: 'business'
+  },
+  {
+    id: 'enterprise-ai-news',
+    name: 'Enterprise AI News',
+    url: 'https://www.enterpriseai.news/feed/',
+    reason: 'Status code 403 - Access forbidden',
+    dateBlacklisted: '2025-09-02',
+    category: 'business'
   }
 ];
 

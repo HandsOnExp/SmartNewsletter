@@ -21,11 +21,14 @@ An intelligent newsletter generation platform that leverages advanced AI algorit
 ### 📰 **Professional Newsletter Generation**
 - **Beautiful HTML Export**: Ready-to-send newsletter templates with responsive design
 - **Smart Content Optimization**: AI automatically trims and optimizes content for maximum engagement
+- **Advanced Content Extraction**: Full article content fetching with quality scoring and enhanced context
+- **Source Diversity Control**: Prevents single-source domination with balanced representation across categories
 - **URL Deduplication**: Prevents duplicate URLs across topics, ensures content accuracy
 - **Rich Media Integration**: Automatic image generation and placeholder integration
 - **Performance Optimized**: Advanced caching system for faster generation times (sub-30s with Gemini, sub-50s with Cohere+fallback)
 - **URL Validation**: Comprehensive link verification prevents broken URLs in newsletters
 - **Fast Mode Processing**: Optimized prompts and processing for time-sensitive generation
+- **Feed Blacklist Management**: Automatic exclusion of problematic feeds with subscription requirements or access restrictions
 
 ### 🔧 **Developer-Friendly Architecture**
 - **Modern Tech Stack**: Built with Next.js 15, React 19, TypeScript, and TailwindCSS
@@ -37,11 +40,13 @@ An intelligent newsletter generation platform that leverages advanced AI algorit
 ### 📊 **Analytics & Management**
 - **Dashboard Interface**: Clean, intuitive dashboard for newsletter management with demo banner
 - **Performance Monitoring**: Real-time LLM performance tracking with automatic provider switching
+- **Feed Performance Tracking**: Monitor RSS feed reliability, response times, and content quality
 - **Generation Statistics**: Track sources analyzed, generation time, and AI model usage
-- **RSS Feed Management**: Curated list of 16 high-quality AI publications across 8 categories (Business, Technology, Research, Product, Enterprise, Consumer, Security, Development)
+- **RSS Feed Management**: Curated list of high-quality AI publications with automatic blacklist filtering
 - **Content Preview**: Review and edit newsletters before export
 - **Newsletter History**: View and manage previously generated newsletters with delete functionality
 - **Background Generation**: Real-time progress tracking for long-running newsletter generation
+- **Trend Analysis**: Advanced topic trend detection and freshness scoring
 
 ## 🚀 Quick Start
 
@@ -118,33 +123,44 @@ src/
 │   └── newsletter/       # Newsletter-specific components
 ├── config/               # Configuration files
 │   ├── prompts.ts        # AI prompt templates
-│   └── rss-feeds.ts      # Curated RSS feed sources
+│   ├── rss-feeds.ts      # Curated RSS feed sources
+│   └── feed-blacklist.ts # Blacklisted feed management
 ├── lib/                  # Core utilities
 │   ├── ai-processors.ts  # AI integration logic
 │   ├── rss-parser.ts     # RSS feed parsing
+│   ├── content-extractor.ts # Advanced content extraction
+│   ├── source-diversity.ts  # Source balancing and diversity
+│   ├── feed-performance-tracker.ts # Feed reliability monitoring
+│   ├── trend-analyzer.ts # Topic trend analysis
+│   ├── freshness-scorer.ts # Content freshness scoring
 │   ├── crypto.ts         # Security utilities
 │   └── db.ts            # Database connection
 └── utils/               # Helper utilities
-    └── cache-optimization.ts  # Caching system
+    └── cache-optimization.ts  # Advanced caching system
 ```
 
 ## 🧠 Smart Topic Selection Algorithm
 
-The AI doesn't just pick random articles - it uses a sophisticated scoring system to identify the most valuable content:
+The AI uses an advanced multi-layered system to identify the most valuable content with balanced source representation:
 
 ### Quality Scoring Factors
-- **Content Quality**: Longer, more detailed summaries score higher
-- **Category Priority**: Research and product announcements get priority
-- **Freshness**: More recent articles receive preference
+- **Content Extraction**: Full article content analysis with reading time and word count assessment
+- **Source Diversity**: Prevents single-source domination through balanced category representation
+- **Content Quality**: Advanced quality scoring (0-110) based on length, freshness, authority, and engagement
+- **Trend Analysis**: Identifies trending topics and emerging themes in AI development
+- **Category Priority**: Research and product announcements get priority weighting
+- **Freshness Scoring**: Recent articles receive preference with time-decay algorithms
 - **Impact Keywords**: "breakthrough", "major", "announced", "released" boost scores
-- **Position Bias**: Earlier AI-suggested topics get slight preference
+- **Authority Weighting**: IEEE Spectrum, arXiv, and academic sources receive higher trust scores
 
 ### Selection Process
-1. **RSS Analysis**: Processes up to 100 articles from enabled feeds
-2. **AI Curation**: Uses advanced prompts to identify key developments
-3. **Quality Scoring**: Ranks topics using multi-factor algorithm
-4. **Smart Trimming**: If AI generates too many topics, keeps only the highest-scoring ones
-5. **Fallback Handling**: Ensures minimum content quality even with limited sources
+1. **RSS Analysis**: Processes up to 100 articles from enabled feeds with blacklist filtering
+2. **Content Extraction**: Fetches full article content for enhanced context and quality assessment  
+3. **Source Diversity Control**: Ensures balanced representation across sources and categories
+4. **AI Curation**: Uses enhanced prompts to identify key developments with trend analysis
+5. **Quality Scoring**: Multi-factor ranking with diversity penalties for over-represented sources
+6. **Smart Trimming**: Maintains optimal topic count while preserving source diversity
+7. **Fallback Handling**: Automatic blacklist management and feed performance monitoring
 
 ### Topic Count Recommendations
 - **1-3 topics**: Perfect for focused, daily updates
@@ -164,27 +180,43 @@ The AI doesn't just pick random articles - it uses a sophisticated scoring syste
 
 ### RSS Management
 - `POST /api/rss/refresh` - Refresh RSS feed data
+- `POST /api/feeds/enable-all` - Enable all RSS feeds
+- `POST /api/feeds/disable-all` - Disable all RSS feeds
 
 ### Analytics
 - `GET /api/dashboard/stats` - Get dashboard statistics
+- `GET /api/categories` - Get feed categories and performance metrics
 
 ### Settings
 - `GET /api/settings` - Get user settings
 - `POST /api/settings` - Update user settings
 
+### Administration
+- `POST /api/admin/cleanup` - Database cleanup and maintenance
+- `POST /api/admin/fix-categories` - Fix feed category assignments
+- `POST /api/admin/reset-feeds` - Reset feed configurations
+- `POST /api/admin/reset-user-settings` - Reset user settings to defaults
+
+### Testing & Development  
+- `GET /api/test-db` - Test database connection
+- `POST /api/test-key` - Test API key functionality
+- `GET /api/test/crypto-test` - Test encryption utilities
+
 ## 🎨 Customization
 
 ### Current RSS Feed Sources
-The system includes 16 carefully curated, bot-friendly RSS feeds:
+The system includes carefully curated, bot-friendly RSS feeds with automatic blacklist management:
 
-**Business**: TechCrunch AI, Fast Company AI  
-**Technology**: The Verge, WIRED AI  
-**Research**: MIT Technology Review, arXiv AI Papers  
+**Business**: TechCrunch AI, VentureBeat AI, Enterprise AI News  
+**Technology**: IEEE Spectrum AI, WIRED AI  
+**Research**: Google AI Blog, arXiv AI Papers, Distill ML Research  
 **Product**: OpenAI Blog, MarkTechPost  
-**Enterprise**: NVIDIA AI Blog, InfoWorld AI  
-**Consumer**: The Verge AI, CNET AI  
+**Enterprise**: NVIDIA AI Blog, AI Business  
+**Consumer**: AI News, Analytics India Magazine AI  
 **Security**: Dark Reading, Security Week  
 **Development**: Hacker News, DEV Community  
+
+**Blacklist Management**: Automatically excludes feeds with subscription requirements, access restrictions, or parsing issues  
 
 ### Adding RSS Feeds
 Edit `src/config/rss-feeds.ts` to add new RSS sources:
@@ -222,6 +254,31 @@ const categoryBonus = {
   'security': 12,
   'fun': 3
 };
+```
+
+### Source Diversity Configuration
+Customize source balancing in `src/lib/source-diversity.ts`:
+```typescript
+const diversityConfig: DiversityConfig = {
+  maxArticlesPerSource: 2,
+  maxArticlesPerCategory: 3,
+  maxArticlesPerDomain: 2,
+  prioritizeFreshness: true,
+  diversityWeight: 0.7,
+  sourceRotationEnabled: true
+};
+```
+
+### Feed Blacklist Management
+Manage problematic feeds in `src/config/feed-blacklist.ts`:
+```typescript
+// Add feeds with subscription requirements or access issues
+{
+  id: 'problematic-feed',
+  reason: 'Requires subscription',
+  dateBlacklisted: '2025-09-05',
+  category: 'business'
+}
 ```
 
 ### UI Theming
@@ -312,11 +369,14 @@ vercel
   - Cohere: 25-35 seconds average (with 30s timeout + automatic Gemini fallback)
   - Background Mode: No timeout limitations
 - **RSS Parsing**: Supports 115+ articles per session with intelligent batching (20 URLs per batch)
-- **Memory Usage**: Optimized for serverless environments with LazyContent loading
+- **Content Extraction**: Advanced full-article content fetching with quality scoring
+- **Source Diversity**: Balanced article selection across sources and categories
+- **Memory Usage**: Optimized for serverless environments with LazyContent loading and chunked processing
 - **Cache Hit Rate**: ~80% for repeated content requests
-- **Topic Selection**: Processes and scores articles in under 5 seconds
+- **Topic Selection**: Processes and scores articles in under 5 seconds with trend analysis
 - **URL Validation**: Fast batch processing with 5-second timeout per URL
-- **Performance Monitoring**: Real-time LLM success rates and response time tracking
+- **Feed Reliability**: Automatic blacklist management and performance monitoring
+- **Performance Monitoring**: Real-time LLM success rates, response time tracking, and feed health monitoring
 
 ## 🤝 Contributing
 
@@ -352,10 +412,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Database Connection**: Check MongoDB connection string format
 - **Build Failures**: Ensure all environment variables are set
 - **Authentication Issues**: Verify Clerk configuration
-- **Topic Selection**: Check RSS feeds are returning recent articles
+- **Topic Selection**: System now includes advanced quality scoring and source diversity controls
 - **Timeout Issues**: Use background generation for Cohere, or let automatic fallback handle it
-- **RSS Feed Errors**: System automatically handles 403/timeout errors from problematic feeds
-- **Duplicate URLs**: Automatic deduplication ensures unique sources per topic
+- **RSS Feed Errors**: Automatic blacklist management handles subscription-required and problematic feeds
+- **Content Quality**: Enhanced content extraction now fetches full article content for better summaries
+- **Source Diversity**: Prevents single-source domination with balanced representation controls
+- **Feed Performance**: Real-time monitoring tracks feed reliability and automatically adjusts priorities
+- **Duplicate URLs**: Advanced deduplication with cross-source validation ensures unique content
+- **Parsing Failures**: Automatic error handling and feed blacklisting for consistently problematic sources
 
 ---
 

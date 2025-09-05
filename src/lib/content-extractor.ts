@@ -82,7 +82,7 @@ const DOMAIN_RELIABILITY: Record<string, { reliability: number; skipExtraction?:
   'artificialintelligence-news.com': { reliability: 80 },
   'aibusiness.com': { reliability: 75 },
   'nvidia.com': { reliability: 85 }, // NVIDIA blog
-  'analyticsindiamag.com': { reliability: 45, fallbackToRSS: true }, // Observed extraction failures
+  'analyticsindiamag.com': { reliability: 55, fallbackToRSS: true }, // Improved with better error handling
   
   // Low reliability domains (paywall/403 issues) - Removed Analytics India Magazine
   'fastcompany.com': { reliability: 30, fallbackToRSS: true }, // Known 403 issues

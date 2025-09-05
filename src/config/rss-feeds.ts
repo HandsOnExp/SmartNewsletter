@@ -119,7 +119,7 @@ export const RSS_FEEDS = [
     name: 'Analytics India Magazine AI',
     url: 'https://analyticsindiamag.com/feed/',
     category: 'consumer',
-    priority: 13,
+    priority: 18, // Reduced priority due to reliability issues
     enabled: true
   },
 

@@ -40,11 +40,11 @@ export interface DiversityResult {
  * Default diversity configuration for balanced newsletter generation
  */
 export const DEFAULT_DIVERSITY_CONFIG: DiversityConfig = {
-  maxArticlesPerSource: 3, // Max 3 articles from any single source (increased from 2)
-  maxArticlesPerCategory: 5, // Max 5 articles from any single category (increased from 4)
-  maxArticlesPerDomain: 4, // Max 4 articles from any single domain (increased from 3)
+  maxArticlesPerSource: 4, // Allow more articles per source when others fail
+  maxArticlesPerCategory: 6, // Allow more per category for better coverage
+  maxArticlesPerDomain: 5, // Allow more per domain for reliability
   prioritizeFreshness: true,
-  diversityWeight: 0.3, // 30% weight for diversity, 70% for quality/relevance
+  diversityWeight: 0.25, // Reduce diversity weight slightly for better yield
   sourceRotationEnabled: true
 };
 
@@ -52,11 +52,11 @@ export const DEFAULT_DIVERSITY_CONFIG: DiversityConfig = {
  * Relaxed diversity configuration for when strict diversity yields too few articles
  */
 export const RELAXED_DIVERSITY_CONFIG: DiversityConfig = {
-  maxArticlesPerSource: 4, // Allow more from reliable sources
-  maxArticlesPerCategory: 6, // Allow more from each category
-  maxArticlesPerDomain: 5, // Allow more from each domain
+  maxArticlesPerSource: 6, // Allow more from reliable sources
+  maxArticlesPerCategory: 8, // Allow more from each category
+  maxArticlesPerDomain: 7, // Allow more from each domain
   prioritizeFreshness: true,
-  diversityWeight: 0.2, // Reduce diversity weight to prioritize quality
+  diversityWeight: 0.15, // Further reduce diversity weight to prioritize yield
   sourceRotationEnabled: true
 };
 

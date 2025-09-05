@@ -180,7 +180,7 @@ export interface RSSFeedManagerProps {
 
 // Form Types
 export interface NewsletterGenerationForm {
-  llmProvider: 'cohere' | 'gemini';
+  llmProvider: 'gemini';
   includedFeeds: string[];
   customPrompt?: string;
   maxTopics?: number;

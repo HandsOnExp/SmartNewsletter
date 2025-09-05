@@ -1,9 +1,9 @@
 /**
- * Performance monitoring and automatic LLM fallback system
+ * Performance monitoring for Gemini LLM
  */
 
 interface PerformanceMetric {
-  provider: 'cohere' | 'gemini';
+  provider: 'gemini';
   startTime: number;
   endTime?: number;
   duration?: number;
@@ -36,9 +36,9 @@ export function trackPerformance(metric: PerformanceMetric) {
 }
 
 /**
- * Get recent performance stats for a provider
+ * Get recent performance stats for Gemini
  */
-export function getProviderStats(provider: 'cohere' | 'gemini', timeWindowMs: number = 30 * 60 * 1000) {
+export function getProviderStats(provider: 'gemini', timeWindowMs: number = 30 * 60 * 1000) {
   const cutoff = Date.now() - timeWindowMs;
   const recentMetrics = performanceHistory.filter(
     m => m.provider === provider && m.timestamp.getTime() > cutoff
@@ -68,82 +68,42 @@ export function getProviderStats(provider: 'cohere' | 'gemini', timeWindowMs: nu
 }
 
 /**
- * Determine the best provider based on recent performance
+ * Get Gemini provider info
  */
-export function getBestProvider(userPreference?: 'cohere' | 'gemini'): {
-  provider: 'cohere' | 'gemini';
+export function getBestProvider(): {
+  provider: 'gemini';
   reason: string;
   confidence: 'high' | 'medium' | 'low';
 } {
-  const cohereStats = getProviderStats('cohere');
   const geminiStats = getProviderStats('gemini');
   
-  // AGGRESSIVE: Auto-fallback from Cohere if it has recent failures or slow performance
-  if (userPreference === 'cohere') {
-    const recentCohereFailures = cohereStats.failureRate > 0.3; // More than 30% failure rate
-    const cohereTooSlow = cohereStats.avgDuration > 35000; // More than 35 seconds average
-    
-    if (recentCohereFailures || cohereTooSlow) {
-      return {
-        provider: 'gemini',
-        reason: `Switching from Cohere to Gemini due to recent ${recentCohereFailures ? 'failures' : 'slow performance'} (${cohereStats.failureRate.toFixed(1)} failure rate, ${(cohereStats.avgDuration/1000).toFixed(1)}s avg)`,
-        confidence: 'high'
-      };
-    }
-  }
-  
-  // If user has a preference and that provider is performing well, use it
-  if (userPreference) {
-    const preferredStats = userPreference === 'cohere' ? cohereStats : geminiStats;
-    
-    // More stringent requirements for Cohere
-    const cohereThreshold = userPreference === 'cohere' ? { successRate: 0.8, maxDuration: 30000 } : { successRate: 0.7, maxDuration: 45000 };
-    const threshold = userPreference === 'cohere' ? cohereThreshold : { successRate: 0.7, maxDuration: 45000 };
-    
-    if (preferredStats.successRate >= threshold.successRate && preferredStats.avgDuration < threshold.maxDuration) {
-      return {
-        provider: userPreference,
-        reason: `Using your preferred ${userPreference} (performing well)`,
-        confidence: 'high'
-      };
-    }
-    
-    if (preferredStats.successRate >= 0.5) {
-      return {
-        provider: userPreference,
-        reason: `Using your preferred ${userPreference} (moderate performance)`,
-        confidence: 'medium'
-      };
-    }
-  }
-  
-  // Compare providers based on performance
-  const cohereScore = cohereStats.successRate * 0.7 + (cohereStats.avgDuration < 30000 ? 0.3 : 0);
-  const geminiScore = geminiStats.successRate * 0.7 + (geminiStats.avgDuration < 30000 ? 0.3 : 0);
-  
-  if (Math.abs(cohereScore - geminiScore) < 0.1) {
-    // Similar performance, prefer Gemini for speed
+  if (geminiStats.successRate >= 0.7 && geminiStats.avgDuration < 45000) {
     return {
       provider: 'gemini',
-      reason: 'Both providers performing similarly, choosing Gemini for speed',
-      confidence: 'medium'
+      reason: `Gemini performing well (${(geminiStats.successRate * 100).toFixed(1)}% success rate, ${(geminiStats.avgDuration/1000).toFixed(1)}s avg)`,
+      confidence: 'high'
     };
   }
   
-  const bestProvider = cohereScore > geminiScore ? 'cohere' : 'gemini';
-  const confidence = Math.abs(cohereScore - geminiScore) > 0.3 ? 'high' : 'medium';
-  
+  if (geminiStats.successRate >= 0.5) {
+    return {
+      provider: 'gemini',
+      reason: `Gemini moderate performance (${(geminiStats.successRate * 100).toFixed(1)}% success rate)`,
+      confidence: 'medium'
+    };
+  }
+
   return {
-    provider: bestProvider,
-    reason: `${bestProvider} has better recent performance`,
-    confidence
+    provider: 'gemini',
+    reason: 'Using Gemini (only available provider)',
+    confidence: 'low'
   };
 }
 
 /**
- * Check if a provider is experiencing issues
+ * Check if Gemini is healthy
  */
-export function isProviderHealthy(provider: 'cohere' | 'gemini'): boolean {
+export function isProviderHealthy(provider: 'gemini'): boolean {
   const stats = getProviderStats(provider, 15 * 60 * 1000); // Last 15 minutes
   
   // Consider healthy if success rate > 60% and average duration < 50 seconds
@@ -151,65 +111,10 @@ export function isProviderHealthy(provider: 'cohere' | 'gemini'): boolean {
 }
 
 /**
- * Get automatic fallback suggestion
- */
-export function getFallbackSuggestion(
-  primaryProvider: 'cohere' | 'gemini',
-  error?: string
-): {
-  shouldFallback: boolean;
-  fallbackProvider?: 'cohere' | 'gemini';
-  reason: string;
-} {
-  const primaryHealthy = isProviderHealthy(primaryProvider);
-  const fallbackProvider = primaryProvider === 'cohere' ? 'gemini' : 'cohere';
-  const fallbackHealthy = isProviderHealthy(fallbackProvider);
-  
-  // If primary is unhealthy and fallback is healthy, suggest fallback
-  if (!primaryHealthy && fallbackHealthy) {
-    return {
-      shouldFallback: true,
-      fallbackProvider,
-      reason: `${primaryProvider} is experiencing issues, ${fallbackProvider} is performing better`
-    };
-  }
-  
-  // If error contains timeout-related keywords, suggest faster provider
-  if (error && (error.includes('timeout') || error.includes('time') || error.includes('duration'))) {
-    if (primaryProvider === 'cohere') {
-      return {
-        shouldFallback: true,
-        fallbackProvider: 'gemini',
-        reason: 'Cohere timeout detected, switching to faster Gemini'
-      };
-    }
-  }
-  
-  // If both are unhealthy, still prefer the less bad one
-  if (!primaryHealthy && !fallbackHealthy) {
-    const primaryStats = getProviderStats(primaryProvider);
-    const fallbackStats = getProviderStats(fallbackProvider);
-    
-    if (fallbackStats.successRate > primaryStats.successRate + 0.1) {
-      return {
-        shouldFallback: true,
-        fallbackProvider,
-        reason: `Both providers struggling, but ${fallbackProvider} has better success rate`
-      };
-    }
-  }
-  
-  return {
-    shouldFallback: false,
-    reason: `${primaryProvider} is performing adequately`
-  };
-}
-
-/**
  * Performance monitoring wrapper for newsletter generation
  */
 export async function monitoredGeneration<T>(
-  provider: 'cohere' | 'gemini',
+  provider: 'gemini',
   userId: string,
   generationFn: () => Promise<T>
 ): Promise<T> {
@@ -241,14 +146,12 @@ export async function monitoredGeneration<T>(
  * Get performance summary for debugging
  */
 export function getPerformanceSummary() {
-  const cohereStats = getProviderStats('cohere');
   const geminiStats = getProviderStats('gemini');
-  const bestProvider = getBestProvider();
+  const recommendation = getBestProvider();
   
   return {
-    cohere: cohereStats,
     gemini: geminiStats,
-    recommendation: bestProvider,
+    recommendation,
     totalRequests: performanceHistory.length,
     timeWindow: '30 minutes'
   };

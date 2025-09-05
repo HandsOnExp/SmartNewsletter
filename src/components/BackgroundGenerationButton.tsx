@@ -135,7 +135,7 @@ export default function BackgroundGenerationButton({
   };
 
   const getEstimatedTime = () => {
-    return llmProvider === 'cohere' ? '45-60 seconds' : '20-30 seconds';
+    return '20-30 seconds';
   };
 
   if (isProcessing) {
@@ -166,14 +166,6 @@ export default function BackgroundGenerationButton({
           <p>Estimated time: {getEstimatedTime()}</p>
         </div>
 
-        {llmProvider === 'cohere' && (
-          <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-            <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-amber-800">
-              Cohere processing may take longer. You can safely close this page and return later.
-            </p>
-          </div>
-        )}
       </div>
     );
   }
@@ -184,7 +176,7 @@ export default function BackgroundGenerationButton({
         onClick={startBackgroundGeneration}
         disabled={disabled}
         className="w-full flex items-center gap-2"
-        variant={llmProvider === 'cohere' ? 'secondary' : 'default'}
+        variant="default"
       >
         <Zap className="w-4 h-4" />
         Generate in Background
@@ -192,7 +184,6 @@ export default function BackgroundGenerationButton({
       
       <p className="text-xs text-gray-500 text-center">
         Estimated time: {getEstimatedTime()}
-        {llmProvider === 'cohere' && ' (slower but thorough)'}
       </p>
     </div>
   );

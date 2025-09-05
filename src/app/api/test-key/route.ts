@@ -24,8 +24,6 @@ export async function POST(request: Request) {
 
     if (provider === 'gemini') {
       testResult = await testGeminiKey(apiKey);
-    } else if (provider === 'cohere') {
-      testResult = await testCohereKey(apiKey);
     } else {
       return NextResponse.json({
         success: false,
@@ -117,75 +115,6 @@ async function testGeminiKey(apiKey: string) {
   }
 }
 
-async function testCohereKey(apiKey: string) {
-  try {
-    const response = await fetch('https://api.cohere.ai/v2/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'command-r',
-        messages: [
-          {
-            role: 'user',
-            content: 'Test connection - respond with just "OK"'
-          }
-        ],
-        max_tokens: 10,
-        temperature: 0
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.text();
-      let errorMessage = 'Invalid API key or request failed';
-      
-      try {
-        const parsedError = JSON.parse(errorData);
-        if (parsedError.message) {
-          errorMessage = parsedError.message;
-        }
-      } catch {
-        // If not JSON, use status text or raw error
-        if (response.status === 401) {
-          errorMessage = 'Invalid API key';
-        } else if (response.status === 429) {
-          errorMessage = 'Rate limit exceeded';
-        } else if (errorData) {
-          errorMessage = errorData.substring(0, 100);
-        }
-      }
-
-      return {
-        success: false,
-        error: errorMessage
-      };
-    }
-
-    const data = await response.json();
-    
-    // Check if we got a valid response from Cohere
-    if (data.message?.content?.[0]?.text || data.text) {
-      return {
-        success: true,
-        message: 'Cohere API key is working correctly'
-      };
-    } else {
-      return {
-        success: false,
-        error: 'API key is valid but response format is unexpected'
-      };
-    }
-
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Network error'
-    };
-  }
-}
 
 export async function GET() {
   return NextResponse.json({

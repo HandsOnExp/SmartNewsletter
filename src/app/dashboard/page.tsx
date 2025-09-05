@@ -421,12 +421,8 @@ export default function Dashboard() {
                           <span className="text-xs text-gray-400">
                             {newsletter.topics?.length || 0} topics
                           </span>
-                          <span className={`text-xs px-2 py-1 rounded-full ${
-                            newsletter.llmUsed === 'gemini' 
-                              ? 'bg-green-500/20 text-green-400' 
-                              : 'bg-blue-500/20 text-blue-400'
-                          }`}>
-                            {newsletter.llmUsed === 'gemini' ? 'Gemini' : 'Cohere'}
+                          <span className="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400">
+                            Gemini
                           </span>
                         </div>
                         <div className="flex gap-2">

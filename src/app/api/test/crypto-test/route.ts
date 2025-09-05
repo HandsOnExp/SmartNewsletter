@@ -35,7 +35,6 @@ export async function GET() {
 
     // Test 3: API keys object encryption/decryption
     const testApiKeys = {
-      cohere: 'co_test_key_123',
       gemini: 'AIza_test_key_456'
     };
     
@@ -46,7 +45,6 @@ export async function GET() {
     console.log('Original:', testApiKeys);
     console.log('Encrypted:', encryptedKeys);
     console.log('Decrypted:', decryptedKeys);
-    console.log('Cohere match:', testApiKeys.cohere === decryptedKeys.cohere);
     console.log('Gemini match:', testApiKeys.gemini === decryptedKeys.gemini);
 
     // Test 4: isEncrypted function
@@ -62,7 +60,6 @@ export async function GET() {
       testKey === decrypted,
       emptyEncrypted === '',
       emptyDecrypted === '',
-      testApiKeys.cohere === decryptedKeys.cohere,
       testApiKeys.gemini === decryptedKeys.gemini,
       !isEncrypted(plainText),
       isEncrypted(encryptedText)
@@ -78,7 +75,7 @@ export async function GET() {
         individualTests: {
           basicEncryptDecrypt: testKey === decrypted,
           emptyStringHandling: emptyEncrypted === '' && emptyDecrypted === '',
-          apiKeysObjectHandling: testApiKeys.cohere === decryptedKeys.cohere && testApiKeys.gemini === decryptedKeys.gemini,
+          apiKeysObjectHandling: testApiKeys.gemini === decryptedKeys.gemini,
           encryptionDetection: !isEncrypted(plainText) && isEncrypted(encryptedText)
         },
         samples: {

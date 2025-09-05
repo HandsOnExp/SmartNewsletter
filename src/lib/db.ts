@@ -127,7 +127,7 @@ const NewsletterSchema = new mongoose.Schema({
   },
   llmUsed: { 
     type: String, 
-    enum: ['cohere', 'gemini'],
+    enum: ['gemini'],
     required: true 
   },
   status: { 
@@ -171,7 +171,6 @@ const UserSettingsSchema = new mongoose.Schema({
     required: true
   },
   apiKeys: {
-    cohere: { type: String, default: '' },
     gemini: { type: String, default: '' }
   },
   preferences: {
@@ -179,8 +178,8 @@ const UserSettingsSchema = new mongoose.Schema({
     generateTime: { type: String, default: '09:00' },
     llmPreference: { 
       type: String, 
-      enum: ['cohere', 'gemini', 'auto'],
-      default: 'cohere'
+      enum: ['gemini'],
+      default: 'gemini'
     },
     maxArticles: { type: Number, default: 7 },
     language: { 
@@ -282,7 +281,7 @@ export async function createNewsletter(data: {
   userId: string;
   title: string;
   topics: NewsletterTopic[];
-  llmUsed: 'cohere' | 'gemini';
+  llmUsed: 'gemini';
   introduction?: string;
   conclusion?: string;
   stats: {

@@ -6,15 +6,15 @@
 > Experience the full app functionality with pre-configured API keys. Generate demo newsletters to explore all features!
 
 > ⚠️ Important: You must obtain your own API keys. The live demo on vercel uses my free keys, but anyone cloning this repository needs to set up their own 
-  Clerk, MongoDB, Cohere, and Gemini accounts and configure their own API keys in .env.local." 
+  Clerk, MongoDB, and Gemini accounts and configure their own API keys in .env.local." 
 
 An intelligent newsletter generation platform that leverages advanced AI algorithms to curate, analyze, and format RSS content into beautiful, engaging newsletters. Never miss important AI developments again with our automated content curation system.
 
 ## ✨ Features
 
 ### 🧠 **AI-Powered Content Curation**
-- **Dual AI Engine Support**: Choose between Cohere and Google Gemini for content analysis
-- **Performance-Optimized AI**: Automatic fallback from Cohere to Gemini on timeout, intelligent provider switching
+- **AI-Powered Content Analysis**: Google Gemini for intelligent content analysis
+- **Performance-Optimized AI**: Fast and reliable Google Gemini integration
 - **Background Processing**: Optional background generation for longer requests without timeout issues
 - **Intelligent Summarization**: Complex AI topics distilled into clear, engaging content
 - **Smart Topic Selection**: Users can choose from 1-8 categories, then select 1-2 specific topics for generation, with AI generating 1-8 articles based on importance, relevance, and quality
@@ -28,7 +28,7 @@ An intelligent newsletter generation platform that leverages advanced AI algorit
 - **Source Diversity Control**: Prevents single-source domination with balanced representation across categories
 - **URL Deduplication**: Prevents duplicate URLs across topics, ensures content accuracy
 - **Rich Media Integration**: Automatic image generation and placeholder integration
-- **Performance Optimized**: Advanced caching system for faster generation times (sub-30s with Gemini, sub-50s with Cohere+fallback)
+- **Performance Optimized**: Advanced caching system for faster generation times (sub-30s with Gemini)
 - **URL Validation**: Comprehensive link verification prevents broken URLs in newsletters
 - **Fast Mode Processing**: Optimized prompts and processing for time-sensitive generation
 - **Feed Blacklist Management**: Automatic exclusion of problematic feeds with subscription requirements or access restrictions
@@ -56,7 +56,7 @@ An intelligent newsletter generation platform that leverages advanced AI algorit
 ### Prerequisites
 - Node.js 18+ 
 - MongoDB database
-- API keys for Cohere and/or Google Gemini
+- API key for Google Gemini
 - Clerk account for authentication
 
 ### Installation
@@ -83,7 +83,6 @@ An intelligent newsletter generation platform that leverages advanced AI algorit
    MONGODB_URI=your_mongodb_connection_string
    
    # AI APIs
-   COHERE_API_KEY=your_cohere_api_key
    GEMINI_API_KEY=your_gemini_api_key
    
    # Optional: Set to 'free' for free tier limitations
@@ -105,7 +104,7 @@ An intelligent newsletter generation platform that leverages advanced AI algorit
 - **UI Components**: Radix UI primitives with custom styling
 - **Authentication**: Clerk for secure user management
 - **Database**: MongoDB with Mongoose ODM
-- **AI Integration**: Cohere and Google Gemini APIs
+- **AI Integration**: Google Gemini API
 - **Styling**: TailwindCSS with Framer Motion animations
 - **Development**: ESLint, TypeScript, Turbopack
 
@@ -343,7 +342,7 @@ npm run check-secrets # Scan for secrets
 
 ### Environment Setup
 1. **Production Database**: Set up MongoDB Atlas or self-hosted instance
-2. **AI API Keys**: Obtain production keys for Cohere/Gemini
+2. **AI API Keys**: Obtain production key for Google Gemini
 3. **Authentication**: Configure Clerk for production domain
 4. **Environment Variables**: Set all required variables in your deployment platform
 
@@ -373,7 +372,6 @@ vercel
 ### Performance Metrics
 - **Newsletter Generation**: 
   - Gemini: 15-25 seconds average
-  - Cohere: 25-35 seconds average (with 30s timeout + automatic Gemini fallback)
   - Background Mode: No timeout limitations
 - **RSS Parsing**: Supports 115+ articles per session with intelligent batching (20 URLs per batch)
 - **Content Extraction**: Advanced full-article content fetching with quality scoring
@@ -415,12 +413,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Community**: Join discussions in GitHub Discussions
 
 ### Common Issues
-- **API Key Errors**: Verify your Cohere/Gemini API keys are valid
+- **API Key Errors**: Verify your Gemini API key is valid
 - **Database Connection**: Check MongoDB connection string format
 - **Build Failures**: Ensure all environment variables are set
 - **Authentication Issues**: Verify Clerk configuration
 - **Topic Selection**: System now includes advanced quality scoring and source diversity controls
-- **Timeout Issues**: Use background generation for Cohere, or let automatic fallback handle it
+- **Timeout Issues**: Use background generation for longer processing tasks
 - **RSS Feed Errors**: Automatic blacklist management handles subscription-required and problematic feeds
 - **Content Quality**: Enhanced content extraction now fetches full article content for better summaries
 - **Source Diversity**: Prevents single-source domination with balanced representation controls

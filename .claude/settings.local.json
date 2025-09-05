@@ -86,7 +86,8 @@
       "WebFetch(domain:www.unite.ai)",
       "WebFetch(domain:analyticsindiamag.com)",
       "WebFetch(domain:www.zdnet.com)",
-      "WebFetch(domain:spectrum.ieee.org)"
+      "WebFetch(domain:spectrum.ieee.org)",
+      "Bash(del \"F:\\AI-Create\\Claude Code\\smart-news-letter\\src\\components\\CohereWarningBanner.tsx\")"
     ],
     "deny": [],
     "ask": []

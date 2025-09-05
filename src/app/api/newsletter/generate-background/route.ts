@@ -65,7 +65,7 @@ export async function POST(request: Request) {
       success: true,
       jobId,
       message: 'Newsletter generation started in background',
-      estimatedTime: llmProvider === 'cohere' ? '45-60 seconds' : '20-30 seconds'
+      estimatedTime: '20-30 seconds'
     });
 
   } catch (error) {
@@ -150,7 +150,7 @@ async function processNewsletterInBackground(jobId: string, userId: string, requ
 
     // Fetch user settings
     const userSettings = await getUserSettings(userId);
-    const llmProvider = requestedProvider || userSettings?.preferences?.llmPreference || 'cohere';
+    const llmProvider = 'gemini';
     const maxArticles = userSettings?.preferences?.maxArticles || 5;
     const language = userSettings?.preferences?.language || 'english';
     const preferredCategories = userSettings?.preferences?.preferredCategories || ['business', 'technology', 'development'];

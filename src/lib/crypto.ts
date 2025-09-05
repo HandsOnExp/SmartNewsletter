@@ -100,9 +100,8 @@ export function isEncrypted(text: string): boolean {
  * @param apiKeys - Object containing API keys
  * @returns Object with encrypted API keys
  */
-export function encryptApiKeys(apiKeys: { cohere?: string; gemini?: string }): { cohere: string; gemini: string } {
+export function encryptApiKeys(apiKeys: { gemini?: string }): { gemini: string } {
   return {
-    cohere: apiKeys.cohere ? encryptApiKey(apiKeys.cohere) : '',
     gemini: apiKeys.gemini ? encryptApiKey(apiKeys.gemini) : ''
   };
 }
@@ -112,11 +111,8 @@ export function encryptApiKeys(apiKeys: { cohere?: string; gemini?: string }): {
  * @param encryptedApiKeys - Object containing encrypted API keys
  * @returns Object with decrypted API keys
  */
-export function decryptApiKeys(encryptedApiKeys: { cohere?: string; gemini?: string }): { cohere: string; gemini: string } {
+export function decryptApiKeys(encryptedApiKeys: { gemini?: string }): { gemini: string } {
   return {
-    cohere: encryptedApiKeys.cohere && isEncrypted(encryptedApiKeys.cohere) 
-      ? decryptApiKey(encryptedApiKeys.cohere) 
-      : encryptedApiKeys.cohere || '',
     gemini: encryptedApiKeys.gemini && isEncrypted(encryptedApiKeys.gemini) 
       ? decryptApiKey(encryptedApiKeys.gemini) 
       : encryptedApiKeys.gemini || ''

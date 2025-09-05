@@ -5,6 +5,9 @@
 ## 🚀 **[LIVE DEMO](https://smart-news-letter.vercel.app)** 
 > Experience the full app functionality with pre-configured API keys. Generate demo newsletters to explore all features!
 
+> ⚠️ Important: You must obtain your own API keys. The live demo on vercel uses my free keys, but anyone cloning this repository needs to set up their own 
+  Clerk, MongoDB, Cohere, and Gemini accounts and configure their own API keys in .env.local." 
+
 An intelligent newsletter generation platform that leverages advanced AI algorithms to curate, analyze, and format RSS content into beautiful, engaging newsletters. Never miss important AI developments again with our automated content curation system.
 
 ## ✨ Features

@@ -29,9 +29,19 @@ export async function POST() {
 
     // Fetch user settings for preferences
     const userSettings = await getUserSettings(userId);
+    
+    // Check if user has provided Gemini API key
+    const userApiKey = userSettings?.apiKeys?.gemini;
+    if (!userApiKey || userApiKey.trim() === '') {
+      return NextResponse.json<APIResponse>({ 
+        success: false, 
+        error: 'Gemini API key required. Please add your API key in Settings before generating newsletters.' 
+      }, { status: 400 });
+    }
+    
     // Always use Gemini - single provider for reliability
     const llmProvider = 'gemini';
-    console.log(`📊 USING GEMINI: Reliable AI provider for newsletter generation`);
+    console.log(`📊 USING USER'S GEMINI KEY: User-provided API key for newsletter generation`);
     const maxArticles = userSettings?.preferences?.maxArticles || 5; // Use user preference or default to 5
     const language = userSettings?.preferences?.language || 'english';
     const preferredCategories = userSettings?.preferences?.preferredCategories || ['business', 'technology', 'development'];
@@ -460,11 +470,11 @@ export async function POST() {
           'gemini',
           userId,
           () => useMultiPass 
-            ? generateNewsletterContentWithValidation(articlesForGeneration, { 
+            ? generateNewsletterContentWithValidation(articlesForGeneration, userApiKey, { 
                 ...generationOptions, 
                 multiPass: true 
               })
-            : generateNewsletterContent(articlesForGeneration, generationOptions)
+            : generateNewsletterContent(articlesForGeneration, userApiKey, generationOptions)
         );
       } catch (error) {
         console.error(`Gemini generation attempt ${generationAttempt} failed:`, error);

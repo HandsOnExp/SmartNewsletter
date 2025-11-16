@@ -149,6 +149,13 @@ async function processNewsletterInBackground(jobId: string, userId: string, _req
 
     // Fetch user settings
     const userSettings = await getUserSettings(userId);
+    
+    // Check if user has provided Gemini API key
+    const userApiKey = userSettings?.apiKeys?.gemini;
+    if (!userApiKey || userApiKey.trim() === '') {
+      throw new Error('Gemini API key required. Please add your API key in Settings before generating newsletters.');
+    }
+    
     const llmProvider = 'gemini';
     const maxArticles = userSettings?.preferences?.maxArticles || 5;
     const language = userSettings?.preferences?.language || 'english';
@@ -248,7 +255,7 @@ async function processNewsletterInBackground(jobId: string, userId: string, _req
     job.progress = 80;
 
     // Generate newsletter with optimized settings
-    const generationResult = await generateNewsletterContent(sortedArticles, {
+    const generationResult = await generateNewsletterContent(sortedArticles, userApiKey, {
       maxTopics: maxArticles,
       language,
       preferredCategories,

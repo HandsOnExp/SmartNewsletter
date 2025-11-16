@@ -33,6 +33,8 @@ export default function Dashboard() {
     topics?: NewsletterTopic[];
     conclusion?: string;
   }[]>([]);
+  
+  const [hasApiKey, setHasApiKey] = useState<boolean | null>(null); // null means checking
 
   // Create stunning gradient animations
   const gradientAnimation = {
@@ -54,8 +56,25 @@ export default function Dashboard() {
     if (user) {
       fetchDashboardStats();
       fetchRecentNewsletters();
+      checkUserApiKey();
     }
   }, [user]);
+  
+  const checkUserApiKey = async () => {
+    try {
+      const response = await fetch('/api/settings');
+      if (response.ok) {
+        const result = await response.json();
+        const hasKey = result.success && result.data?.settings?.apiKeys?.gemini?.trim();
+        setHasApiKey(!!hasKey);
+      } else {
+        setHasApiKey(false);
+      }
+    } catch (error) {
+      console.error('Failed to check API key:', error);
+      setHasApiKey(false);
+    }
+  };
 
   const fetchDashboardStats = async () => {
     try {
@@ -281,6 +300,52 @@ export default function Dashboard() {
           <DemoBanner />
         </motion.div>
 
+        {/* API Key Warning Banner */}
+        {hasApiKey === false && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mb-6"
+          >
+            <Card className="bg-gradient-to-r from-orange-900/80 to-red-900/80 backdrop-blur-xl border-orange-600">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-4">
+                    <div className="p-2 bg-orange-500/20 rounded-lg">
+                      <Sparkles className="h-6 w-6 text-orange-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-white mb-2">
+                        🔑 Gemini API Key Required
+                      </h3>
+                      <p className="text-orange-100 mb-4">
+                        You need to add your own Gemini API key to generate newsletters. This ensures you control your API usage and costs.
+                      </p>
+                      <div className="flex gap-3">
+                        <Button
+                          onClick={() => window.location.href = '/settings'}
+                          className="bg-orange-600 hover:bg-orange-700 text-white"
+                        >
+                          <Settings className="mr-2 h-4 w-4" />
+                          Add API Key in Settings
+                        </Button>
+                        <Button
+                          onClick={() => window.open('https://makersuite.google.com/app/apikey', '_blank')}
+                          variant="outline"
+                          className="border-orange-500 text-orange-300 hover:bg-orange-600 hover:text-white"
+                        >
+                          Get Free Gemini Key
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
         {/* Stats Cards */}
         <StatsCards stats={stats} />
 
@@ -338,19 +403,29 @@ export default function Dashboard() {
             </div>
 
             <motion.div
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={hasApiKey !== false ? { scale: 1.02 } : {}}
+              whileTap={hasApiKey !== false ? { scale: 0.98 } : {}}
               className="mt-8"
             >
               <Button
-                onClick={generateNewsletter}
-                disabled={isGenerating}
-                className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg"
+                onClick={hasApiKey !== false ? generateNewsletter : undefined}
+                disabled={isGenerating || hasApiKey === false}
+                className={`w-full h-14 text-lg font-semibold shadow-lg ${
+                  hasApiKey === false 
+                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed' 
+                    : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
+                }`}
+                title={hasApiKey === false ? 'Please add your Gemini API key in Settings first' : ''}
               >
                 {isGenerating ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                     Generating Magic...
+                  </>
+                ) : hasApiKey === false ? (
+                  <>
+                    <Settings className="mr-2 h-5 w-5" />
+                    API Key Required - Go to Settings
                   </>
                 ) : (
                   <>

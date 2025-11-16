@@ -69,14 +69,8 @@ export function chunkArticlesForProcessing(articles: ParsedArticle[], maxTokensP
   return chunks;
 }
 
-// Initialize Gemini AI client
-const geminiApiKey = process.env.GEMINI_API_KEY;
-
-if (!geminiApiKey) {
-  console.warn('GEMINI_API_KEY not found in environment variables');
-}
-
-const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null;
+// Note: No longer using server-side API key
+// Each user must provide their own Gemini API key
 
 // Newsletter topic interface
 export interface NewsletterTopic {
@@ -106,6 +100,7 @@ export interface NewsletterData {
 // Enhanced Gemini integration with better prompts
 export async function analyzeWithGemini(
   articles: ParsedArticle[] | ExtractedContent[],
+  userApiKey: string,
   options?: { 
     maxTopics?: number; 
     language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
@@ -115,19 +110,15 @@ export async function analyzeWithGemini(
   }
 ): Promise<{ success: boolean; content?: string; error?: string }> {
   try {
-    if (!geminiApiKey) {
+    if (!userApiKey || userApiKey.trim() === '') {
       return {
         success: false,
-        error: 'Gemini API key not found in environment variables. Please add GEMINI_API_KEY to your .env.local file.'
+        error: 'Gemini API key is required. Please add your API key in Settings to generate newsletters.'
       };
     }
-    
-    if (!genAI) {
-      return {
-        success: false,
-        error: 'Gemini API client initialization failed. Please check your API key.'
-      };
-    }
+
+    // Initialize Gemini client with user's API key
+    const genAI = new GoogleGenerativeAI(userApiKey.trim());
     
     // Handle both article types
     let resolvedArticles: ParsedArticle[] | ExtractedContent[];
@@ -161,7 +152,7 @@ export async function analyzeWithGemini(
       return { success: true, content: cachedResponse };
     }
     
-    console.log('Using Gemini API key:', geminiApiKey.substring(0, 10) + '...');
+    console.log('Using user-provided Gemini API key:', userApiKey.substring(0, 10) + '...');
 
     const model = genAI.getGenerativeModel({ 
       model: "gemini-2.0-flash-exp" // Free tier model
@@ -205,42 +196,24 @@ export async function analyzeWithGemini(
 }
 
 // Generate images with Gemini (requires paid tier)
-export async function generateImage(prompt: string): Promise<{ success: boolean; imageUrl?: string; error?: string }> {
+export async function generateImage(prompt: string, userApiKey?: string): Promise<{ success: boolean; imageUrl?: string; error?: string }> {
   try {
-    // Check if we're on free tier
-    if (process.env.GEMINI_TIER === 'free' || !process.env.GEMINI_API_KEY) {
-      // Return placeholder image URL for free tier
-      const encodedPrompt = encodeURIComponent(prompt.slice(0, 50));
-      return {
-        success: true,
-        imageUrl: `https://placehold.co/800x400/667eea/ffffff?text=${encodedPrompt}`
-      };
-    }
-    
-    // For paid tier, use actual image generation
-    if (!genAI) {
-      return {
-        success: false,
-        error: 'Gemini API key not configured'
-      };
-    }
-    
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash-exp" 
-    });
-    
-    const fullPrompt = buildGeminiImagePrompt(prompt);
-    
-    // Note: This is a placeholder for actual image generation
-    // Gemini's image generation API may have different implementation
-    await model.generateContent(fullPrompt);
-    
-    // For now, return a styled placeholder
+    // For now, always use placeholder images since image generation requires paid tier
+    // Users can upgrade to paid Gemini tier for actual image generation
     const encodedPrompt = encodeURIComponent(prompt.slice(0, 50));
     return {
       success: true,
       imageUrl: `https://placehold.co/800x400/667eea/ffffff?text=${encodedPrompt}`
     };
+    
+    // Future implementation for paid tier:
+    // if (userApiKey && process.env.GEMINI_TIER === 'paid') {
+    //   const genAI = new GoogleGenerativeAI(userApiKey);
+    //   const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    //   const fullPrompt = buildGeminiImagePrompt(prompt);
+    //   await model.generateContent(fullPrompt);
+    //   // Handle actual image generation response
+    // }
     
   } catch (error) {
     console.error('Image generation error:', error);
@@ -254,6 +227,7 @@ export async function generateImage(prompt: string): Promise<{ success: boolean;
 // Multi-pass topic generation with validation and refinement
 export async function generateNewsletterContentWithValidation(
   articles: ParsedArticle[] | ExtractedContent[],
+  userApiKey: string,
   options?: {
     maxTopics?: number; 
     language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
@@ -269,7 +243,7 @@ export async function generateNewsletterContentWithValidation(
   
   // First pass: Generate initial topics
   console.log(`🔄 Multi-pass generation: Starting initial topic generation...`);
-  const initialResult = await generateNewsletterContent(articles, {
+  const initialResult = await generateNewsletterContent(articles, userApiKey, {
     ...options,
     maxTopics: Math.min((options?.maxTopics || 7) + 3, 12) // Generate 3 extra topics for validation
   });
@@ -333,6 +307,7 @@ export async function generateNewsletterContentWithValidation(
 // Enhanced newsletter generation function
 export async function generateNewsletterContent(
   articles: ParsedArticle[] | ExtractedContent[], 
+  userApiKey: string,
   options?: { 
     maxTopics?: number; 
     language?: 'english' | 'hebrew' | 'spanish' | 'french' | 'german' | 'italian' | 'portuguese';
@@ -363,7 +338,7 @@ export async function generateNewsletterContent(
       const generationMode = options?.enhancedPrompts ? 'Enhanced' : 'Standard';
       console.log(`Newsletter generation with Gemini (${generationMode} mode, attempt ${attempt}/${maxRetries})`);
       
-      const response = await analyzeWithGemini(processedArticles, {
+      const response = await analyzeWithGemini(processedArticles, userApiKey, {
         ...options,
         useEnhancedContent: options?.useEnhancedContent,
         enhancedPrompts: options?.enhancedPrompts

@@ -30,11 +30,11 @@ NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 MONGODB_URI=your_production_mongodb_connection_string
 ```
 
-### AI APIs
+### AI APIs - User Provided Keys
 ```
-COHERE_API_KEY=your_production_cohere_api_key
-GEMINI_API_KEY=your_production_gemini_api_key
-GEMINI_TIER=free
+# No server-side AI API keys needed!
+# Users provide their own Gemini API key via Settings page
+# Get your free Gemini API key at: https://makersuite.google.com/app/apikey
 ```
 
 ### Security & Configuration
@@ -66,12 +66,19 @@ Follow the prompts:
 - Directory? **./** (current directory)
 - Modify settings? **N**
 
-### 4. Set Production Environment Variables
+### 4. Update Production Environment Variables
 In your Vercel dashboard:
 1. Go to your project
 2. Navigate to Settings → Environment Variables
-3. Add all the variables listed above
-4. **Important**: Get production API keys, don't use development keys
+3. **REMOVE these obsolete variables:**
+   - `GEMINI_API_KEY` (delete completely)
+   - `GEMINI_TIER` (delete completely) 
+   - `COHERE_API_KEY` (if present, delete completely)
+4. **KEEP these required variables:**
+   - All Clerk authentication variables
+   - `MONGODB_URI`
+   - `ENCRYPTION_KEY`
+   - `NEXT_PUBLIC_APP_URL`
 
 ### 5. Deploy to Production
 ```bash
@@ -81,11 +88,10 @@ vercel --prod
 ## 🔒 Security Considerations
 
 ### Before Deployment:
-1. **Get Production API Keys**:
+1. **Get Production Keys**:
    - Clerk: Create production environment at https://dashboard.clerk.com
    - MongoDB: Use MongoDB Atlas production cluster
-   - Cohere: Get production API key from https://cohere.com
-   - Gemini: Get production API key from https://makersuite.google.com
+   - **No AI API keys needed** - Users provide their own Gemini API key
 
 2. **Generate Secure Encryption Key**:
    ```javascript
@@ -100,17 +106,17 @@ vercel --prod
 
 ## ⚠️ Important Notes
 
-- **API Keys**: Never use development API keys in production
+- **User API Keys**: Each user provides their own Gemini API key for cost control
 - **MongoDB**: Use a production MongoDB Atlas cluster
 - **Clerk**: Configure production domains and webhooks
-- **Rate Limits**: Monitor AI API usage to avoid exceeding limits
+- **No Server AI Costs**: Users pay for their own API usage through their keys
 
 ## 🐛 Common Deployment Issues
 
 ### Build Fails
 - Check all environment variables are set
 - Verify MongoDB connection string format
-- Ensure API keys are valid
+- Ensure no obsolete AI API keys are set (users provide their own)
 
 ### Authentication Issues
 - Verify Clerk configuration for production domain
@@ -127,10 +133,11 @@ vercel --prod
 ## 📊 Post-Deployment Testing
 
 1. **Authentication**: Test sign-up and sign-in
-2. **Newsletter Generation**: Generate a test newsletter
-3. **RSS Feeds**: Verify feeds are loading
-4. **Settings**: Test API key configuration
-5. **Email**: Test newsletter email functionality
+2. **API Key Setup**: Verify new users see API key warning banner
+3. **Settings**: Test API key configuration and validation
+4. **Newsletter Generation**: Test with user-provided API key
+5. **RSS Feeds**: Verify feeds are loading
+6. **Email**: Test newsletter email functionality
 
 ## 🔄 Continuous Deployment
 
@@ -141,6 +148,33 @@ git add .
 git commit -m "Deploy to production"
 git push origin main
 ```
+
+## 🔄 Migrating from Server-Side to User-Provided API Keys
+
+If you're updating from the previous version that used server-side API keys:
+
+### Step 1: Update Vercel Environment Variables
+1. **Access Vercel Dashboard**: Go to https://vercel.com/dashboard
+2. **Select Your Project**: Click on your smart newsletter project
+3. **Go to Settings**: Click Settings → Environment Variables
+4. **Delete Obsolete Variables**:
+   - Find and delete `GEMINI_API_KEY`
+   - Find and delete `GEMINI_TIER` 
+   - Find and delete `COHERE_API_KEY` (if present)
+5. **Click Save**: Vercel will automatically redeploy
+
+### Step 2: Verify Deployment
+1. **Check Build Logs**: Ensure the build completes successfully
+2. **Test New User Flow**: 
+   - Create a new account
+   - Verify the API key warning banner appears
+   - Test adding an API key in Settings
+3. **Test Newsletter Generation**: Confirm it works with user-provided keys
+
+### Step 3: Communicate with Existing Users
+- Existing users will need to add their own Gemini API key
+- They'll see the warning banner guiding them through setup
+- No action needed from you - the UI handles user onboarding
 
 ## 📞 Support
 

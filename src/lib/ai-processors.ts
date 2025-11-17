@@ -154,43 +154,99 @@ export async function analyzeWithGemini(
     
     console.log('Using user-provided Gemini API key:', userApiKey.substring(0, 10) + '...');
 
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-2.0-flash-exp" // Free tier model
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash" // Stable free tier model with better quotas
     });
-    
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const rawContent = response.text();
-    
-    // Use shared processing function for consistent Hebrew support
-    const processResult = processAIResponse(rawContent, options?.language);
-    if (processResult.success) {
-      // Cache successful response
-      cacheAIResponse(cacheKey, processResult.content!);
-      return {
-        success: true,
-        content: processResult.content
-      };
-    } else {
-      return {
-        success: false,
-        error: processResult.error
-      };
+
+    // Retry logic with exponential backoff for rate limits
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const rawContent = response.text();
+
+        // Success - process the response
+        const processResult = processAIResponse(rawContent, options?.language);
+        if (processResult.success) {
+          // Cache successful response
+          cacheAIResponse(cacheKey, processResult.content!);
+          return {
+            success: true,
+            content: processResult.content
+          };
+        } else {
+          return {
+            success: false,
+            error: processResult.error
+          };
+        }
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+
+        // Check if it's a rate limit error (429)
+        const isRateLimitError = lastError.message.includes('429') ||
+                                  lastError.message.includes('quota') ||
+                                  lastError.message.includes('rate limit');
+
+        if (isRateLimitError && attempt < maxRetries) {
+          // Extract retry delay from error message if available
+          const retryMatch = lastError.message.match(/retry.*?(\d+(?:\.\d+)?)\s*s/i);
+          const suggestedDelay = retryMatch ? parseFloat(retryMatch[1]) * 1000 : null;
+
+          // Use suggested delay or exponential backoff: 2s, 4s, 8s
+          const delay = suggestedDelay || (Math.pow(2, attempt) * 1000);
+
+          console.log(`Rate limit hit (attempt ${attempt}/${maxRetries}). Retrying in ${delay/1000}s...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+
+        // If not a rate limit error or last attempt, throw
+        if (attempt === maxRetries) {
+          throw lastError;
+        }
+      }
     }
+
+    // If we get here, all retries failed
+    throw lastError || new Error('All retry attempts failed');
+
   } catch (error) {
     console.error('Gemini API error details:', error);
-    
-    // Check for specific API key errors
-    if (error instanceof Error && error.message.includes('API key not valid')) {
-      return { 
-        success: false, 
-        error: 'Invalid Gemini API key. Please get a new key from https://makersuite.google.com/app/apikey' 
-      };
+
+    // Check for specific error types and provide helpful messages
+    if (error instanceof Error) {
+      // API key validation errors
+      if (error.message.includes('API key not valid')) {
+        return {
+          success: false,
+          error: 'Invalid Gemini API key. Please get a new key from https://makersuite.google.com/app/apikey'
+        };
+      }
+
+      // Quota and rate limit errors
+      if (error.message.includes('429') || error.message.includes('quota') || error.message.includes('rate limit')) {
+        return {
+          success: false,
+          error: 'Gemini API quota exceeded. Your free tier has reached its limit. Options: 1) Wait a few minutes and try again, 2) Upgrade your Gemini API plan at https://ai.google.dev/pricing, or 3) Get a new API key at https://makersuite.google.com/app/apikey'
+        };
+      }
+
+      // Model access errors
+      if (error.message.includes('model') && error.message.includes('not found')) {
+        return {
+          success: false,
+          error: 'The AI model is temporarily unavailable. Please try again in a few minutes.'
+        };
+      }
     }
-    
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown Gemini error' 
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown Gemini error'
     };
   }
 }

@@ -37,7 +37,7 @@ MONGODB_URI=your_production_mongodb_connection_string
 # Get your free Gemini API key at: https://makersuite.google.com/app/apikey
 
 # Model Information:
-# - Uses gemini-1.5-flash (stable model with good free tier quotas)
+# - Uses gemini-2.0-flash (latest stable model, 1.5 models retired April 2025)
 # - Free tier limits: 15 requests per minute, 1 million tokens per day
 # - Automatic retry logic with exponential backoff for rate limits
 # - For higher limits, users can upgrade at: https://ai.google.dev/pricing
@@ -138,13 +138,13 @@ vercel --prod
 
 ### Gemini API Quota Errors
 If users encounter "quota exceeded" or "429 Too Many Requests" errors:
-1. **Free Tier Limits**: gemini-1.5-flash has 15 requests/minute, 1M tokens/day
+1. **Free Tier Limits**: gemini-2.0-flash has 15 requests/minute, 1M tokens/day
 2. **Solutions**:
    - Wait a few minutes for quota to reset
    - Get a new API key at https://makersuite.google.com/app/apikey
    - Upgrade to paid tier at https://ai.google.dev/pricing
 3. **Automatic Retry**: The app automatically retries with exponential backoff
-4. **Model Stability**: Using stable gemini-1.5-flash (not experimental models)
+4. **Model Info**: Using stable gemini-2.0-flash (Gemini 1.5 models retired April 2025)
 
 ## 📊 Post-Deployment Testing
 

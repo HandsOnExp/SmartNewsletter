@@ -155,7 +155,7 @@ export async function analyzeWithGemini(
     console.log('Using user-provided Gemini API key:', userApiKey.substring(0, 10) + '...');
 
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash" // Stable free tier model with better quotas
+      model: "gemini-2.0-flash" // Latest stable model (1.5 retired April 2025)
     });
 
     // Retry logic with exponential backoff for rate limits

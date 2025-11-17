@@ -392,9 +392,9 @@ export default function Dashboard() {
               <div className="p-4 bg-gray-800 rounded-lg border-2 border-green-500/50">
                 <h3 className="text-lg font-semibold text-white mb-2 flex items-center">
                   <span className="w-3 h-3 bg-green-500 rounded-full mr-3"></span>
-                  Gemini 2.0 Flash (Active)
+                  Gemini 1.5 Flash (Active)
                 </h3>
-                <p className="text-gray-400">Advanced generation with image support • 15 req/min free</p>
+                <p className="text-gray-400">Stable production model • 15 req/min, 1M tokens/day free</p>
                 <div className="mt-3 flex items-center space-x-2">
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   <span className="text-sm text-green-400">Ready to use</span>

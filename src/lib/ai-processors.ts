@@ -196,10 +196,14 @@ export async function analyzeWithGemini(
           const retryMatch = lastError.message.match(/retry.*?(\d+(?:\.\d+)?)\s*s/i);
           const suggestedDelay = retryMatch ? parseFloat(retryMatch[1]) * 1000 : null;
 
-          // Use suggested delay or exponential backoff: 2s, 4s, 8s
-          const delay = suggestedDelay || (Math.pow(2, attempt) * 1000);
+          // Cap maximum retry delay to 5 seconds for Vercel timeout compatibility
+          const MAX_RETRY_DELAY = 5000; // 5 seconds
 
-          console.log(`Rate limit hit (attempt ${attempt}/${maxRetries}). Retrying in ${delay/1000}s...`);
+          // Use suggested delay or exponential backoff: 2s, 4s, 8s
+          const baseDelay = suggestedDelay || (Math.pow(2, attempt) * 1000);
+          const delay = Math.min(baseDelay, MAX_RETRY_DELAY);
+
+          console.log(`Rate limit hit (attempt ${attempt}/${maxRetries}). Retrying in ${delay/1000}s...${suggestedDelay && suggestedDelay > MAX_RETRY_DELAY ? ` (capped from ${suggestedDelay/1000}s)` : ''}`);
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
         }

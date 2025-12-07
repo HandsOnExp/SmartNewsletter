@@ -10,6 +10,10 @@ import {
   LazyContent
 } from '@/utils/cache-optimization';
 
+// Request throttling to respect Gemini free tier rate limits
+let lastGeminiRequestTime = 0;
+const MIN_REQUEST_INTERVAL = 10000; // 10 seconds between requests for free tier
+
 // Helper function to resolve LazyContent in articles with chunked processing
 async function resolveArticleContent(articles: ParsedArticle[]): Promise<ParsedArticle[]> {
   const CHUNK_SIZE = 10; // Process articles in chunks to prevent memory overload
@@ -159,8 +163,19 @@ export async function analyzeWithGemini(
     });
 
     // Retry logic with exponential backoff for rate limits
-    const maxRetries = 3;
+    // Reduced to 2 retries to stay within Vercel's 60s timeout (15s + 15s + processing = ~35s)
+    const maxRetries = 2;
     let lastError: Error | null = null;
+
+    // Throttle requests to respect Gemini free tier rate limits
+    const now = Date.now();
+    const timeSinceLastRequest = now - lastGeminiRequestTime;
+    if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
+      const waitTime = MIN_REQUEST_INTERVAL - timeSinceLastRequest;
+      console.log(`⏱️ Throttling Gemini request: waiting ${(waitTime/1000).toFixed(1)}s to respect rate limits...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    lastGeminiRequestTime = Date.now();
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -196,14 +211,16 @@ export async function analyzeWithGemini(
           const retryMatch = lastError.message.match(/retry.*?(\d+(?:\.\d+)?)\s*s/i);
           const suggestedDelay = retryMatch ? parseFloat(retryMatch[1]) * 1000 : null;
 
-          // Cap maximum retry delay to 5 seconds for Vercel timeout compatibility
-          const MAX_RETRY_DELAY = 5000; // 5 seconds
+          // Gemini free tier has strict burst rate limits (1-2 requests per 10s)
+          // Use minimum 15 seconds between retries to respect these limits
+          const MIN_RETRY_DELAY = 15000; // 15 seconds minimum for free tier
+          const MAX_RETRY_DELAY = 20000; // 20 seconds maximum for Vercel timeout
 
-          // Use suggested delay or exponential backoff: 2s, 4s, 8s
-          const baseDelay = suggestedDelay || (Math.pow(2, attempt) * 1000);
-          const delay = Math.min(baseDelay, MAX_RETRY_DELAY);
+          // Use suggested delay, exponential backoff, or minimum delay
+          const baseDelay = suggestedDelay || (Math.pow(2, attempt) * 5000); // 5s, 10s, 20s
+          const delay = Math.max(MIN_RETRY_DELAY, Math.min(baseDelay, MAX_RETRY_DELAY));
 
-          console.log(`Rate limit hit (attempt ${attempt}/${maxRetries}). Retrying in ${delay/1000}s...${suggestedDelay && suggestedDelay > MAX_RETRY_DELAY ? ` (capped from ${suggestedDelay/1000}s)` : ''}`);
+          console.log(`Rate limit hit (attempt ${attempt}/${maxRetries}). Waiting ${delay/1000}s to respect Gemini free tier limits...${suggestedDelay ? ` (API suggested: ${suggestedDelay/1000}s)` : ''}`);
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
         }

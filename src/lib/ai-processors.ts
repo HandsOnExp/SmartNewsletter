@@ -9,10 +9,11 @@ import {
   createContentHash,
   LazyContent
 } from '@/utils/cache-optimization';
+import { geminiQueue } from '@/lib/request-queue';
+import { Newsletter } from '@/types';
 
-// Request throttling to respect Gemini free tier rate limits
-let lastGeminiRequestTime = 0;
-const MIN_REQUEST_INTERVAL = 10000; // 10 seconds between requests for free tier
+// Note: Request throttling is now handled by the geminiQueue
+// No need for module-level throttling variables
 
 // Helper function to resolve LazyContent in articles with chunked processing
 async function resolveArticleContent(articles: ParsedArticle[]): Promise<ParsedArticle[]> {
@@ -158,39 +159,31 @@ export async function analyzeWithGemini(
     
     console.log('Using user-provided Gemini API key:', userApiKey.substring(0, 10) + '...');
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.0-flash" // Latest stable model (1.5 retired April 2025)
-    });
+    // Define the processor function that actually calls Gemini
+    // This will be queued to ensure sequential processing with proper delays
+    const processor = async (prompt: string, options: Record<string, unknown>) => {
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.0-flash" // Latest stable model (1.5 retired April 2025)
+      });
 
-    // Retry logic with exponential backoff for rate limits
-    // Reduced to 2 retries to stay within Vercel's 60s timeout (15s + 15s + processing = ~35s)
-    const maxRetries = 2;
-    let lastError: Error | null = null;
+      // Retry logic with exponential backoff for rate limits
+      // Reduced to 1 retry to conserve quota (per rate limiting plan)
+      const maxRetries = 1;
+      let lastError: Error | null = null;
 
-    // Throttle requests to respect Gemini free tier rate limits
-    const now = Date.now();
-    const timeSinceLastRequest = now - lastGeminiRequestTime;
-    if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
-      const waitTime = MIN_REQUEST_INTERVAL - timeSinceLastRequest;
-      console.log(`⏱️ Throttling Gemini request: waiting ${(waitTime/1000).toFixed(1)}s to respect rate limits...`);
-      await new Promise(resolve => setTimeout(resolve, waitTime));
-    }
-    lastGeminiRequestTime = Date.now();
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const rawContent = response.text();
 
         // Success - process the response
-        const processResult = processAIResponse(rawContent, options?.language);
+        const processResult = processAIResponse(rawContent, options?.language as string | undefined);
         if (processResult.success) {
-          // Cache successful response
-          cacheAIResponse(cacheKey, processResult.content!);
+          // Return in format expected by queue
           return {
             success: true,
-            content: processResult.content
+            data: processResult.content as unknown as Newsletter
           };
         } else {
           return {
@@ -212,15 +205,15 @@ export async function analyzeWithGemini(
           const suggestedDelay = retryMatch ? parseFloat(retryMatch[1]) * 1000 : null;
 
           // Gemini free tier has strict burst rate limits (1-2 requests per 10s)
-          // Use minimum 15 seconds between retries to respect these limits
-          const MIN_RETRY_DELAY = 15000; // 15 seconds minimum for free tier
-          const MAX_RETRY_DELAY = 20000; // 20 seconds maximum for Vercel timeout
+          // Use 20s base delay with jitter to prevent thundering herd
+          const BASE_RETRY_DELAY = 20000; // 20 seconds base delay
+          const MAX_JITTER = 5000; // 0-5 seconds random jitter
 
-          // Use suggested delay, exponential backoff, or minimum delay
-          const baseDelay = suggestedDelay || (Math.pow(2, attempt) * 5000); // 5s, 10s, 20s
-          const delay = Math.max(MIN_RETRY_DELAY, Math.min(baseDelay, MAX_RETRY_DELAY));
+          // Add jitter to prevent multiple requests retrying simultaneously
+          const jitter = Math.random() * MAX_JITTER;
+          const delay = BASE_RETRY_DELAY + jitter;
 
-          console.log(`Rate limit hit (attempt ${attempt}/${maxRetries}). Waiting ${delay/1000}s to respect Gemini free tier limits...${suggestedDelay ? ` (API suggested: ${suggestedDelay/1000}s)` : ''}`);
+          console.log(`Rate limit hit (attempt ${attempt}/${maxRetries}). Waiting ${(delay/1000).toFixed(1)}s to respect Gemini free tier limits...${suggestedDelay ? ` (API suggested: ${suggestedDelay/1000}s)` : ''}`);
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
         }
@@ -232,8 +225,28 @@ export async function analyzeWithGemini(
       }
     }
 
-    // If we get here, all retries failed
-    throw lastError || new Error('All retry attempts failed');
+      // If we get here, all retries failed
+      throw lastError || new Error('All retry attempts failed');
+    };
+
+    // Enqueue the request to ensure sequential processing with 10s gaps
+    // The queue will handle the request and return the result
+    console.log('📥 Enqueueing Gemini API request to prevent rate limits...');
+    const result = await geminiQueue.enqueue(
+      userApiKey, // Use API key as a simple user identifier
+      prompt,
+      options as Record<string, unknown> || {},
+      processor
+    );
+
+    // Return the result (convert Newsletter back to string for backward compatibility)
+    if (result.success && result.data) {
+      // result.data is actually the string content (processResult.content)
+      // We just cast it through Newsletter type for the queue interface
+      return { success: true, content: result.data as unknown as string };
+    }
+
+    return { success: false, error: result.error || 'Unknown error' };
 
   } catch (error) {
     console.error('Gemini API error details:', error);

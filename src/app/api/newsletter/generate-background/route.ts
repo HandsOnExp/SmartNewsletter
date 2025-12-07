@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { connectDB } from '@/lib/db';
+import { userRateLimiter } from '@/lib/rate-limiter';
 import { APIResponse, NewsletterGenerationResponse, CustomRSSFeed } from '@/types';
 
 // Background job status tracking
@@ -34,8 +35,25 @@ export async function POST(request: Request) {
       }, { status: 401 });
     }
 
+    // Check per-user rate limits (1 request per 30 seconds)
+    const rateCheck = userRateLimiter.checkLimit(userId);
+    if (!rateCheck.allowed) {
+      return NextResponse.json<APIResponse>({
+        success: false,
+        error: rateCheck.message || 'Rate limit exceeded'
+      }, {
+        status: 429,
+        headers: {
+          'Retry-After': String(rateCheck.retryAfter || 30)
+        }
+      });
+    }
+
+    // Record this request for rate limiting
+    userRateLimiter.recordRequest(userId);
+
     const body = await request.json();
-    
+
     // Generate unique job ID
     const jobId = `${userId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     

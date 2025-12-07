@@ -23,6 +23,9 @@ export default function Dashboard() {
   const selectedLLM = 'gemini';
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [refreshingFeeds, setRefreshingFeeds] = useState(false);
+  const [lastGenerationTime, setLastGenerationTime] = useState<number>(0);
+  const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
+  const COOLDOWN_PERIOD = 30000; // 30 seconds to match server-side rate limit
   const [recentNewsletters, setRecentNewsletters] = useState<{
     _id: string;
     title: string;
@@ -146,13 +149,39 @@ export default function Dashboard() {
     }
   };
 
+  // Cooldown timer effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (lastGenerationTime > 0) {
+        const elapsed = Date.now() - lastGenerationTime;
+        const remaining = Math.max(0, COOLDOWN_PERIOD - elapsed);
+        setCooldownRemaining(remaining);
+
+        if (remaining === 0) {
+          clearInterval(interval);
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [lastGenerationTime, COOLDOWN_PERIOD]);
+
   const generateNewsletter = async () => {
     if (!user) {
       toast.error('Please sign in to generate newsletters');
       return;
     }
 
+    // Check cooldown
+    const elapsed = Date.now() - lastGenerationTime;
+    if (lastGenerationTime > 0 && elapsed < COOLDOWN_PERIOD) {
+      const remainingSeconds = Math.ceil((COOLDOWN_PERIOD - elapsed) / 1000);
+      toast.error(`Please wait ${remainingSeconds} seconds before generating another newsletter`);
+      return;
+    }
+
     setIsGenerating(true);
+    setLastGenerationTime(Date.now());
     
     try {
       const response = await fetch('/api/newsletter/generate', {
@@ -408,24 +437,35 @@ export default function Dashboard() {
               className="mt-8"
             >
               <Button
-                onClick={hasApiKey !== false ? generateNewsletter : undefined}
-                disabled={isGenerating || hasApiKey === false}
+                onClick={hasApiKey !== false && cooldownRemaining === 0 ? generateNewsletter : undefined}
+                disabled={isGenerating || hasApiKey === false || cooldownRemaining > 0}
                 className={`w-full h-14 text-lg font-semibold shadow-lg ${
-                  hasApiKey === false 
-                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed' 
+                  hasApiKey === false || cooldownRemaining > 0
+                    ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
                     : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
                 }`}
-                title={hasApiKey === false ? 'Please add your Gemini API key in Settings first' : ''}
+                title={
+                  hasApiKey === false
+                    ? 'Please add your Gemini API key in Settings first'
+                    : cooldownRemaining > 0
+                    ? `Please wait ${Math.ceil(cooldownRemaining / 1000)} seconds before generating another newsletter`
+                    : 'Newsletter generation may take 20-40 seconds'
+                }
               >
                 {isGenerating ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Generating Magic...
+                    Generating your newsletter...
                   </>
                 ) : hasApiKey === false ? (
                   <>
                     <Settings className="mr-2 h-5 w-5" />
                     API Key Required - Go to Settings
+                  </>
+                ) : cooldownRemaining > 0 ? (
+                  <>
+                    <Clock className="mr-2 h-5 w-5" />
+                    Wait {Math.ceil(cooldownRemaining / 1000)}s
                   </>
                 ) : (
                   <>

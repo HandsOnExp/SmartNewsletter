@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { fetchAllFeedsWithEnhancement, deduplicateArticles, sortArticlesByDate, filterArticlesByTimePeriod, FilterResult } from '@/lib/rss-parser';
-import { generateNewsletterContent, generateNewsletterContentWithValidation, checkRateLimit } from '@/lib/ai-processors';
+import { generateNewsletterContent, generateNewsletterContentWithValidation } from '@/lib/ai-processors';
+import { userRateLimiter } from '@/lib/rate-limiter';
 import { monitoredGeneration } from '@/lib/performance-monitor';
 import { RSS_FEEDS } from '@/config/rss-feeds';
 import { createNewsletter, connectDB, getUserSettings } from '@/lib/db';
@@ -46,14 +47,22 @@ export async function POST() {
     const language = userSettings?.preferences?.language || 'english';
     const preferredCategories = userSettings?.preferences?.preferredCategories || ['business', 'technology', 'development'];
 
-    // Check rate limits
-    const rateCheck = checkRateLimit();
+    // Check per-user rate limits (1 request per 30 seconds)
+    const rateCheck = userRateLimiter.checkLimit(userId);
     if (!rateCheck.allowed) {
-      return NextResponse.json<APIResponse>({ 
-        success: false, 
-        error: rateCheck.message || 'Rate limit exceeded' 
-      }, { status: 429 });
+      return NextResponse.json<APIResponse>({
+        success: false,
+        error: rateCheck.message || 'Rate limit exceeded'
+      }, {
+        status: 429,
+        headers: {
+          'Retry-After': String(rateCheck.retryAfter || 30)
+        }
+      });
     }
+
+    // Record this request for rate limiting
+    userRateLimiter.recordRequest(userId);
 
     const startTime = Date.now();
     console.log(`🚀 Starting newsletter generation for user ${userId} with ${llmProvider}`);

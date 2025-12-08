@@ -163,7 +163,7 @@ export async function analyzeWithGemini(
     // This will be queued to ensure sequential processing with proper delays
     const processor = async (prompt: string, options: Record<string, unknown>) => {
       const model = genAI.getGenerativeModel({
-        model: "gemini-1.5-flash" // Using 1.5 Flash (free tier has limit: 0 for 2.0)
+        model: "gemini-2.5-flash" // Using 2.5 Flash (free tier: 10 req/min, 250 req/day)
       });
 
       // Retry logic with exponential backoff for rate limits

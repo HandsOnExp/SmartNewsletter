@@ -704,7 +704,7 @@ export default function SettingsPage() {
                     )}
                   </div>
                   <p className="text-xs text-gray-500">
-                    Get your key at makersuite.google.com • 15 requests/min free
+                    Get your key at makersuite.google.com • 10 requests/min, 250 per day (Gemini 2.5 Flash free tier)
                   </p>
                 </div>
               </CardContent>

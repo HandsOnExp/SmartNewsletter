@@ -14,7 +14,7 @@ export const RSS_FEEDS = [
     url: 'https://venturebeat.com/ai/feed/',
     category: 'business',
     priority: 2, // High priority reliable business source
-    enabled: true
+    enabled: false // Disabled: Returns 429 (rate limited)
   },
   {
     id: 'enterprise-ai-news',
@@ -22,7 +22,7 @@ export const RSS_FEEDS = [
     url: 'https://www.enterpriseai.news/feed/',
     category: 'business',
     priority: 4, // Backup business source
-    enabled: true
+    enabled: false // Disabled: Returns 403 (forbidden)
   },
 
   // Technology Category - Premium sources get higher priority

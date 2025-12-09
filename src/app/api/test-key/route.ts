@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export async function POST(request: Request) {
   try {
@@ -44,58 +45,16 @@ export async function POST(request: Request) {
 
 async function testGeminiKey(apiKey: string) {
   try {
-    const response = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-goog-api-key': apiKey,
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: 'Test connection - respond with just "OK"'
-                }
-              ]
-            }
-          ],
-          generationConfig: {
-            temperature: 0,
-            maxOutputTokens: 10
-          }
-        }),
-      }
-    );
+    // Use SDK wrapper (same as newsletter generation for consistency)
+    const genAI = new GoogleGenerativeAI(apiKey.trim());
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      let errorMessage = 'Invalid API key or request failed';
-      
-      try {
-        const parsedError = JSON.parse(errorData);
-        if (parsedError.error?.message) {
-          errorMessage = parsedError.error.message;
-        }
-      } catch {
-        // If not JSON, use the raw error
-        if (errorData) {
-          errorMessage = errorData.substring(0, 100);
-        }
-      }
+    const result = await model.generateContent('Test connection - respond with just "OK"');
+    const response = await result.response;
+    const text = response.text();
 
-      return {
-        success: false,
-        error: errorMessage
-      };
-    }
-
-    const data = await response.json();
-    
-    // Check if we got a valid response
-    if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+    // More flexible validation - check for any text response
+    if (text && text.length > 0) {
       return {
         success: true,
         message: 'Gemini API key is working correctly'
@@ -103,14 +62,33 @@ async function testGeminiKey(apiKey: string) {
     } else {
       return {
         success: false,
-        error: 'API key is valid but response format is unexpected'
+        error: 'API key is valid but received empty response'
       };
     }
 
   } catch (error) {
+    // Enhanced error messages for better debugging
+    if (error instanceof Error) {
+      if (error.message.includes('API key not valid')) {
+        return {
+          success: false,
+          error: 'Invalid API key. Please check your key at https://makersuite.google.com/app/apikey'
+        };
+      }
+      if (error.message.includes('404') || error.message.includes('not found')) {
+        return {
+          success: false,
+          error: 'Model not available for this API key. Please ensure you have access to Gemini 2.5 Flash.'
+        };
+      }
+      return {
+        success: false,
+        error: error.message
+      };
+    }
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Network error'
+      error: 'Network error'
     };
   }
 }

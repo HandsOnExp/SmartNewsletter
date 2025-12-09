@@ -10,8 +10,14 @@ import path from 'path';
 // Temporary in-memory storage (in production, use Redis or database)
 const tempSettings = new Map<string, UserSettings>();
 
-// File-based storage functions
-const getSettingsFilePath = () => {
+// Check if we're in a serverless environment (Vercel)
+// In serverless, we can't create directories or write files
+const IS_SERVERLESS = !!process.env.VERCEL;
+
+// File-based storage functions (only work in non-serverless environments)
+const getSettingsFilePath = (): string | null => {
+  if (IS_SERVERLESS) return null; // Skip file storage in serverless
+
   const settingsDir = path.join(process.cwd(), '.temp-settings');
   if (!fs.existsSync(settingsDir)) {
     fs.mkdirSync(settingsDir, { recursive: true });
@@ -20,9 +26,14 @@ const getSettingsFilePath = () => {
 };
 
 const loadFileSettings = (): Map<string, UserSettings> => {
+  if (IS_SERVERLESS) {
+    console.log('Serverless environment detected - skipping file storage, using in-memory only');
+    return new Map();
+  }
+
   try {
     const filePath = getSettingsFilePath();
-    if (fs.existsSync(filePath)) {
+    if (filePath && fs.existsSync(filePath)) {
       const data = fs.readFileSync(filePath, 'utf8');
       const parsed = JSON.parse(data);
       return new Map(Object.entries(parsed));
@@ -34,16 +45,23 @@ const loadFileSettings = (): Map<string, UserSettings> => {
 };
 
 const saveFileSettings = (settings: Map<string, UserSettings>) => {
+  if (IS_SERVERLESS) {
+    console.log('Serverless environment - skipping file save, using in-memory storage');
+    return; // Skip file storage in serverless
+  }
+
   try {
     const filePath = getSettingsFilePath();
-    const data = Object.fromEntries(settings.entries());
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    if (filePath) {
+      const data = Object.fromEntries(settings.entries());
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+    }
   } catch (error) {
     console.error('Error saving file settings:', error);
   }
 };
 
-// Load existing settings from file on startup
+// Load existing settings from file on startup (skipped in serverless)
 const fileSettings = loadFileSettings();
 
 export async function GET() {
